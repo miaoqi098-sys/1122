@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ContentConversionEvent.schema.json",
+  "title": "ContentConversionEvent",
+  "type": "object",
+  "required": ["event_id", "agent_id", "event_type", "scope", "observed_at", "severity", "confidence", "evidence"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "agent_id": {"const": "Agent-9"},
+    "event_type": {
+      "type": "string",
+      "enum": ["CVR_DROP_WITH_STABLE_TRAFFIC", "CVR_DROP_AFTER_CONTENT_CHANGE", "MOBILE_CONVERSION_GAP", "VARIATION_CONVERSION_GAP", "CONTENT_MISMATCH", "BUYER_CONFUSION_SIGNAL", "CONTENT_OPPORTUNITY", "EXPERIMENT_RESULT", "DATA_QUALITY_RISK"]
+    },
+    "scope": {"type": "object"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "severity": {"type": "string", "enum": ["info", "low", "medium", "high", "critical"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "conversion_context": {"type": "object"},
+    "content_version_refs": {"type": "array", "items": {"type": "string"}},
+    "diagnosed_issues": {"type": "array", "items": {"type": "object"}},
+    "causal_level": {"type": "string", "enum": ["observed_correlation", "plausible_driver", "experiment_supported", "confirmed", "unknown"]},
+    "confounders": {"type": "array", "items": {"type": "object"}},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "requires_other_agents": {"type": "array", "items": {"type": "string"}},
+    "recommended_validation": {"type": ["string", "null"]},
+    "source_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

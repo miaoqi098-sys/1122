@@ -1,0 +1,43 @@
+{
+  "template_id": "DT-A1-RCO-001",
+  "template_name": "风险合规决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "risk_compliance",
+  "description": "用于Agent-1处理平台政策、可售资格、知识产权、危险品、绩效、资质审核和申诉相关风险，并对其他经营方案形成资格约束。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "decision", "investigation"],
+  "supported_scopes": ["account", "store", "parent_product", "product", "sku"],
+  "trigger_patterns": ["listing_suppressed", "qualification_review", "hazmat_risk", "ip_risk", "performance_notification", "policy_change", "appeal_required"],
+  "applicable_states": ["风险状态引用经营状态识别模块"],
+  "exclusion_conditions": ["风险事实来源不可追溯", "问题纯属经营效率且无合规/资格影响", "需要外部专业法律判断且仓库证据不足"],
+  "required_context": ["风险事件事实", "受影响Scope", "平台/政策/通知证据", "商品与Listing状态", "历史申诉/审核记录", "当前经营动作", "潜在账户/销售影响"],
+  "required_metrics": [
+    {"metric_ref": "risk.severity", "purpose": "确定风险影响等级", "freshness_requirement": "当前事件", "requirement_level": "required"},
+    {"metric_ref": "risk.sellability_state", "purpose": "确认可售资格影响", "freshness_requirement": "当前", "requirement_level": "required"},
+    {"metric_ref": "risk.deadline_or_response_window", "purpose": "确定处置时效", "freshness_requirement": "当前通知", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "平台通知/审核/冻结等原始证据", "requirement_level": "required", "freshness_requirement": "当前事件版本"},
+    {"evidence_type": "商品/Listing/账户当前状态", "requirement_level": "required", "freshness_requirement": "当前"},
+    {"evidence_type": "相关资质/知识产权/危险品材料", "requirement_level": "preferred", "freshness_requirement": "有效版本"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-12", "purpose": "提供风险事实、影响、政策/合规分析与建议", "requirement_level": "required"},
+    {"agent_id": "Agent-2", "purpose": "提供商品可售与后台状态", "requirement_level": "preferred"}
+  ],
+  "required_constraints": ["账户安全", "商品可售资格", "平台政策", "知识产权", "危险品/资质", "响应时限", "审批/人工复核"],
+  "key_questions": ["风险事实是否可信且可追溯？", "影响的是账户、店铺、ASIN、SKU还是具体内容？", "哪些经营动作必须立即暂停或限制？", "是否存在响应/申诉期限？", "当前证据足以自动形成方案还是必须人工复核？"],
+  "option_comparison_dimensions": ["合规资格", "风险降低幅度", "时效", "证据充分性", "业务影响", "可逆性", "人工/审批要求"],
+  "risk_focus": ["错误解读政策", "低估账户级影响", "证据不足仍继续高风险动作", "错过申诉/响应窗口", "修改内容引入新的合规问题"],
+  "approval_focus": ["账户级高风险事项", "知识产权/法律争议", "需要提交正式申诉或资质材料", "可能导致大范围下架/停售的动作"],
+  "task_requirements": ["保留原始证据引用", "明确影响Scope", "明确响应时限", "区分立即止损与后续修复", "需要人工审批时建立审批节点"],
+  "observation_requirements": ["跟踪审核/申诉状态", "监控可售状态恢复/恶化", "检查处置后是否出现新通知", "重大风险期间持续检查相关经营动作"],
+  "rollback_requirements": ["新证据推翻原判断时撤销不必要限制", "处置动作引发更高风险时立即停止", "政策/资格状态变化时重新决策"],
+  "review_triggers": ["新平台通知", "审核状态变化", "可售状态变化", "新证据到达", "申诉结果返回", "响应期限临近"],
+  "learning_focus": ["风险事件模式", "有效证据结构", "审核/申诉时效", "处置动作与恢复结果"],
+  "supersedes": null,
+  "tags": ["risk", "compliance", "policy", "ip", "hazmat", "appeal"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["模板不固化可能变化的平台规则", "高影响低置信度风险默认进入人工/审批复核"]}
+}

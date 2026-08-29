@@ -1,27 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S03 冲突检测输入规范 V1.1",
+  "title": "S03 冲突检测输入规范 V1.2",
   "type": "object",
-  "required": ["event_id", "product_id", "context_package"],
+  "required": ["event_id", "scope", "context_package"],
   "properties": {
     "event_id": {"type": "string", "minLength": 1},
-    "product_id": {"type": "string", "minLength": 1},
-    "context_package": {"type": "object"},
-    "current_goals": {"type": "object"},
-    "active_tasks": {"type": "array"},
-    "agent_analyses": {"type": "array"},
-    "hard_constraints": {"type": "array"},
+    "scope": {
+      "type": "object",
+      "required": ["scope_type"],
+      "properties": {
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global"]},
+        "scope_id": {"type": ["string", "null"]},
+        "product_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "context_package": {"type": "object", "description": "唯一权威上下文来源，直接承接S02.context_package。"},
+    "context_refs": {"type": "array", "items": {"type": "string"}},
     "normalized_elements": {
       "type": "array",
-      "description": "可由S02/运行器预先提供，也可由S03内部标准化器生成。",
+      "description": "可由运行器从context_package派生，也可由S03内部生成；属于派生视图，不得覆盖context_package原始语义。",
       "items": {
         "type": "object",
         "required": ["element_id", "element_type", "source", "subject"],
         "properties": {
           "element_id": {"type": "string"},
-          "element_type": {
-            "enum": ["fact", "analysis", "recommendation", "decision", "task", "constraint", "hypothesis"]
-          },
+          "element_type": {"enum": ["fact", "analysis", "recommendation", "decision", "task", "constraint", "hypothesis"]},
           "source": {"type": "string"},
           "source_agent": {"type": ["string", "null"]},
           "subject": {"type": "string"},

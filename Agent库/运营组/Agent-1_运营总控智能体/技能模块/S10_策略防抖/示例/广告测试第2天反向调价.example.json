@@ -1,6 +1,6 @@
 {
   "input": {
-    "product_id": "ASIN-EXAMPLE",
+    "scope": {"scope_type": "product", "scope_id": "ASIN-EXAMPLE", "product_id": "ASIN-EXAMPLE"},
     "proposed_action": {
       "target": "travel mahjong set",
       "action_type": "bid_adjustment",
@@ -9,103 +9,58 @@
       "scope": "single_keyword",
       "time_horizon": "immediate",
       "reason": "测试第2天点击下降，担心流量损失",
-      "source_decision_id": "DEC-AD-002"
+      "source_decision_id": "DEC-AD-002",
+      "source_decision_item_id": "DI-AD-001",
+      "source_option_id": "OPT-AD-NEW"
     },
     "active_or_recent_tasks": [
-      {
-        "task_id": "TASK-AD-001",
-        "decision_id": "DEC-AD-001",
-        "target": "travel mahjong set",
-        "action": "bid decrease 20%",
-        "status": "running",
-        "observation_window": "7 days"
-      }
+      {"task_id": "TASK-AD-001", "task_plan_id": "TPLAN-AD-001", "decision_id": "DEC-AD-001", "decision_item_id": "DI-AD-001", "strategy_chain_id": "CHAIN-AD-001", "target": "travel mahjong set", "action": "bid decrease 20%", "status": "running", "observation_window": "7 days"}
     ],
     "strategy_chain": {
       "strategy_chain_id": "CHAIN-AD-001",
-      "decision_id": "DEC-AD-001",
-      "option_id": "OPT-AD-002",
+      "decision_ids": ["DEC-AD-001"],
+      "decision_item_id": "DI-AD-001",
       "target": "travel mahjong set",
       "original_direction": "decrease",
       "current_direction": "decrease",
       "started_at": "2026-08-27T00:00:00Z",
-      "observation_window": {
-        "planned_days": 7,
-        "elapsed_days": 2
-      },
+      "observation_window": {"planned_days": 7, "elapsed_days": 2},
       "adjustment_count": 1,
       "reversal_count": 0,
       "last_change_at": "2026-08-27T00:00:00Z",
       "current_status": "observing"
     },
-    "original_evidence": {
-      "strength": "B",
-      "confidence": "medium",
-      "evidence_refs": ["14天61点击0订单", "历史CPA偏高"]
-    },
-    "new_evidence": [
-      {
-        "signal": "第2天点击较调整前下降12%",
-        "source": "广告日报"
-      }
-    ],
-    "new_evidence_summary": {
-      "strength": "C",
-      "confidence": "low",
-      "critical_new_fact": false
-    },
-    "business_state_before": {
-      "advertising_state": "efficiency_test"
-    },
-    "business_state": {
-      "advertising_state": "efficiency_test"
-    },
-    "state_change": {
-      "confirmed": false
-    },
+    "original_evidence": {"strength": "B", "confidence": "medium", "evidence_refs": ["14天61点击0订单", "历史CPA偏高"]},
+    "new_evidence": [{"signal": "第2天点击较调整前下降12%", "source": "广告日报"}],
+    "new_evidence_summary": {"strength": "C", "confidence": "low", "critical_new_fact": false},
+    "business_state_before": {"advertising_state": "efficiency_test"},
+    "business_state": {"advertising_state": "efficiency_test"},
+    "state_change": {"confirmed": false},
     "guardrail_conditions": [],
-    "stop_conditions": [
-      "订单显著跌破保护线",
-      "自然排名出现不可接受恶化"
-    ],
-    "observation_window": {
-      "status": "incomplete",
-      "elapsed_days": 2,
-      "planned_days": 7
-    },
+    "stop_conditions": ["订单显著跌破保护线", "自然排名出现不可接受恶化"],
+    "observation_window": {"status": "incomplete", "elapsed_days": 2, "planned_days": 7},
     "current_time": "2026-08-29T20:43:00+08:00"
   },
   "expected_output": {
     "skill_id": "S10",
+    "stabilization_id": "STAB-AD-001",
+    "strategy_chain_id": "CHAIN-AD-001",
+    "source_decision_id": "DEC-AD-002",
+    "source_decision_item_id": "DI-AD-001",
     "decision": "hold",
     "change_relation": "partial_reversal",
     "signal_class": "noise",
     "evidence_delta": "weaker",
     "matched_tasks": ["TASK-AD-001"],
-    "strategy_chain_id": "CHAIN-AD-001",
     "observation_remaining": "约5天或直到release condition触发",
     "triggered_conditions": [],
     "evidence_for_change": ["第2天点击下降12%"],
     "hold_gate": {
       "hold_reason": "当前仅完成7天观察窗口中的2天，新证据为低置信单点波动，且弱于启动降竞价测试时的原始证据，不足以支持反向加价。",
       "hold_until": "观察窗口完成或提前触发release condition",
-      "release_conditions": [
-        "7天观察窗口完成",
-        "订单显著跌破保护线",
-        "自然排名出现不可接受恶化",
-        "出现A级/关键新事实",
-        "经营状态确认切换"
-      ],
-      "review_trigger": [
-        "第7天正式复核",
-        "stop condition提前触发",
-        "出现连续高质量反向趋势"
-      ],
-      "required_new_evidence": [
-        "完整观察窗口结果",
-        "连续多周期同方向恶化",
-        "更高质量证据或关键新事实"
-      ]
+      "release_conditions": ["7天观察窗口完成", "订单显著跌破保护线", "自然排名出现不可接受恶化", "出现A级/关键新事实", "经营状态确认切换"],
+      "review_trigger": ["第7天正式复核", "stop condition提前触发", "出现连续高质量反向趋势"],
+      "required_new_evidence": ["完整观察窗口结果", "连续多周期同方向恶化", "更高质量证据或关键新事实"]
     },
     "override_record": null,
     "reason": "新动作构成对当前降竞价策略的部分反转，但新证据更弱且观察窗口未完成，应继续原测试而不是因第2天波动反向调整。",

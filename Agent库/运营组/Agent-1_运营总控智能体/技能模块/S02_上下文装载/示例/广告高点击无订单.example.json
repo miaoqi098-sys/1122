@@ -2,11 +2,21 @@
   "input": {
     "validated_event": {
       "event_id": "EVT-AD-0001",
+      "source_agent": "Agent-4",
+      "scope_type": "product",
+      "scope_id": "ASIN-EXAMPLE",
       "product_id": "ASIN-EXAMPLE",
       "event_type": "advertising_high_clicks_zero_orders",
-      "source_agent": "Agent-4",
+      "severity": "medium",
+      "occurred_at": "2026-08-29T18:00:00+09:00",
       "summary": "travel mahjong set 过去14天61点击0订单",
       "facts": ["点击61", "订单0"]
+    },
+    "s01_validation": {
+      "status": "passed",
+      "warnings": [],
+      "duplicate_signal": {"is_possible_duplicate": false, "matched_event_ids": []},
+      "validation_summary": "事件可进入S02。"
     },
     "context_request": {
       "question": "该Broad词应继续探索、降价、暂停还是拉Exact？",
@@ -17,31 +27,22 @@
   "expected_output": {
     "skill_id": "S02",
     "event_id": "EVT-AD-0001",
-    "product_id": "ASIN-EXAMPLE",
+    "scope": {"scope_type": "product", "scope_id": "ASIN-EXAMPLE", "product_id": "ASIN-EXAMPLE"},
     "status": "needs_information",
+    "question": "该Broad词应继续探索、降价、暂停还是拉Exact？",
     "context_package": {
       "C01_product_identity": {"loaded": true},
       "C02_business_state": {"loaded": true},
       "C03_current_goals": {"loaded": true},
-      "C04_core_metrics": {
-        "clicks": 61,
-        "orders": 0,
-        "missing": ["CPC", "spend", "search_term_detail", "historical_conversion"]
-      },
+      "C04_core_metrics": {"clicks": 61, "orders": 0, "missing": ["CPC", "spend", "search_term_detail", "historical_conversion"]},
       "C05_events_and_promotions": {"loaded": true},
       "C06_product_history": {"loaded": true},
       "C07_agent_analyses": {"loaded": true},
       "C09_business_knowledge": {"matched_card": "高点击无订单"},
       "C10_active_tasks_and_constraints": {"loaded": true}
     },
-    "missing_context": [
-      {
-        "domain": "C04",
-        "item": "CPC、花费、真实Search Term、历史转化",
-        "decision_impact": "high",
-        "suggested_source": "Agent-4/广告数据"
-      }
-    ],
+    "missing_context": [{"domain": "C04", "item": "CPC、花费、真实Search Term、历史转化", "decision_impact": "high", "suggested_source": "Agent-4/广告数据"}],
+    "stale_context": [],
     "next_action": "request_information"
   }
 }

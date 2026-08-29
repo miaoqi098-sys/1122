@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent-1 ToolRequirement Schema V1.0",
+  "type": "object",
+  "required": ["tool_requirement_id", "capability", "purpose", "operation_class", "input_requirements", "expected_output", "permission_level", "failure_behavior"],
+  "properties": {
+    "tool_requirement_id": {"type": "string", "minLength": 1},
+    "capability": {"type": "string", "minLength": 1},
+    "purpose": {"type": "string", "minLength": 1},
+    "operation_class": {"enum": ["read", "search", "calculate", "compare", "validate", "route", "request_approval", "schedule_request", "action_request", "normalize_result", "memory_request", "other"]},
+    "supported_scopes": {
+      "type": "array",
+      "items": {"enum": ["account", "store", "global", "parent_product", "product", "sku", "campaign", "ad_group", "keyword", "task", "decision", "other"]}
+    },
+    "input_requirements": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "expected_output": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "permission_level": {"enum": ["read_only", "internal_compute", "approval_required", "execution_layer_only", "human_only", "context_dependent"]},
+    "approval_conditions": {"type": "array", "items": {"type": "string"}},
+    "idempotency_requirement": {"enum": ["required", "preferred", "not_applicable"]},
+    "audit_requirement": {"enum": ["required", "preferred", "minimal"]},
+    "freshness_dependencies": {"type": "array", "items": {"type": "string"}},
+    "failure_behavior": {
+      "type": "object",
+      "required": ["on_tool_error", "on_permission_denied", "on_incomplete_result"],
+      "properties": {
+        "on_tool_error": {"enum": ["retry_later", "use_fallback", "hold_for_review", "fail_task", "continue_without_tool"]},
+        "on_permission_denied": {"enum": ["request_approval", "human_handoff", "fail_task", "use_read_only_path"]},
+        "on_incomplete_result": {"enum": ["request_more_data", "reduce_confidence", "use_fallback", "hold_for_review", "continue"]}
+      },
+      "additionalProperties": true
+    },
+    "future_runtime_dependency_refs": {"type": "array", "items": {"type": "string"}},
+    "canonical_input_refs": {"type": "array", "items": {"type": "string"}},
+    "canonical_output_refs": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

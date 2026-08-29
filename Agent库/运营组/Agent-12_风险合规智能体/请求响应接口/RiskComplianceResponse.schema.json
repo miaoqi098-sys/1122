@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "RiskComplianceResponse.schema.json",
+  "title": "RiskComplianceResponse",
+  "type": "object",
+  "required": ["response_id", "agent_id", "request_ref", "scope", "status", "summary", "eligibility_status", "confidence", "evidence_refs", "rule_refs"],
+  "properties": {
+    "response_id": {"type": "string"},
+    "agent_id": {"const": "Agent-12"},
+    "request_ref": {"type": "string"},
+    "scope": {"type": "object"},
+    "status": {"type": "string", "enum": ["completed", "partial", "needs_information", "blocked"]},
+    "summary": {"type": "string"},
+    "eligibility_status": {"type": "string", "enum": ["prohibited", "requires_approval", "requires_more_evidence", "eligible_with_controls", "eligible"]},
+    "risk_findings": {"type": "array", "items": {"type": "object"}},
+    "required_controls": {"type": "array", "items": {"type": "object"}},
+    "remediation_plan": {"type": ["object", "null"]},
+    "missing_information": {"type": "array", "items": {"type": "string"}},
+    "recommended_agent_requests": {"type": "array", "items": {"type": "object"}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "rule_refs": {"type": "array", "items": {"type": "string"}},
+    "decision_boundary": {"const": "qualification_gate_only"}
+  },
+  "additionalProperties": false
+}

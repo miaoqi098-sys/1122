@@ -1,23 +1,32 @@
+config_version: 1.1.0
+compatible_agent_version: ">=1.0.0 <2.0.0"
+
 agent:
   id: Agent-1
   name: 运营总控智能体
   group: 运营组
   version: 1.0.0
 
-runtime:
+mode:
   decision_mode: evidence_first
   require_history_context: true
   require_activity_context: true
   allow_single_agent_major_decision: false
 
-priority:
-  levels: [P0, P1, P2, P3]
+schemas:
+  event: ../输入规范/智能事件包.schema.json
+  final_decision: ../输出规范/FinalDecision.schema.json
 
-approval:
-  levels: [L0, L1, L2, L3]
-  default_irreversible_action: L3
-  default_compliance_action: L3
-  default_price_change: L2
+rule_refs:
+  decision_rules: ../决策规则/README.md
+  task_orchestration: ../任务调度/README.md
+  workflow: ../工作流/README.md
+  strategy_stabilization: ../工作流/S10横向控制.md
+
+approval_guardrails:
+  irreversible_action_requires_approval: true
+  compliance_action_requires_approval: true
+  allow_approval_bypass_by_scope_override: false
 
 strategy_guardrails:
   protect_account_safety: true
@@ -27,8 +36,27 @@ strategy_guardrails:
   require_rollback_condition: true
   require_success_criteria: true
 
-inputs:
-  event_schema: ../输入规范/智能事件包.schema.json
+priority_semantics:
+  event_severity_levels: [P0, P1, P2, P3]
+  business_priority_source: S04_DecisionPrioritization
+  fixed_business_priority_chain_allowed: false
 
-outputs:
-  decision_schema: ../输出规范/决策指令.schema.json
+override_policy:
+  order:
+    - system_default
+    - agent_default
+    - scope_override
+    - run_override
+  cannot_override:
+    - identity_permission_boundary
+    - hard_constraints
+    - compliance_requirements
+    - canonical_schema
+
+runtime_placeholders:
+  config_loader: future_runtime_layer
+  schema_validator: R03
+  scheduler: R07
+  executor: R08
+  learning_write_executor: R10
+  strategy_chain_persistence: R11

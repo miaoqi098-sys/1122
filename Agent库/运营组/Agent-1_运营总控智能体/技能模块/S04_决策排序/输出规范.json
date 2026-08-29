@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S04 决策排序输出规范 V1.1",
+  "title": "S04 决策排序输出规范 V1.2",
   "type": "object",
   "required": ["skill_id", "gate_status", "ranked_items", "next_action"],
   "properties": {
@@ -11,9 +11,11 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["item_id", "business_priority", "rank", "priority_basis", "confidence", "priority_change"],
+        "required": ["decision_item_id", "problem_definition", "objective", "business_priority", "rank", "priority_basis", "confidence", "priority_change"],
         "properties": {
-          "item_id": {"type": "string"},
+          "decision_item_id": {"type": "string"},
+          "problem_definition": {"type": "string"},
+          "objective": {"type": "string"},
           "business_priority": {"enum": ["P0", "P1", "P2", "P3"]},
           "rank": {"type": "integer", "minimum": 1},
           "priority_basis": {"type": "string"},
@@ -28,10 +30,12 @@
           "current_priority": {"enum": ["P0", "P1", "P2", "P3"]},
           "priority_change": {"enum": ["promoted", "demoted", "unchanged", "new"]},
           "change_trigger": {"type": "array"},
+          "conflict_refs": {"type": "array", "items": {"type": "string"}},
+          "constraint_refs": {"type": "array", "items": {"type": "string"}},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
           "blocked_by": {"type": "array"},
           "must_resolve_before": {"type": "array"},
-          "defer_until": {"type": ["string", "null"]},
-          "execution_notes": {"type": "array", "description": "只记录必要执行约束，不在S04完成任务编排。"}
+          "defer_until": {"type": ["string", "null"]}
         },
         "additionalProperties": true
       }

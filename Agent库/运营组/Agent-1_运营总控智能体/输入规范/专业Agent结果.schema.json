@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "专业Agent结构化结果 V1.0",
+  "type": "object",
+  "required": ["request_id", "source_agent", "analysis_scope", "facts", "interpretation", "conclusion", "confidence", "data_window", "missing_data", "risks"],
+  "properties": {
+    "request_id": {"type": "string", "minLength": 1},
+    "source_agent": {"type": "string", "pattern": "^Agent-(?:[2-9]|1[0-3])$"},
+    "analysis_scope": {"type": "object"},
+    "facts": {"type": "array", "items": {"type": "string"}},
+    "interpretation": {"type": "array", "items": {"type": "string"}},
+    "conclusion": {"type": "string"},
+    "recommendation": {"type": ["string", "null"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "data_window": {"type": "string"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "missing_data": {"type": "array", "items": {"type": "string"}},
+    "risks": {"type": "array", "items": {"type": "string"}},
+    "valid_until": {"type": ["string", "null"], "format": "date-time"},
+    "review_at": {"type": ["string", "null"], "format": "date-time"},
+    "status": {"enum": ["answered", "answered_with_gaps", "insufficient_evidence", "blocked"]},
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

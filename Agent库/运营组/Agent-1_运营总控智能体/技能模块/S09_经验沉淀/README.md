@@ -1,100 +1,87 @@
 # S09｜经验沉淀
 
 ## 技能定位
-把S08验证后的事实、解释、产品经验和知识候选分层沉淀，使Agent-1未来能够复用经过证据约束、知道适用边界、知道何时失效的经营经验。
+S09把S08 ValidationResult中的事实、解释、产品经验和知识候选分层沉淀，使Agent-1未来能够复用经过证据约束、知道适用边界和失效条件的经营经验。
 
-S09不是“把聊天保存下来”，也不是每次验证后都强行总结一条规律，而是决定：什么只值得记录事实，什么可以成为产品经验，什么有资格继续升级为跨场景知识。
+S09不是聊天摘要器，也不是数据库执行器；它决定“什么值得记、记成什么等级、与旧经验是什么关系”。
 
-## 调用位置
+## 正式调用位置
 ```text
-S08验证结果
+S08 ValidationResult
 ↓
-读取execution / outcome / data quality / attribution / failure type
+S09 LearningWriteback
 ↓
-先写fact_records
+fact_records
+interpretation_records
+LearningRecord[]
+knowledge_candidates
+memory_writes plan
 ↓
-再形成interpretation_records
+共享记忆与数据层
 ↓
-判断是否值得生成learning_item
-↓
-检查promotion gate
-↓
-与previous lessons比对：支持 / 冲突 / 细化 / 替代 / 共存
-↓
-输出memory writes与knowledge candidate
-↓
-由共享记忆与数据层持久化
+真实写入回执
 ```
 
-## 四层信息必须分开
-### 1. fact_records
-只保存可追溯事实，例如：竞价实际降低20%、CPA从30变24、同期Coupon上线。
+## 正式输入
+S09正式输入名为`validation_result`，必须直接承接S08输出。
 
-### 2. interpretation_records
-保存对事实的解释，并明确归因强度和不确定性。例如：CPA改善可能与降竞价有关，但Coupon构成混杂因素。
+不再使用`verification_result`旧别名。
 
-### 3. learning_items
-保存未来对同一产品或相似场景可能有帮助的经验。
+关键追溯字段：
+- validation_id
+- execution_result_id
+- task_id
+- task_plan_id
+- decision_id
+- decision_item_id
+- option_id（如有）
+- strategy_chain_id（如有）
 
-### 4. knowledge_candidates
-只有达到升级门槛的经验才进入知识治理候选，不自动写成validated knowledge。
+## 四层信息
+### fact_records
+只保存可追溯事实。
+
+### interpretation_records
+保存解释，并明确attribution_strength、confounders与confidence。
+
+### learning_items / LearningRecord
+保存未来可能复用的经验，并保留正式上游引用。
+
+### knowledge_candidates
+只有达到Promotion Gate要求的经验才进入知识治理候选。
 
 ## 经验等级
-- `observation`：单次观察，事实价值高于规律价值；
-- `product_lesson`：对当前产品未来决策有复用价值；
-- `reusable_pattern`：在多个相似场景中可能复用；
-- `knowledge_candidate`：值得进入知识治理验证；
-- `validated_knowledge`：经过多案例、高质量证据和知识治理后才能升级。
+- observation
+- product_lesson
+- reusable_pattern
+- knowledge_candidate
+- validated_knowledge
+
+单次结果不得直接越级成为validated_knowledge。
 
 ## Promotion Gate
-`promotion_gate`：
-- `eligible`
-- `hold`
-- `needs_more_evidence`
-- `conflicted`
-- `rejected`
+- eligible
+- hold
+- needs_more_evidence
+- conflicted
+- rejected
 
-同时记录：
-- `promotion_reasons`
-- `blocking_reasons`
+## learning_action
+- record_fact
+- create_lesson
+- promote
+- merge
+- refine
+- deprecate
+- hold
 
-经验升级不是模型凭感觉决定，而是受执行真实性、数据质量、归因强度、支持案例、反例、适用边界和知识治理约束。
-
-## 学习动作 learning_action
-- `record_fact`
-- `create_lesson`
-- `promote`
-- `merge`
-- `refine`
-- `deprecate`
-- `hold`
-
-有些结果值得记录，但不值得形成规律，此时应record_fact/hold，而不是强行create_lesson。
-
-## 新旧经验关系
-- `supports`：新证据支持旧经验；
-- `contradicts`：新证据与旧经验冲突；
-- `refines`：新证据细化适用边界；
-- `supersedes`：新证据足够强，旧版本应被替代但仍保留历史；
-- `coexists`：两条经验在不同适用条件下同时成立。
-
-冲突不等于覆盖，必须保留证据和版本关系。
-
-## S08验证结果对学习等级的约束
-- execution failure：可以学习执行链问题，但不能学习“经营策略无效”；
-- data failure / premature evaluation：通常只记录observation或hold；
-- weak/confounded attribution：不得生成强因果可复用规律；
-- high quality + strong/moderate attribution +重复支持：才有资格向reusable_pattern及以上升级；
-- validated_knowledge必须经过知识治理，S09单次运行不得越权直接生成。
-
-## Learning Item知识卡
-每条learning_item应尽量包含：
+## LearningRecord正式引用
+每条LearningRecord至少应保留：
 - learning_id
-- level
-- learning_action
-- statement
 - source_decision_id
+- source_decision_item_id
 - source_task_ids
+- source_execution_result_ids
 - source_validation_ids
 - evidence
 - evidence_quality
@@ -102,22 +89,41 @@ S08验证结果
 - applicability
 - invalid_when
 - confidence
-- support_count
-- contradiction_count
-- relationships
-- knowledge_domain
-- version
-- created_at
-- last_validated_at
-- valid_until
-- review_trigger
 - promotion_gate
 
-## 与共享记忆层的边界
-S09负责生成“应该写什么、写到什么等级、与旧经验是什么关系”的结构化写回计划；真正数据库写入、索引、持久化、版本存储属于共享记忆与数据层。
+`source_validation_ids`必须使用正式`validation_id`，禁止继续使用`TASK-xxx:S08`之类临时拼接标识。
+
+## S08结果对学习等级的约束
+- execution_failure：可学习执行链问题，不学习“策略无效”；
+- data_failure / premature_evaluation：通常只记录observation或hold；
+- weak/confounded attribution：不得形成强因果可复用规律；
+- high quality + strong/moderate attribution +重复独立支持：才有资格逐级升级；
+- validated_knowledge必须经过独立知识治理。
+
+## 新旧经验关系
+- supports
+- contradicts
+- refines
+- supersedes
+- coexists
+
+新证据与旧经验冲突时不得直接覆盖旧历史。
+
+## 与记忆层边界
+S09只生成`memory_writes`计划。
+
+S09允许的写回状态：
+- planned
+- queued
+- failed
+
+**S09不得自行宣称`written`。**
+真正的written/failed持久化结果由共享记忆与数据层 / LearningWriteExecutor返回。
 
 ## 核心原则
-长期记忆的价值不在于记得多，而在于未来能够区分：这是事实、这是解释、这是产品经验、这是待验证知识，以及这条经验什么时候不再适用。
+长期记忆的价值不在于记得多，而在于未来能区分：事实、解释、产品经验、可复用模式、待验证知识，以及它们各自的证据和适用边界。
 
 ## 当前版本
-V1.1：加入S08完整承接、事实/解释/经验/知识候选四层分离、promotion gate、learning_action、新旧经验关系和可治理知识卡结构。
+- 业务规则：V1.1；
+- 接口：V1.2，已统一ValidationResult→LearningRecord引用链，并封闭真实写库边界；
+- 执行程序：待系统运行层与记忆层实现Learning Packager / Write Executor。

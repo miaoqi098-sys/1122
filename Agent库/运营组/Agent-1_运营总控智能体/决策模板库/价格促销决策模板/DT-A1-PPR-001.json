@@ -1,0 +1,48 @@
+{
+  "template_id": "DT-A1-PPR-001",
+  "template_name": "价格促销决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "pricing_promotion",
+  "description": "用于Agent-1处理售价、Coupon、Deal、站外折扣、参考价与活动节奏问题，并把短期转化收益与利润、库存、价格体系和促销资格联合判断。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["store", "parent_product", "product", "sku"],
+  "trigger_patterns": ["price_change", "coupon_decision", "deal_decision", "reference_price_risk", "promotion_stack_conflict", "post_promotion_recovery", "competitive_price_response"],
+  "applicable_states": ["生命周期/经营情境/风险/机会状态引用经营状态识别模块"],
+  "exclusion_conditions": ["价格/促销资格事实缺失", "主要问题属于利润或库存且价格只是次要动作", "平台规则状态无法确认且会决定动作是否合法/可执行"],
+  "required_context": ["业务目标", "当前售价与历史价格", "参考价/Was Price状态", "当前与计划促销", "利润与成本", "库存与销售速度", "Listing转化", "广告状态", "竞品价格环境", "历史活动效果"],
+  "required_metrics": [
+    {"metric_ref": "pricing.current_price", "purpose": "确认当前价格基准", "freshness_requirement": "当前", "requirement_level": "required"},
+    {"metric_ref": "pricing.reference_price_state", "purpose": "判断参考价风险", "freshness_requirement": "当前", "requirement_level": "preferred"},
+    {"metric_ref": "profit.unit_margin", "purpose": "约束可承受价格/折扣", "freshness_requirement": "当前成本版本", "requirement_level": "required"},
+    {"metric_ref": "listing.conversion_rate", "purpose": "判断价格变化与转化关系", "freshness_requirement": "当前观察窗口", "requirement_level": "preferred"},
+    {"metric_ref": "inventory.coverage_days", "purpose": "判断促销放量或清库存需求", "freshness_requirement": "当前", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "当前价格与促销状态", "requirement_level": "required", "freshness_requirement": "当前"},
+    {"evidence_type": "利润/成本事实", "requirement_level": "required", "freshness_requirement": "当前成本版本"},
+    {"evidence_type": "平台促销/参考价资格事实", "requirement_level": "preferred", "freshness_requirement": "当前规则窗口"},
+    {"evidence_type": "历史价格与活动效果", "requirement_level": "preferred", "freshness_requirement": "覆盖可比阶段"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-10", "purpose": "价格、促销、参考价与活动节奏分析", "requirement_level": "required"},
+    {"agent_id": "Agent-6", "purpose": "利润和成本约束", "requirement_level": "required"},
+    {"agent_id": "Agent-7", "purpose": "库存与清库存/断货约束", "requirement_level": "preferred"},
+    {"agent_id": "Agent-9", "purpose": "转化与Listing状态", "requirement_level": "preferred"}
+  ],
+  "required_constraints": ["利润底线", "价格体系", "参考价/促销资格", "库存承载", "活动叠加", "审批权限"],
+  "key_questions": ["本次价格/促销动作服务于什么经营目标？", "短期转化收益是否足以覆盖利润和长期价格体系代价？", "当前参考价/促销资格是否允许该动作？", "库存是否支持促销放量或需要清库存？", "活动结束后价格恢复路径是什么？"],
+  "option_comparison_dimensions": ["转化提升潜力", "利润影响", "库存影响", "价格体系影响", "促销资格风险", "可逆性", "竞争响应", "活动后恢复难度"],
+  "risk_focus": ["价格体系受损", "利润跌破底线", "促销资格/参考价风险", "活动叠加导致意外低价", "活动后价格恢复困难", "库存不足仍过度促销"],
+  "approval_focus": ["大幅降价", "高折扣活动", "多促销叠加", "明显改变长期价格节奏"],
+  "task_requirements": ["明确价格/促销动作对象", "明确开始结束时间", "记录活动前基线", "定义恢复价格", "定义成功与止损条件"],
+  "observation_requirements": ["活动期与常态期分开观察", "同时观察转化、利润、销量、库存和广告影响", "活动结束后复核价格恢复和参考价状态"],
+  "rollback_requirements": ["利润越界时停止或缩减折扣", "库存风险升级时停止放量", "价格/促销资格异常时暂停", "活动效果未达标时恢复计划价格"],
+  "review_triggers": ["促销开始/结束", "参考价状态变化", "利润底线变化", "库存风险变化", "竞品价格重大变化", "转化未达到预期"],
+  "learning_focus": ["不同价格带的转化弹性", "促销对自然/广告流量的影响", "活动后价格恢复效果", "参考价与折扣节奏的历史表现"],
+  "supersedes": null,
+  "tags": ["pricing", "coupon", "deal", "reference_price", "promotion"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["平台规则与价格资格属于时效性事实，不在模板内写死", "真实价格/促销执行未来由执行层承担"]}
+}

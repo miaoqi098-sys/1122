@@ -1,20 +1,37 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S02 上下文装载输入规范",
+  "title": "S02 上下文装载输入规范 V1.1",
   "type": "object",
-  "required": ["validated_event", "context_request"],
+  "required": ["validated_event", "s01_validation", "context_request"],
   "properties": {
     "validated_event": {
       "type": "object",
-      "required": ["event_id", "product_id", "event_type"],
+      "description": "必须直接承接S01.normalized_event，不再回退使用原始事件。",
+      "required": ["event_id", "source_agent", "scope_type", "event_type", "severity", "occurred_at", "summary", "facts"],
       "properties": {
         "event_id": {"type": "string", "minLength": 1},
-        "product_id": {"type": "string", "minLength": 1},
+        "source_agent": {"type": "string", "minLength": 1},
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global"]},
+        "scope_id": {"type": ["string", "null"]},
+        "product_id": {"type": ["string", "null"]},
+        "scope_objects": {"type": "object"},
         "event_type": {"type": "string", "minLength": 1},
-        "source_agent": {"type": "string"},
+        "severity": {"type": "string", "minLength": 1},
         "occurred_at": {"type": "string"},
         "summary": {"type": "string"},
-        "facts": {"type": "array"}
+        "facts": {"type": "array"},
+        "recommendation": {}
+      },
+      "additionalProperties": true
+    },
+    "s01_validation": {
+      "type": "object",
+      "required": ["status", "warnings", "duplicate_signal"],
+      "properties": {
+        "status": {"enum": ["passed", "passed_with_warnings"]},
+        "warnings": {"type": "array"},
+        "duplicate_signal": {"type": "object"},
+        "validation_summary": {"type": ["string", "null"]}
       },
       "additionalProperties": true
     },
@@ -24,35 +41,14 @@
       "properties": {
         "question": {"type": "string", "minLength": 1},
         "decision_dependency": {"type": "string"},
-        "requested_domains": {
-          "type": "array",
-          "items": {
-            "enum": ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10"]
-          },
-          "uniqueItems": true
-        },
+        "requested_domains": {"type": "array", "items": {"enum": ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10"]}, "uniqueItems": true},
         "data_window": {"type": ["string", "object", "null"]},
         "max_context_items": {"type": ["integer", "null"], "minimum": 1},
         "max_context_tokens": {"type": ["integer", "null"], "minimum": 1}
       },
       "additionalProperties": true
     },
-    "available_context": {
-      "type": "object",
-      "properties": {
-        "product_identity": {},
-        "business_state": {},
-        "current_goals": {},
-        "metrics": {},
-        "events_and_promotions": {},
-        "product_history": {},
-        "agent_analyses": {},
-        "market_and_competitors": {},
-        "knowledge_matches": {},
-        "active_tasks_and_constraints": {}
-      },
-      "additionalProperties": true
-    },
+    "available_context": {"type": "object"},
     "current_time": {"type": "string"},
     "freshness_policy": {"type": "object"}
   },

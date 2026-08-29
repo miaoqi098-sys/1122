@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent-1 决策指令",
+  "type": "object",
+  "required": ["decision_id", "product_id", "priority", "decision", "reasoning_summary", "tasks", "approval_level", "created_at"],
+  "properties": {
+    "decision_id": {"type": "string"},
+    "product_id": {"type": "string"},
+    "asin": {"type": ["string", "null"]},
+    "priority": {"type": "string", "enum": ["P0", "P1", "P2", "P3"]},
+    "decision": {"type": "string"},
+    "reasoning_summary": {"type": "array", "items": {"type": "string"}},
+    "evidence_event_ids": {"type": "array", "items": {"type": "string"}},
+    "constraints": {"type": "array", "items": {"type": "string"}},
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task_id", "owner", "action", "success_criteria"],
+        "properties": {
+          "task_id": {"type": "string"},
+          "owner": {"type": "string"},
+          "action": {"type": "string"},
+          "deadline": {"type": ["string", "null"], "format": "date-time"},
+          "success_criteria": {"type": "string"},
+          "rollback_condition": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "approval_level": {"type": "string", "enum": ["L0", "L1", "L2", "L3"]},
+    "review_at": {"type": ["string", "null"], "format": "date-time"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

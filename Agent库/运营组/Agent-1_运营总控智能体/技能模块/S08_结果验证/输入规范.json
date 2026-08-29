@@ -1,1 +1,69 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S08结果验证输入","type":"object","required":["task","baseline","observed_results"],"properties":{"task":{"type":"object"},"baseline":{"type":"object"},"observed_results":{"type":"object"},"business_state_before":{"type":"object"},"business_state_after":{"type":"object"},"concurrent_events":{"type":"array"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S08 结果验证输入规范 V1.1",
+  "type": "object",
+  "required": ["task", "actual_execution", "baseline", "observed_results"],
+  "properties": {
+    "task": {
+      "type": "object",
+      "required": ["task_id", "decision_id", "product_id", "task_type", "action", "success_criteria", "stop_conditions", "validator"],
+      "properties": {
+        "task_id": {"type": "string"},
+        "decision_id": {"type": "string"},
+        "product_id": {"type": "string"},
+        "option_id": {"type": ["string", "null"]},
+        "task_type": {"enum": ["execution", "monitoring", "approval", "data_collection", "validation", "control", "rollback"]},
+        "action": {"type": "object"},
+        "success_criteria": {"type": "array"},
+        "stop_conditions": {"type": "array"},
+        "required_controls": {"type": "array"},
+        "deadline_or_window": {},
+        "rollback": {},
+        "validator": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "actual_execution": {
+      "type": "object",
+      "required": ["execution_status"],
+      "properties": {
+        "execution_status": {"enum": ["not_started", "success", "partial", "failed", "unknown"]},
+        "started_at": {"type": ["string", "null"]},
+        "finished_at": {"type": ["string", "null"]},
+        "executor": {"type": ["string", "null"]},
+        "actual_action": {"type": ["object", "null"]},
+        "execution_logs": {"type": "array"},
+        "execution_errors": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "baseline": {"type": "object"},
+    "observed_results": {"type": "object"},
+    "criteria": {"type": "array"},
+    "observation_window": {
+      "type": "object",
+      "properties": {
+        "planned_start": {},
+        "planned_end": {},
+        "actual_start": {},
+        "actual_end": {},
+        "status": {"enum": ["not_started", "incomplete", "complete", "invalid"]}
+      },
+      "additionalProperties": true
+    },
+    "data_quality": {
+      "type": "object",
+      "properties": {
+        "completeness": {"enum": ["high", "medium", "low", "unknown"]},
+        "freshness": {"enum": ["fresh", "stale", "mixed", "unknown"]},
+        "quality": {"enum": ["high", "medium", "low", "unknown"]}
+      },
+      "additionalProperties": true
+    },
+    "business_state_before": {"type": "object"},
+    "business_state_after": {"type": "object"},
+    "concurrent_events": {"type": "array"},
+    "external_factors": {"type": "array"}
+  },
+  "additionalProperties": true
+}

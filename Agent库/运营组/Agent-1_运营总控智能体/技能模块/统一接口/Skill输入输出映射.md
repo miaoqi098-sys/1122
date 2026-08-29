@@ -1,194 +1,261 @@
-# S01-S10 输入输出映射
+# S01-S10 输入输出映射 V1.1
 
 ## 总链路
 ```text
 Event
 ↓
-S01
-↓ normalized_event
-S02
+S01 EventValidation
+↓ normalized_event + s01_validation
+S02 ContextLoading
 ↓ ContextPackage
-S03
-↓ Conflict[]
+S03 ConflictDetection
+↓ Conflict[] / ConflictGroup[]
 DecisionItemBuilder
-↓ DecisionItem[]
-S04
+↓ Canonical DecisionItem[]
+S04 DecisionPrioritization
 ↓ Ranked DecisionItem[]
-S05
+S05 OptionGeneration
 ↓ Option[]
-S06
+S06 RiskAssessment
 ↓ RiskAssessment[]
 DecisionSelector
 ↓ FinalDecision
-S07
-↓ Task[] / TaskGraph
-调度/审批/执行
+S07 TaskOrchestration
+↓ TaskPlan / Task[] / TaskGraph
+调度 / 审批 / 执行
 ↓ ExecutionResult
-S08
+S08 OutcomeValidation
 ↓ ValidationResult
-S09
-↓ LearningItem[] / MemoryWritePlan
+S09 LearningWriteback
+↓ LearningRecord[] / MemoryWritePlan
 记忆与数据层
 
-S10：任何“可能改变正在运行策略的新动作”出现时横向介入。
+S10 StrategyStabilization：任何“可能改变正在运行策略的新动作”出现时横向介入。
 ```
 
 ## S01 → S02
-### S01主输出
-- `normalized_event`
-- `status`
-- `warnings`
-- `duplicate_signal`
+S02正式输入：
+- `validated_event` = `S01.normalized_event`
+- `s01_validation.status`
+- `s01_validation.warnings`
+- `s01_validation.duplicate_signal`
 
-### S02正式输入
-`validated_event` 必须等于 `S01.normalized_event`，不得重新使用未经标准化的原始event。
+禁止重新使用未经S01标准化的原始event。
 
-若S01：
-- passed / passed_with_warnings → 可进入S02；
-- needs_information → 先补信息；
-- rejected → 不进入S02。
-
-S01 warnings应随Invocation Envelope保留，S02不需要重复判断事件是否合法。
+作用域统一：
+- product / parent_product / sku：必须有product_id；
+- account / store / global：product_id允许null；
+- 作用对象通过scope_type/scope_id/scope_objects表达。
 
 ## S02 → S03
-S03的唯一主上下文源：`S02.context_package`。
+`S02.context_package` 是唯一权威上下文事实源。
 
-S03可接收：
-- current_goals
-- active_tasks
-- agent_analyses
-- hard_constraints
+S03输入：
+- event_id
+- scope
+- context_package
+- context_refs（可选）
+- normalized_elements（派生视图，可选）
 
-但这些只能由ContextPackage派生，并保留对应C03/C07/C10引用。
+已取消把`current_goals`、`business_state`、`constraints`、`agent_analyses`作为并列第二事实源的正式接口。
 
-禁止：运行器从其他地方再加载一套不同值覆盖ContextPackage。
-
-## S03 → DecisionItemBuilder → S04
-S03不直接输出DecisionItem。
+## S03 → DecisionItemBuilder
+S03正常非阻断结果：
+`next_action = continue_to_decision_item_builder`
 
 DecisionItemBuilder输入：
-- S01 Event
-- S02 ContextPackage
-- S03 conflicts/conflict_groups
-- 当前business state
-- 当前goals
+- Event引用；
+- ContextPackage；
+- S03 conflicts/conflict_groups；
+- 状态与目标均从ContextPackage读取。
 
-输出标准 `DecisionItem[]`。
+输出必须符合`DecisionItem.schema.json`。
 
-映射原则：
-- `DecisionItem.decision_item_id` 是唯一字段名；
-- S04内部旧 `item_id` 视为兼容别名，后续统一；
-- `problem_definition` 必须来自事件/状态/冲突综合，不得只复制某个Agent recommendation；
-- `objective` 来自当前目标系统；
-- conflict_refs必须指向S03 conflict_id。
+## DecisionItemBuilder → S04
+正式字段：
+- decision_item_id
+- item_type
+- subject
+- problem_definition
+- objective
+- goal_layer
+- urgency
+- conflict_refs / constraint_refs / evidence_refs / source_event_refs / context_refs
+
+`item_id`、`problem`不再属于新接口。
 
 ## S04 → S05
-S05接收S04排序后的DecisionItem。
+S04排序结果必须保留：
+- decision_item_id
+- problem_definition
+- objective
+- business_priority
+- goal_layer
+- priority_basis
+- conflict_refs / constraint_refs / evidence_refs
 
-标准映射：
-- `decision_item_id` ← S04 item_id/未来decision_item_id
-- `business_priority` ← S04 business_priority
-- `problem_definition` ← 原始DecisionItem.problem_definition
-- `objective` ← 原始DecisionItem.objective
-- `goal_layer` ← S04 goal_layer
-- `priority_basis` ← S04 priority_basis
-- `conflict_refs` / `constraint_refs` 保留
-
-S04只改变排序信息，不得丢失原DecisionItem的问题定义与目标。
+S05直接消费上述对象，不由Runner补写problem/objective，也不得自行改变business_priority。
 
 ## S05 → S06
-S05 `options[]` 原样进入S06 `options[]`。
+S05 `options[]` 原样进入S06。
 
-S06不得静默改写：
+S06只能追加风险信息，不得静默改写：
 - option_id
 - actions
 - assumptions
 - success_criteria
 - stop_conditions
 
-S06只能追加风险解释、控制要求、eligibility和审批要求。
+S06上下文只从ContextPackage读取。
 
 ## S06 → DecisionSelector
-DecisionSelector同时接收：
-- ranked DecisionItem
-- S05 options
-- S06 option_risks
-- current goals
-- business state
-- constraints
-- conflicts
-- active strategy/task context
+S06正常完成：
+`next_action = continue_to_decision_selector`
 
-输出FinalDecision。
+DecisionSelector接收：
+- Ranked DecisionItem；
+- S05 Options；
+- S06 RiskAssessments；
+- ContextPackage；
+- 当前StrategyChain/Task上下文（如有）。
 
-禁止：S06直接宣布“最终选择方案”。
+输出必须符合`FinalDecision.schema.json`。
+
+禁止S06直接宣布最终方案。
 
 ## FinalDecision → S07
-S07正式消费：
+S07正式顶层输入：
+- scope
+- final_decision
+- active_tasks / capabilities / permissions / resource_capacity（运行条件）
+
+`final_decision`内部至少包括：
 - decision_id
-- product/scope
-- selected_option
-- selected_option对应的risk_assessment
+- decision_item_id
 - business_priority
-- approvals/constraints
+- selected_option
+- selected_option对应risk_assessment
+- decision_basis
+- approval
+- strategy_chain_id（如有）
 
-S07不得重新选择其他Option，也不得改变S04业务优先级。
+S07不得再接受散装selected_option/risk_assessment作为正式顶层接口，也不得重新选择方案。
 
-## S07 → Execution Layer → S08
-S07输出Task / TaskGraph。
+## S07 → Execution Layer
+S07输出：
+- task_plan_id
+- decision_id
+- decision_item_id
+- strategy_chain_id
+- Task[]
+- TaskGraph
 
-执行层必须返回标准ExecutionResult，至少包括：
+每个Task必须可追溯：
+`decision_item_id → decision_id → option_id/source_action_id → task_plan_id → task_id`
+
+## Execution Layer → S08
+执行器必须把工具/API结果标准化为`ExecutionResult`。
+
+正式字段至少：
 - execution_result_id
 - task_id
-- execution_status
+- task_plan_id
+- decision_id
+- decision_item_id
+- option_id（如有）
+- strategy_chain_id（如有）
+- requested_action
 - actual_action
-- started_at
-- finished_at
+- execution_status
 - executor
-- logs/errors
-- observed_state_change（如可确认）
 
-S08不能直接把API响应当作ExecutionResult。
+`actual_execution`不再属于新S08接口。
 
 ## S08 → S09
-S09.verification_result 必须直接映射S08 ValidationResult，不得摘要后丢失：
+S08生成正式`ValidationResult`，至少：
+- validation_id
+- execution_result_id
+- task_id
+- decision_id
+- decision_item_id
 - execution_status
 - business_outcome_status
 - overall_validation_status
-- criteria_results
 - observation_window_status
 - data_quality
 - attribution_status
-- confounders
 - failure_type
 - confidence
 - decision_implication
 
+S09正式输入名为`validation_result`。
+`verification_result`不再属于新接口。
+
 ## S09 → Memory Layer
-S09只输出：
+S09输出：
+- learning_batch_id
+- validation_id
 - fact_records
 - interpretation_records
 - learning_items
 - knowledge_candidates
 - memory_writes plan
 
-实际写库状态由记忆与数据层返回，不由S09自行宣称成功。
+LearningItem引用链至少保留：
+- source_decision_id
+- source_decision_item_id
+- source_task_ids
+- source_execution_result_ids
+- source_validation_ids
 
-## S10横向调用位置
-当新建议/新动作可能影响已存在strategy_chain时：
+S09的memory_writes只允许`planned / queued / failed`；真实`written`状态必须由记忆与数据层返回。
+
+## S10横向介入
+S10输入使用统一scope和StrategyChain。
+
+当新动作可能改变正在运行策略：
 ```text
-新Event/新Option/新Decision proposal
+新Event / 新Option / 新Decision proposal
 ↓
-S03识别strategy conflict（如有）
+S03（如需确认strategy conflict）
 ↓
-S10判断 allow/hold/merge/escalate/override
+S10
 ```
 
-- hold/merge → 不建立新的反向S07执行链；
-- allow → 正常进入DecisionSelector/S07；
-- override → 形成override_record，再进入S07重新编排旧任务与新任务；
-- escalate → 进入审批/复核；
-- 证据冲突无法判断 → 回S03/S02。
+输出：
+- stabilization_id
+- strategy_chain_id
+- allow / hold / merge / escalate / override
+- hold_gate / override_record
+
+- hold：不得建立反向执行任务；
+- merge：更新现有StrategyChain；
+- allow：继续正常决策链；
+- override：保留旧decision/task引用并交S07重新编排；
+- escalate：进入审批/复核。
+
+## 正式主键引用链
+```text
+event_id
+↓
+decision_item_id
+↓
+option_id
+↓
+decision_id
+↓
+task_plan_id
+↓
+task_id
+↓
+execution_result_id
+↓
+validation_id
+↓
+learning_id
+```
+
+`strategy_chain_id`横向贯穿决策、任务、验证与S10。
 
 ## 最重要原则
-任何相邻Skill之间都不允许“靠提示词大概理解”完成字段转换。所有转换必须在映射或canonical schema中有明确规则。
+任何相邻Skill之间都不允许靠Prompt“猜”字段关系；新接口不得继续新增旧别名。兼容旧历史数据由未来Adapter负责，不污染Canonical Schema。

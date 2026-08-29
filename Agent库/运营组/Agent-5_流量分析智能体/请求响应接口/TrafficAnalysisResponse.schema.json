@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "TrafficAnalysisResponse.schema.json",
+  "title": "TrafficAnalysisResponse",
+  "type": "object",
+  "required": ["request_id", "responder_agent", "status", "scope", "facts", "diagnoses", "evidence_refs", "data_quality", "generated_at"],
+  "properties": {
+    "request_id": {"type": "string"},
+    "responder_agent": {"const": "Agent-5"},
+    "status": {"enum": ["completed", "partial", "needs_information", "unsupported", "blocked"]},
+    "scope": {"type": "object"},
+    "facts": {"type": "array", "items": {"type": "object"}},
+    "diagnoses": {"type": "array", "items": {"type": "object"}},
+    "cause_candidates": {"type": "array", "items": {"type": "object"}},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "data_quality": {"type": "object"},
+    "cross_agent_dependencies": {"type": "array", "items": {"type": "object"}},
+    "missing_inputs": {"type": "array", "items": {"type": "object"}},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "generated_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": true
+}

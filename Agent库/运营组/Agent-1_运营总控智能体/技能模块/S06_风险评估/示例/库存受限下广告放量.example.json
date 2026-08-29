@@ -17,6 +17,6 @@
     "option_risks": [
       {"option_id": "OPT-GROWTH-001", "inherent_risk": "R3", "controlled_risk": "R2", "residual_risk": "R2", "risks": [{"risk_id": "RISK-INV-001", "category": "inventory", "source": "context_package.C04_core_metrics.inventory_days_of_cover", "trigger": "扩大预算提高销量消耗速度", "affected_object": "FBA库存与持续可售能力", "likelihood": "high", "impact": "high", "time_horizon": "短期", "detectability": "high", "reversibility": "medium", "exposure": "当前库存覆盖约7天", "evidence_strength": "high", "mitigation_actions": ["限制预算增幅", "设置库存停止线", "每日刷新库存覆盖时间"], "inherent_risk_level": "R3", "controlled_risk_level": "R2", "residual_risk_level": "R2", "worst_case": "需求被放大后提前断货，导致广告增长和自然流量承接中断"}], "mitigations": ["限制预算增幅", "库存达到停止线立即停止继续放量", "每日监控库存覆盖"], "aggregation_rule": "dominant-risk override：库存风险当前主导总体风险，不使用平均值", "dominant_risk": "RISK-INV-001", "risk_drivers": ["库存覆盖时间短", "放量会提高库存消耗速度"], "worst_case": "提前断货并中断增长节奏", "eligibility": "eligible_with_controls", "required_controls": ["预算增幅上限", "库存停止线", "库存日监控"], "approval_level": "按权限矩阵确定", "reason": "方案具有增长价值，但在当前库存状态下不能无保护直接执行", "risk_confidence": "high"}
     ],
-    "next_action": "continue_to_decision_comparison"
+    "next_action": "continue_to_decision_selector"
   }
 }

@@ -1,0 +1,124 @@
+{
+  "trace_id": "TRACE-AD-001",
+  "scenario": "travel mahjong set 14天61点击0订单，先降竞价测试，再经历第2天反向调整建议，最终完成验证与学习",
+  "scope": {"scope_type": "product", "scope_id": "ASIN-EXAMPLE", "product_id": "ASIN-EXAMPLE"},
+  "stages": {
+    "S01": {
+      "event_id": "EVT-AD-0001",
+      "status": "passed",
+      "normalized_event": {"event_id": "EVT-AD-0001", "source_agent": "Agent-4", "scope_type": "product", "scope_id": "ASIN-EXAMPLE", "product_id": "ASIN-EXAMPLE", "event_type": "advertising_high_clicks_zero_orders", "severity": "medium", "occurred_at": "2026-08-01T00:00:00Z", "summary": "travel mahjong set 14天61点击0订单", "facts": ["clicks=61", "orders=0"]},
+      "next_action": "continue_to_S02"
+    },
+    "S02": {
+      "status": "ready",
+      "context_package": {
+        "C01_product_identity": {"product_id": "ASIN-EXAMPLE"},
+        "C02_business_state": {"advertising_test": "candidate"},
+        "C03_current_goals": {"primary": "降低广告浪费并保留关键词学习价值"},
+        "C04_core_metrics": {"clicks_14d": 61, "orders_14d": 0, "CPA": 30},
+        "C05_events_and_promotions": {"coupon": false},
+        "C06_product_history": {"historical_conversion": "limited"},
+        "C07_agent_analyses": ["Agent-4建议受控测试"],
+        "C09_business_knowledge": {"matched_card": "高点击无订单"},
+        "C10_active_tasks_and_constraints": {"constraints": ["禁止证据不足时扩大预算"]}
+      },
+      "next_action": "continue_analysis"
+    },
+    "S03": {
+      "status": "conflicts_found",
+      "conflicts": [{"conflict_id": "CF-AD-001", "type": "strategy", "severity": "medium", "decision_impact": "changes_ranking", "disputed_points": ["立即暂停 vs 降竞价继续测试"], "resolution_status": "unresolved"}],
+      "next_action": "continue_to_S04"
+    },
+    "DecisionItemBuilder": {
+      "decision_items": [{"decision_item_id": "DI-AD-001", "item_type": "problem", "subject": "travel mahjong set广告效率", "problem_definition": "14天61点击0订单，需要决定是否继续、收缩或暂停", "objective": "降低无效消耗并保留关键词学习价值", "goal_layer": "business_quality", "urgency": "medium", "evidence_strength": "medium", "conflict_refs": ["CF-AD-001"], "source_event_refs": ["EVT-AD-0001"]}]
+    },
+    "S04": {
+      "gate_status": "normal",
+      "ranked_items": [{"decision_item_id": "DI-AD-001", "problem_definition": "14天61点击0订单，需要决定是否继续、收缩或暂停", "objective": "降低无效消耗并保留关键词学习价值", "business_priority": "P1", "rank": 1, "priority_basis": "已形成显著广告浪费信号", "confidence": "medium", "priority_change": "new"}],
+      "next_action": "continue_to_S05"
+    },
+    "S05": {
+      "decision_item_id": "DI-AD-001",
+      "status": "options_generated",
+      "options": [
+        {"option_id": "OPT-AD-001", "option_type": "conservative", "actions": [{"action_id": "ACT-PAUSE", "action_type": "pause_target", "target": "travel mahjong set"}], "assumptions": [], "reversibility": "high", "success_criteria": ["停止新增无转化消耗"], "stop_conditions": [], "difference_dimensions": ["action_direction"]},
+        {"option_id": "OPT-AD-002", "option_type": "experiment", "actions": [{"action_id": "ACT-BID-001", "action_type": "lower_bid", "target": "travel mahjong set", "change": "-20%"}], "assumptions": ["低竞价可降低试错成本"], "reversibility": "high", "success_criteria": ["CPA改善", "订单不跌破保护线"], "stop_conditions": ["订单跌破保护线"], "difference_dimensions": ["action_strength", "time_horizon"]}
+      ],
+      "next_action": "continue_to_S06"
+    },
+    "S06": {
+      "option_risks": [
+        {"option_id": "OPT-AD-001", "inherent_risk": "R1", "controlled_risk": "R1", "residual_risk": "R1", "aggregation_rule": "dominant risk", "eligibility": "eligible", "approval_level": "none", "reason": "可逆", "risk_confidence": "medium"},
+        {"option_id": "OPT-AD-002", "inherent_risk": "R2", "controlled_risk": "R1", "residual_risk": "R1", "aggregation_rule": "dominant risk", "eligibility": "eligible_with_controls", "required_controls": ["7天观察窗口内不得因弱证据反向调价"], "approval_level": "none", "reason": "受控实验可继续学习", "risk_confidence": "medium"}
+      ],
+      "next_action": "continue_to_decision_comparison"
+    },
+    "DecisionSelector": {
+      "final_decision": {
+        "decision_id": "DEC-AD-001",
+        "decision_item_id": "DI-AD-001",
+        "business_priority": "P1",
+        "selected_option": {"option_id": "OPT-AD-002", "option_type": "experiment", "actions": [{"action_id": "ACT-BID-001", "action_type": "lower_bid", "target": "travel mahjong set", "change": "-20%"}], "success_criteria": ["CPA改善", "订单不跌破保护线"], "stop_conditions": ["订单跌破保护线"], "reversibility": "high"},
+        "risk_assessment": {"option_id": "OPT-AD-002", "eligibility": "eligible_with_controls", "required_controls": ["7天观察窗口内不得因弱证据反向调价"], "approval_level": "none", "residual_risk": "R1"},
+        "decision_basis": {"why_selected": "比直接暂停保留更多学习价值，同时风险可控", "why_not_others": ["直接暂停可能过早损失关键词资产"]},
+        "strategy_chain_id": "CHAIN-AD-001",
+        "decision_confidence": "medium",
+        "created_at": "2026-08-01T00:00:00Z"
+      }
+    },
+    "S07": {
+      "task_plan_id": "TPLAN-AD-001",
+      "decision_id": "DEC-AD-001",
+      "decision_item_id": "DI-AD-001",
+      "tasks": [{"task_id": "TASK-AD-001", "task_plan_id": "TPLAN-AD-001", "decision_id": "DEC-AD-001", "decision_item_id": "DI-AD-001", "option_id": "OPT-AD-002", "strategy_chain_id": "CHAIN-AD-001", "source_action_id": "ACT-BID-001", "task_type": "execution", "owner": "Agent-4", "executor": "Amazon Ads执行器", "validator": "S08", "action": {"action_type": "lower_bid", "target": "travel mahjong set", "operation": "decrease", "parameters": {"adjustment": "-20%"}}, "business_priority": "P1", "approval_level": "none", "success_criteria": ["CPA改善", "订单不跌破保护线"], "stop_conditions": ["订单跌破保护线"], "status": "ready"}],
+      "next_action": "send_to_scheduler"
+    },
+    "S10_day2": {
+      "stabilization_id": "STAB-AD-001",
+      "strategy_chain_id": "CHAIN-AD-001",
+      "decision": "hold",
+      "change_relation": "partial_reversal",
+      "signal_class": "noise",
+      "evidence_delta": "weaker",
+      "reason": "第2天弱证据不足以推翻7天实验",
+      "next_action": "continue_existing_strategy"
+    },
+    "ExecutionResult": {
+      "execution_result_id": "EXEC-AD-001",
+      "task_id": "TASK-AD-001",
+      "task_plan_id": "TPLAN-AD-001",
+      "decision_id": "DEC-AD-001",
+      "decision_item_id": "DI-AD-001",
+      "option_id": "OPT-AD-002",
+      "strategy_chain_id": "CHAIN-AD-001",
+      "execution_status": "success",
+      "requested_action": {"action_type": "lower_bid", "target": "travel mahjong set", "change": "-20%"},
+      "actual_action": {"action_type": "lower_bid", "target": "travel mahjong set", "change": "-20%"},
+      "executor": "Amazon Ads执行器"
+    },
+    "S08": {
+      "validation_id": "VAL-AD-001",
+      "execution_result_id": "EXEC-AD-001",
+      "task_id": "TASK-AD-001",
+      "decision_id": "DEC-AD-001",
+      "decision_item_id": "DI-AD-001",
+      "execution_status": "success",
+      "business_outcome_status": "positive",
+      "overall_validation_status": "partial_success",
+      "observation_window_status": "complete",
+      "attribution_status": "weak",
+      "confidence": "medium",
+      "decision_implication": "continue_observation",
+      "next_action": "continue_to_S09"
+    },
+    "S09": {
+      "learning_batch_id": "LB-AD-001",
+      "validation_id": "VAL-AD-001",
+      "learning_items": [{"learning_id": "LEARN-AD-001", "level": "product_lesson", "learning_action": "create_lesson", "statement": "降竞价20%后CPA改善方向值得继续验证，但Coupon混杂使归因较弱", "source_decision_id": "DEC-AD-001", "source_decision_item_id": "DI-AD-001", "source_task_ids": ["TASK-AD-001"], "source_execution_result_ids": ["EXEC-AD-001"], "source_validation_ids": ["VAL-AD-001"], "evidence": ["VAL-AD-001"], "applicability": ["当前ASIN与相似广告结构"], "confidence": "medium", "promotion_gate": "needs_more_evidence"}],
+      "memory_writes": [{"write_type": "lesson", "target_store": "产品经验库", "record_ref": "LEARN-AD-001", "status": "planned"}],
+      "next_action": "request_more_evidence"
+    }
+  },
+  "reference_chain": ["EVT-AD-0001", "DI-AD-001", "OPT-AD-002", "DEC-AD-001", "TPLAN-AD-001", "TASK-AD-001", "EXEC-AD-001", "VAL-AD-001", "LEARN-AD-001"],
+  "expected_result": "所有阶段保留同一trace语义和正式业务主键；S10横向介入不破坏主链。"
+}

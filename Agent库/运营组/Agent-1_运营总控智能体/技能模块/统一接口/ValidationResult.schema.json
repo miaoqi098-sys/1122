@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Canonical ValidationResult V1.0",
+  "type": "object",
+  "required": ["validation_id", "execution_result_id", "task_id", "decision_id", "decision_item_id", "execution_status", "business_outcome_status", "overall_validation_status", "attribution_status", "confidence"],
+  "properties": {
+    "validation_id": {"type": "string", "minLength": 1},
+    "execution_result_id": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "task_plan_id": {"type": ["string", "null"]},
+    "decision_id": {"type": "string", "minLength": 1},
+    "decision_item_id": {"type": "string", "minLength": 1},
+    "option_id": {"type": ["string", "null"]},
+    "strategy_chain_id": {"type": ["string", "null"]},
+    "scope": {"type": "object"},
+    "execution_status": {"enum": ["not_started", "success", "partial", "failed", "unknown"]},
+    "business_outcome_status": {"enum": ["positive", "partial_positive", "no_effect", "negative", "not_evaluable"]},
+    "overall_validation_status": {"enum": ["success", "partial_success", "no_effect", "failed", "inconclusive", "rollback_triggered"]},
+    "criteria_results": {"type": "array"},
+    "observation_window_status": {"enum": ["not_started", "incomplete", "complete", "invalid"]},
+    "data_quality": {"enum": ["high", "medium", "low", "unknown"]},
+    "attribution_status": {"enum": ["strong", "moderate", "weak", "confounded", "not_evaluable"]},
+    "failure_type": {"type": ["string", "null"]},
+    "decision_implication": {"enum": ["keep", "scale", "continue_observation", "adjust", "rollback", "rediagnose"]},
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "created_at": {"type": ["string", "null"]}
+  },
+  "additionalProperties": true
+}

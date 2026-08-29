@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Canonical ExecutionResult V1.0",
+  "type": "object",
+  "required": ["execution_result_id", "task_id", "execution_status", "requested_action", "executor"],
+  "properties": {
+    "execution_result_id": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "decision_id": {"type": ["string", "null"]},
+    "option_id": {"type": ["string", "null"]},
+    "execution_status": {"enum": ["not_started", "success", "partial", "failed", "unknown"]},
+    "requested_action": {"type": "object"},
+    "actual_action": {"type": ["object", "null"]},
+    "executor": {"type": "string"},
+    "started_at": {"type": ["string", "null"]},
+    "finished_at": {"type": ["string", "null"]},
+    "logs": {"type": "array"},
+    "errors": {"type": "array"},
+    "partial_results": {"type": "array"},
+    "observed_state_change": {},
+    "source_response_refs": {"type": "array", "items": {"type": "string"}},
+    "verification_needed": {"type": "boolean", "default": true}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,48 @@
+{
+  "template_id": "DT-A1-PFT-001",
+  "template_name": "利润经营决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "profit",
+  "description": "用于Agent-1处理利润下降、亏损、成本上升、现金流压力和收益优化问题，并判断广告、价格、促销、库存等动作的经济可行性。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["account", "store", "parent_product", "product", "sku"],
+  "trigger_patterns": ["margin_drop", "loss_risk", "cost_increase", "cash_flow_pressure", "break_even_shift", "profit_optimization", "short_term_loss_for_growth"],
+  "applicable_states": ["生命周期/经营情境/风险/机会状态引用经营状态识别模块"],
+  "exclusion_conditions": ["成本口径不一致且无法校正", "关键成本/售价/广告/促销事实缺失", "问题本质是合规或可售风险且利润仅为次要影响"],
+  "required_context": ["当前业务目标与goal_layer", "售价与促销", "产品成本与FBA费用", "广告成本", "仓储/退款/促销等经营成本", "库存状态", "销量和转化", "现金流约束", "历史利润基线"],
+  "required_metrics": [
+    {"metric_ref": "profit.unit_margin", "purpose": "判断单件经济性", "freshness_requirement": "当前成本/售价版本", "requirement_level": "required"},
+    {"metric_ref": "profit.contribution_margin", "purpose": "判断增量经营动作价值", "freshness_requirement": "当前经营窗口", "requirement_level": "required"},
+    {"metric_ref": "profit.total_profit", "purpose": "判断规模与效率综合结果", "freshness_requirement": "当前比较窗口", "requirement_level": "preferred"},
+    {"metric_ref": "profit.break_even", "purpose": "判断盈亏平衡边界", "freshness_requirement": "当前成本结构", "requirement_level": "preferred"},
+    {"metric_ref": "cash_flow.available_or_constraint", "purpose": "约束投入与补货", "freshness_requirement": "当前资金状态", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "售价与成本明细", "requirement_level": "required", "freshness_requirement": "当前版本"},
+    {"evidence_type": "广告/促销/仓储/退款等主要变动成本", "requirement_level": "required", "freshness_requirement": "当前分析窗口"},
+    {"evidence_type": "销量与经营规模", "requirement_level": "required", "freshness_requirement": "与利润窗口一致"},
+    {"evidence_type": "历史利润基线", "requirement_level": "preferred", "freshness_requirement": "可比阶段"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-6", "purpose": "利润、成本、盈亏平衡与现金流分析", "requirement_level": "required"},
+    {"agent_id": "Agent-4", "purpose": "广告投入变化", "requirement_level": "preferred"},
+    {"agent_id": "Agent-7", "purpose": "库存、仓储和补货影响", "requirement_level": "preferred"},
+    {"agent_id": "Agent-10", "purpose": "价格与促销成本影响", "requirement_level": "preferred"}
+  ],
+  "required_constraints": ["最低利润/现金流保护", "安全与可售资格", "库存与仓储成本", "价格与促销约束", "增长目标和投资期限"],
+  "key_questions": ["利润变化的主要驱动因素是什么？", "问题是单件经济性恶化还是规模/结构变化？", "哪些成本可控、哪些不可控？", "短期亏损是否有明确增长假设和退出条件？", "不同动作对总利润、单件利润和现金流分别如何影响？"],
+  "option_comparison_dimensions": ["单件利润", "贡献利润", "总利润", "现金流", "增长影响", "库存影响", "可逆性", "执行时效", "长期价值"],
+  "risk_focus": ["只看毛利忽略其他成本", "只看单件利润错过总利润增长", "短期亏损没有退出条件", "成本口径/时间窗口不一致", "利润优化动作伤害库存或增长", "现金流压力被利润率掩盖"],
+  "approval_focus": ["主动接受短期亏损", "大幅增加广告/促销投入", "显著改变价格或采购策略", "突破既定利润/现金流保护线"],
+  "task_requirements": ["明确利润口径和时间窗口", "列明可控成本动作", "定义目标利润/现金流变化", "短期亏损策略必须有期限与退出条件", "跨域动作建立任务依赖"],
+  "observation_requirements": ["同时观察单件、贡献和总利润", "成本版本变化时重新计算", "增长投入按预设窗口复核回报", "现金流与利润分开监控"],
+  "rollback_requirements": ["亏损超出保护边界时停止扩张", "增长假设未验证时缩减投入", "现金流风险升级时优先降低不可逆支出", "利润优化造成核心经营指标恶化时重新生成方案"],
+  "review_triggers": ["成本变化", "售价/促销变化", "广告投入变化", "库存/仓储状态变化", "退款率显著变化", "增长投资观察窗口结束"],
+  "learning_focus": ["产品真实成本结构", "广告/促销的边际利润", "不同阶段可接受的利润区间", "短期亏损策略的实际回报", "利润与现金流错配模式"],
+  "supersedes": null,
+  "tags": ["profit", "margin", "cash_flow", "cost", "break_even"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["利润阈值和成本口径由经营指标库/财务事实定义，不在模板硬编码", "真实财务数据接入属于未来数据接口层"]}
+}

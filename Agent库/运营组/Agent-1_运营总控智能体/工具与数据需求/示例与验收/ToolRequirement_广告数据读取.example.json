@@ -1,0 +1,23 @@
+{
+  "tool_requirement_id": "TR-A1-ADS-READ-001",
+  "capability": "read_ad_performance_and_search_terms",
+  "purpose": "为广告DecisionItem读取指定Scope与窗口的广告表现、结构和搜索词事实。",
+  "operation_class": "read",
+  "supported_scopes": ["product", "campaign", "ad_group", "keyword"],
+  "input_requirements": ["scope", "window_start", "window_end", "requested_metrics", "entity_filters"],
+  "expected_output": ["source_metadata", "entity_structure", "performance_data", "search_term_data", "data_window", "freshness", "failure_status"],
+  "permission_level": "read_only",
+  "approval_conditions": [],
+  "idempotency_requirement": "not_applicable",
+  "audit_requirement": "required",
+  "freshness_dependencies": ["广告归因窗口", "最近策略调整时间"],
+  "failure_behavior": {
+    "on_tool_error": "use_fallback",
+    "on_permission_denied": "fail_task",
+    "on_incomplete_result": "request_more_data"
+  },
+  "future_runtime_dependency_refs": ["R05"],
+  "canonical_input_refs": ["DecisionItem", "ContextPackage"],
+  "canonical_output_refs": ["ContextPackage.evidence_refs"],
+  "notes": ["该能力只读取数据，不代表拥有广告修改权限。", "结果需要保留报表窗口和归因延迟信息。"]
+}

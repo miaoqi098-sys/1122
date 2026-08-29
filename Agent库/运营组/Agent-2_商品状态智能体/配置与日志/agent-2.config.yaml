@@ -1,0 +1,43 @@
+config_version: 1.0.0
+compatible_agent_version: ">=1.0.0 <2.0.0"
+
+agent:
+  id: Agent-2
+  name: 商品状态智能体
+  group: 运营组
+
+contracts:
+  event_schema: ../../Agent-1_运营总控智能体/输入规范/智能事件包.schema.json
+  specialist_result_schema: ../../Agent-1_运营总控智能体/输入规范/专业Agent结果.schema.json
+  snapshot_schema: ../状态模型/商品状态快照.schema.json
+
+status_domains:
+  - availability_state
+  - page_state
+  - offer_state
+  - price_display_state
+  - content_state
+  - variation_state
+  - rating_state
+  - qualification_state
+
+monitoring_policy:
+  preserve_unknown: true
+  require_evidence_for_event: true
+  dedupe_open_events: true
+  emit_recovery_events: true
+  source_conflict_requires_recheck: true
+  tool_failure_is_business_event: false
+
+severity_semantics:
+  levels: [P0, P1, P2, P3]
+  business_priority_source: Agent-1_S04
+  fixed_cross_agent_priority_allowed: false
+
+runtime_placeholders:
+  agent_runner: R02
+  schema_validator: R03
+  backend_connector: R04
+  history_store: R06
+  scheduler: R07
+  frontend_monitor: R12

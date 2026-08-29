@@ -1,10 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S10 策略防抖输入规范 V1.1",
+  "title": "S10 策略防抖输入规范 V1.2",
   "type": "object",
-  "required": ["product_id", "proposed_action", "active_or_recent_tasks"],
+  "required": ["scope", "proposed_action", "active_or_recent_tasks"],
   "properties": {
-    "product_id": {"type": "string", "minLength": 1},
+    "scope": {
+      "type": "object",
+      "required": ["scope_type"],
+      "properties": {
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "campaign", "ad_group", "target", "keyword", "task", "decision", "other"]},
+        "scope_id": {"type": ["string", "null"]},
+        "product_id": {"type": ["string", "null"]},
+        "marketplace": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
     "proposed_action": {
       "type": "object",
       "required": ["target", "action_type", "direction"],
@@ -16,7 +26,9 @@
         "scope": {},
         "time_horizon": {},
         "reason": {"type": ["string", "null"]},
-        "source_decision_id": {"type": ["string", "null"]}
+        "source_decision_id": {"type": ["string", "null"]},
+        "source_decision_item_id": {"type": ["string", "null"]},
+        "source_option_id": {"type": ["string", "null"]}
       },
       "additionalProperties": true
     },
@@ -25,8 +37,8 @@
       "type": "object",
       "properties": {
         "strategy_chain_id": {"type": "string"},
-        "decision_id": {"type": ["string", "null"]},
-        "option_id": {"type": ["string", "null"]},
+        "decision_ids": {"type": "array", "items": {"type": "string"}},
+        "decision_item_id": {"type": ["string", "null"]},
         "target": {"type": ["string", "null"]},
         "original_direction": {"type": ["string", "null"]},
         "current_direction": {"type": ["string", "null"]},
@@ -39,25 +51,9 @@
       },
       "additionalProperties": true
     },
-    "original_evidence": {
-      "type": "object",
-      "properties": {
-        "strength": {"enum": ["A", "B", "C", "D", "unknown"]},
-        "confidence": {"enum": ["low", "medium", "high", "unknown"]},
-        "evidence_refs": {"type": "array"}
-      },
-      "additionalProperties": true
-    },
+    "original_evidence": {"type": "object"},
     "new_evidence": {"type": "array"},
-    "new_evidence_summary": {
-      "type": "object",
-      "properties": {
-        "strength": {"enum": ["A", "B", "C", "D", "unknown"]},
-        "confidence": {"enum": ["low", "medium", "high", "unknown"]},
-        "critical_new_fact": {"type": "boolean"}
-      },
-      "additionalProperties": true
-    },
+    "new_evidence_summary": {"type": "object"},
     "business_state_before": {"type": "object"},
     "business_state": {"type": "object"},
     "state_change": {"type": "object"},

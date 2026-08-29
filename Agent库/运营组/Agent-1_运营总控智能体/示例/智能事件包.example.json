@@ -1,0 +1,23 @@
+{
+  "event_id": "EVT-20260829-0001",
+  "source_agent": "Agent-4",
+  "product_id": "MAHJONG-001",
+  "asin": null,
+  "event_type": "广告关键词异常",
+  "severity": "P2",
+  "occurred_at": "2026-08-29T14:00:00+08:00",
+  "summary": "travel mahjong set 出现高点击无转化",
+  "facts": [
+    "关键词累计 61 次点击",
+    "当前观察窗口内 0 订单"
+  ],
+  "metrics": {
+    "clicks": 61,
+    "orders": 0
+  },
+  "recommendation": "检查流量质量、Listing 相关性、库存与利润上下文后决定降价、暂停或转 Exact 测试",
+  "confidence": 0.86,
+  "related_events": [],
+  "requires_decision_by": null,
+  "attachments": []
+}

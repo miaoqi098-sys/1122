@@ -1,0 +1,46 @@
+{
+  "template_id": "DT-A1-REV-001",
+  "template_name": "评价体验决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "review_experience",
+  "description": "用于Agent-1处理Review、Rating、VOC、退货、QA与消费者体验问题，并判断应采取内容修正、产品改善、供应链修复、客服动作还是进一步调查。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["parent_product", "product", "sku"],
+  "trigger_patterns": ["rating_drop", "negative_review_cluster", "voc_issue", "return_reason_spike", "qa_gap", "expectation_mismatch", "experience_improvement_opportunity"],
+  "applicable_states": ["生命周期/经营情境/风险/机会状态引用经营状态识别模块"],
+  "exclusion_conditions": ["仅有单条孤立评价且无其他证据", "主要问题明确属于政策/评论操纵风险", "体验问题根因未形成且样本不足"],
+  "required_context": ["业务目标", "Rating/Review/VOC/退货/QA事实", "Listing当前表达", "产品与包装状态", "供应链/批次信息", "转化变化", "历史体验问题与修复记录"],
+  "required_metrics": [
+    {"metric_ref": "review.rating", "purpose": "观察整体评价趋势", "freshness_requirement": "当前", "requirement_level": "required"},
+    {"metric_ref": "review.negative_theme_frequency", "purpose": "识别重复痛点", "freshness_requirement": "当前窗口", "requirement_level": "required"},
+    {"metric_ref": "returns.reason_rate", "purpose": "验证体验问题是否影响退货", "freshness_requirement": "当前窗口", "requirement_level": "preferred"},
+    {"metric_ref": "listing.conversion_rate", "purpose": "评估体验信号的转化影响", "freshness_requirement": "可比窗口", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "评价/VOC主题证据", "requirement_level": "required", "freshness_requirement": "当前分析窗口"},
+    {"evidence_type": "退货/QA/客服等交叉证据", "requirement_level": "preferred", "freshness_requirement": "当前"},
+    {"evidence_type": "Listing与产品事实", "requirement_level": "required", "freshness_requirement": "当前版本"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-11", "purpose": "提供评价、VOC、退货与消费者痛点分析", "requirement_level": "required"},
+    {"agent_id": "Agent-9", "purpose": "提供Listing表达与转化承接信息", "requirement_level": "preferred"},
+    {"agent_id": "Agent-12", "purpose": "提供评价政策/合规风险", "requirement_level": "preferred"},
+    {"agent_id": "Agent-7", "purpose": "提供批次、包装或供应链关联信息", "requirement_level": "preferred"}
+  ],
+  "required_constraints": ["评价政策合规", "样本代表性", "产品事实", "Listing预期管理", "批次/供应链一致性"],
+  "key_questions": ["问题是系统性还是孤立事件？", "消费者不满属于产品缺陷、预期错配、使用问题、物流包装还是其他原因？", "是否有退货/QA/转化等交叉证据？", "应修产品、修页面、修包装还是继续调查？", "是否存在评论政策或异常评价风险？"],
+  "option_comparison_dimensions": ["根因匹配度", "消费者影响", "转化影响", "修复成本", "实施周期", "可逆性", "合规风险", "证据强度"],
+  "risk_focus": ["把孤立差评放大为系统问题", "用文案掩盖真实产品缺陷", "忽略批次/包装根因", "触碰评论政策", "过早结论导致错误整改"],
+  "approval_focus": ["产品规格/供应链重大整改", "涉及评论政策的动作", "大规模召回/停售建议", "核心产品承诺改变"],
+  "task_requirements": ["保留VOC/评价证据引用", "明确根因假设", "区分内容修正与产品修复", "定义体验改善成功标准", "涉及跨域问题建立任务依赖"],
+  "observation_requirements": ["观察新评价主题变化", "观察退货与转化", "区分整改前后批次", "给产品/页面修复足够生效窗口"],
+  "rollback_requirements": ["新证据否定根因时停止错误整改", "内容修改导致转化恶化时恢复", "产品整改成本/风险越界时重新评估方案"],
+  "review_triggers": ["Rating显著变化", "负面主题持续增长", "退货原因变化", "新批次上线", "Listing重大变更", "风险合规信号出现"],
+  "learning_focus": ["真实消费者痛点", "预期管理模式", "批次/包装问题模式", "内容修正与体验改善效果"],
+  "supersedes": null,
+  "tags": ["review", "rating", "voc", "returns", "customer_experience", "qa"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["模板不执行任何评论操纵动作", "异常评价或政策问题升级风险合规模板"]}
+}

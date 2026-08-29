@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S02 上下文装载输出规范",
+  "type": "object",
+  "required": ["skill_id", "event_id", "product_id", "status", "context_package", "missing_context", "stale_context", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S02"},
+    "event_id": {"type": "string"},
+    "product_id": {"type": "string"},
+    "status": {
+      "enum": ["ready", "ready_with_gaps", "needs_information", "blocked"]
+    },
+    "question": {"type": "string"},
+    "context_package": {
+      "type": "object",
+      "properties": {
+        "C01_product_identity": {},
+        "C02_business_state": {},
+        "C03_current_goals": {},
+        "C04_core_metrics": {},
+        "C05_events_and_promotions": {},
+        "C06_product_history": {},
+        "C07_agent_analyses": {},
+        "C08_market_and_competitors": {},
+        "C09_business_knowledge": {},
+        "C10_active_tasks_and_constraints": {}
+      },
+      "additionalProperties": false
+    },
+    "loaded_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["context_id", "domain", "source", "freshness_status", "relevance"],
+        "properties": {
+          "context_id": {"type": "string"},
+          "domain": {"type": "string"},
+          "source": {"type": "string"},
+          "as_of": {"type": ["string", "null"]},
+          "freshness_status": {"enum": ["fresh", "usable", "stale", "unknown"]},
+          "relevance": {"enum": ["required", "high", "medium", "low"]},
+          "confidence": {"type": ["string", "number", "null"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "missing_context": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["domain", "item", "decision_impact"],
+        "properties": {
+          "domain": {"type": "string"},
+          "item": {"type": "string"},
+          "decision_impact": {"enum": ["blocking", "high", "medium", "low"]},
+          "suggested_source": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "stale_context": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["item", "reason"],
+        "properties": {
+          "item": {"type": "string"},
+          "reason": {"type": "string"},
+          "refresh_required": {"type": "boolean"}
+        }
+      }
+    },
+    "excluded_context": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["item", "reason"],
+        "properties": {
+          "item": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    },
+    "context_summary": {"type": "string"},
+    "next_action": {
+      "enum": ["continue_analysis", "refresh_context", "request_information", "request_agent_analysis", "hold_for_review"]
+    }
+  },
+  "additionalProperties": true
+}

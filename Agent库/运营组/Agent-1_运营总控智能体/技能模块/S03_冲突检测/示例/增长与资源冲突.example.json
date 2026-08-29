@@ -17,9 +17,9 @@
   "expected_output": {
     "skill_id": "S03",
     "status": "conflicts_found",
-    "conflicts": [{"conflict_id": "CF-001", "conflict_group_id": "CFG-001", "type": "goal", "involved_agents": ["Agent-4", "Agent-7", "Agent-6"], "subject": "增长放量", "shared_facts": ["当前存在扩量机会", "库存覆盖仅约7天", "利润存在压力"], "disputed_points": ["当前是否应继续扩大广告投入"], "root_conflict": "增长目标 vs 当前资源承受能力", "evidence_needed": ["在途补货到仓时间", "当前单位利润与利润底线", "放量后的预计库存消耗"], "severity": "high", "decision_impact": "changes_ranking", "resolution_status": "unresolved", "recommended_next_step": "交DecisionItemBuilder形成待决事项后进入S04"}],
+    "conflicts": [{"conflict_id": "CF-001", "conflict_group_id": "CFG-001", "type": "goal", "involved_agents": ["Agent-4", "Agent-7", "Agent-6"], "subject": "增长放量", "shared_facts": ["当前存在扩量机会", "库存覆盖仅约7天", "利润存在压力"], "disputed_points": ["当前是否应继续扩大广告投入"], "root_conflict": "增长目标 vs 当前资源承受能力", "evidence_needed": ["在途补货到仓时间", "当前单位利润与利润底线", "放量后的预计库存消耗"], "severity": "high", "decision_impact": "changes_ranking", "resolution_status": "unresolved", "recommended_next_step": "交DecisionItemBuilder形成待决事项"}],
     "conflict_groups": [{"conflict_group_id": "CFG-001", "root_conflict": "增长目标 vs 当前资源承受能力", "related_conflicts": ["CF-001"], "involved_agents": ["Agent-4", "Agent-7", "Agent-6"], "highest_severity": "high", "highest_decision_impact": "changes_ranking"}],
     "unresolved_points": ["补货是否能在预计断货前到仓", "放量是否突破利润底线"],
-    "next_action": "continue_to_S04"
+    "next_action": "continue_to_decision_item_builder"
   }
 }

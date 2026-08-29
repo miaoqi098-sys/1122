@@ -1,0 +1,42 @@
+{
+  "template_id": "DT-A1-INT-001",
+  "template_name": "综合经营决策模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "integrated_business",
+  "description": "用于Agent-1处理多个经营域、多个目标或多个DecisionItem需要联合规划的问题，形成跨广告、价格、库存、利润、Listing、评价、风险与市场的组合经营决策。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["global", "store", "parent_product", "product", "sku", "decision"],
+  "trigger_patterns": ["multi_domain_strategy", "multiple_decision_items", "promotion_full_funnel_plan", "new_product_launch_plan", "inventory_clearance_plan", "growth_profit_tradeoff", "cross_domain_secondary_effect"],
+  "applicable_states": ["任何经营状态；状态语义引用经营状态识别模块"],
+  "exclusion_conditions": ["问题可由单一领域模板完整解决", "多个子问题尚未形成明确DecisionItem", "核心目标和硬约束未明确", "综合模板被用来绕过证据缺失"],
+  "required_context": ["全部相关DecisionItem及关系", "当前目标层与主次目标", "经营状态", "各领域ContextPackage信息", "硬约束", "active_tasks", "StrategyChain", "历史综合策略与验证结果"],
+  "required_metrics": [
+    {"metric_ref": "business.goal_gap_by_domain", "purpose": "比较各域对总目标的贡献与缺口", "freshness_requirement": "当前决策窗口", "requirement_level": "required"},
+    {"metric_ref": "business.constraint_status", "purpose": "识别库存/利润/风险等硬约束", "freshness_requirement": "当前", "requirement_level": "required"},
+    {"metric_ref": "business.cross_domain_impact", "purpose": "识别单域动作的次生影响", "freshness_requirement": "当前方案版本", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "各DecisionItem及其证据引用", "requirement_level": "required", "freshness_requirement": "当前决策窗口"},
+    {"evidence_type": "主目标/次目标与硬约束依据", "requirement_level": "required", "freshness_requirement": "当前"},
+    {"evidence_type": "各专业Agent输入", "requirement_level": "required", "freshness_requirement": "与各子问题一致"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "所有与当前综合问题相关的专业Agent", "purpose": "提供各领域事实、分析、约束和建议", "requirement_level": "required"}
+  ],
+  "required_constraints": ["风险资格", "库存安全", "利润/现金流", "价格体系", "转化承接", "策略稳定性", "资源与执行依赖", "审批要求"],
+  "key_questions": ["为什么单域模板不足以解决当前问题？", "有哪些DecisionItem，它们之间是依赖、冲突还是并行关系？", "主目标与次目标是什么，哪些是硬约束？", "各子域方案组合后是否产生次生问题？", "应同步执行、串行执行还是先验证某一关键假设？", "组合策略如何定义整体观察窗口、成功标准和退出条件？"],
+  "option_comparison_dimensions": ["整体目标对齐", "子目标贡献", "硬约束满足", "跨域次生影响", "资源成本", "利润/现金流", "库存", "风险", "可逆性", "执行依赖", "策略稳定性"],
+  "risk_focus": ["用综合模板掩盖问题定义不清", "同时修改过多变量导致无法验证", "单域最优造成全局次优", "忽略任务依赖", "多个FinalDecision互相冲突", "策略频繁反转"],
+  "approval_focus": ["多域大规模调整", "主动突破既定利润/库存保护线", "高影响价格/广告/库存组合动作", "改变长期经营策略"],
+  "task_requirements": ["明确各DecisionItem关系", "明确主模板与辅助模板", "形成TaskGraph依赖", "分阶段定义观察窗口", "每阶段有成功/失败/停止条件", "最终决策保持唯一出口或明确关联决策链"],
+  "observation_requirements": ["同时观察主目标和关键副作用", "阶段性验证核心假设", "避免在未完成关键观察前同时反转多个子策略", "对各域指标使用一致时间窗口解释"],
+  "rollback_requirements": ["硬约束越界时优先停止相关子策略", "核心假设失败时停止后续依赖任务", "组合策略产生重大次生问题时拆回单域重新决策", "策略反转对齐S10"],
+  "review_triggers": ["关键阶段完成", "任一硬约束变化", "主目标明显偏离", "子策略失败", "新高优先级风险事件", "关键外部环境变化"],
+  "learning_focus": ["跨域策略组合效果", "任务依赖设计", "主次目标取舍", "不同经营阶段的有效组合策略", "次生风险模式"],
+  "supersedes": null,
+  "tags": ["integrated", "strategy", "multi_domain", "task_graph", "business"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["综合模板引用其他领域模板，不复制其完整规则", "多个DecisionItem可形成关联决策链，但Agent-1仍是唯一最终决策出口"]}
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent-1 DataRequirement Schema V1.0",
+  "type": "object",
+  "required": [
+    "requirement_id",
+    "name",
+    "business_purpose",
+    "requirement_level",
+    "scope_requirement",
+    "time_requirement",
+    "accepted_source_types",
+    "failure_behavior"
+  ],
+  "properties": {
+    "requirement_id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "domain": {"type": "string"},
+    "business_purpose": {"type": "string", "minLength": 1},
+    "supports": {
+      "type": "array",
+      "items": {"enum": ["problem_definition", "context", "state", "priority", "option", "risk", "approval", "task", "validation", "learning"]}
+    },
+    "requirement_level": {"enum": ["required", "preferred", "optional"]},
+    "data_kind": {"enum": ["raw_fact", "derived_metric", "specialist_interpretation", "historical_pattern", "system_state", "human_input", "other"]},
+    "scope_requirement": {
+      "type": "object",
+      "required": ["allowed_scope_types"],
+      "properties": {
+        "allowed_scope_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"enum": ["account", "store", "global", "parent_product", "product", "sku", "campaign", "ad_group", "keyword", "task", "decision", "other"]}
+        },
+        "must_match_decision_scope": {"type": "boolean"},
+        "aggregation_notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "time_requirement": {
+      "type": "object",
+      "required": ["freshness_class"],
+      "properties": {
+        "freshness_class": {"enum": ["realtime_or_near_realtime", "same_day", "recent_window", "decision_window_aligned", "historical", "event_driven", "context_dependent"]},
+        "max_age": {"type": ["string", "null"]},
+        "window_requirement": {"type": ["string", "null"]},
+        "attribution_delay_notes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "accepted_source_types": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["specialist_agent", "shared_data_interface", "memory_data_layer", "official_platform_source", "human_input", "derived_metric", "system_state"]}
+    },
+    "preferred_source": {"type": ["string", "null"]},
+    "fallback_sources": {"type": "array", "items": {"type": "string"}},
+    "minimum_evidence_quality": {"enum": ["high", "medium", "low", "unknown", "context_dependent"]},
+    "required_fields": {"type": "array", "items": {"type": "string"}},
+    "comparison_requirements": {"type": "array", "items": {"type": "string"}},
+    "conflict_checks": {"type": "array", "items": {"type": "string"}},
+    "failure_behavior": {
+      "type": "object",
+      "required": ["on_missing", "on_stale", "on_conflict"],
+      "properties": {
+        "on_missing": {"enum": ["block", "request_refresh", "use_fallback", "reduce_confidence", "narrow_action", "hold_for_review", "continue"]},
+        "on_stale": {"enum": ["block", "request_refresh", "use_fallback", "reduce_confidence", "narrow_action", "hold_for_review", "continue"]},
+        "on_conflict": {"enum": ["block", "request_refresh", "reconcile_sources", "reduce_confidence", "hold_for_review", "continue"]}
+      },
+      "additionalProperties": true
+    },
+    "canonical_refs": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

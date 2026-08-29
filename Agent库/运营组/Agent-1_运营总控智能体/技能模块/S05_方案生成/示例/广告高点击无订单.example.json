@@ -1,6 +1,6 @@
 {
   "input": {
-    "product_id": "ASIN-EXAMPLE",
+    "scope": {"scope_type": "product", "scope_id": "ASIN-EXAMPLE", "product_id": "ASIN-EXAMPLE"},
     "decision_item": {
       "decision_item_id": "DI-AD-001",
       "business_priority": "P1",
@@ -8,14 +8,16 @@
       "objective": "降低无效广告消耗，同时避免过早放弃可能有价值的关键词资产",
       "goal_layer": "business_quality",
       "priority_basis": "点击量已形成有效观察信号，但当前证据不足以直接证明关键词无价值",
-      "conflict_refs": ["CF-AD-001"]
+      "conflict_refs": ["CF-AD-001"],
+      "constraint_refs": ["CONS-AD-001"],
+      "evidence_refs": ["CTX-C04-001"]
     },
-    "current_goals": {"primary": "提高广告效率并保留有效关键词资产"},
-    "business_state": {"advertising_test": "active"},
-    "constraints": ["不在证据不足时直接扩大预算"],
     "context_package": {
-      "facts": ["14天61点击0订单"],
-      "missing": ["完整搜索词明细", "历史转化表现"]
+      "C02_business_state": {"advertising_test": "active"},
+      "C03_current_goals": {"primary": "提高广告效率并保留有效关键词资产"},
+      "C04_core_metrics": {"clicks": 61, "orders": 0},
+      "C06_product_history": {"missing": ["historical_conversion"]},
+      "C10_active_tasks_and_constraints": {"constraints": ["不在证据不足时直接扩大预算"]}
     }
   },
   "expected_output": {
@@ -23,101 +25,11 @@
     "decision_item_id": "DI-AD-001",
     "status": "options_generated",
     "options": [
-      {
-        "option_id": "OPT-001",
-        "option_type": "conservative",
-        "objective": "立即控制继续消耗",
-        "rationale": "61点击0订单已经形成负面信号，保守路径优先控制成本，但保留未来恢复可能性",
-        "actions": [
-          {
-            "action_id": "ACT-001",
-            "action_type": "pause_target",
-            "target": "travel mahjong set / 当前广告目标",
-            "change": "pause",
-            "scope": "current ASIN",
-            "preconditions": ["确认该目标不是当前唯一核心流量入口"]
-          }
-        ],
-        "assumptions": ["当前点击质量不足以支持继续原强度投放"],
-        "expected_benefit": "快速停止新增无转化花费",
-        "cost": "可能损失后续学习和潜在流量",
-        "known_tradeoffs": ["效率保护 vs 关键词学习"],
-        "known_risk_signals": ["可能过早结束测试"],
-        "reversibility": "high",
-        "time_to_effect": "短期",
-        "data_needed": [],
-        "success_criteria": ["新增无效花费停止"],
-        "stop_conditions": ["获得新证据证明该词具有明确转化价值时重新评估"],
-        "derived_from": {"conflict_refs": ["CF-AD-001"]},
-        "difference_dimensions": ["action_direction", "information_requirement"],
-        "similarity_group": null,
-        "distinctness": "high"
-      },
-      {
-        "option_id": "OPT-002",
-        "option_type": "experiment",
-        "objective": "降低试错成本并继续验证关键词价值",
-        "rationale": "不直接判死关键词，通过降低投入强度继续获取验证数据",
-        "actions": [
-          {
-            "action_id": "ACT-002",
-            "action_type": "lower_bid",
-            "target": "travel mahjong set / 当前广告目标",
-            "change": "降低竞价至受控测试区间",
-            "scope": "current ASIN",
-            "intensity": "reduced",
-            "duration_or_window": "下一完整观察窗口",
-            "preconditions": ["库存与利润底线允许继续小范围测试"]
-          }
-        ],
-        "assumptions": ["关键词可能存在价值，但当前竞价/流量质量不匹配"],
-        "expected_benefit": "以更低成本继续学习",
-        "cost": "仍可能产生部分无转化花费",
-        "known_tradeoffs": ["继续学习 vs 继续承担有限试错成本"],
-        "known_risk_signals": ["低竞价可能减少样本获取速度"],
-        "reversibility": "high",
-        "time_to_effect": "一个观察窗口",
-        "data_needed": ["后续点击、订单、CPC、搜索词质量"],
-        "success_criteria": ["受控成本下出现转化或搜索词质量改善"],
-        "stop_conditions": ["达到配置的停止条件仍无有效转化"],
-        "derived_from": {"conflict_refs": ["CF-AD-001"]},
-        "difference_dimensions": ["action_direction", "action_strength", "time_horizon"],
-        "similarity_group": null,
-        "distinctness": "high"
-      },
-      {
-        "option_id": "OPT-003",
-        "option_type": "information_first",
-        "objective": "先补决定性证据再决定暂停或继续",
-        "rationale": "当前缺完整搜索词与历史转化，补齐这些信息可能直接改变方案选择",
-        "actions": [
-          {
-            "action_id": "ACT-003",
-            "action_type": "retrieve_decision_evidence",
-            "target": "travel mahjong set",
-            "scope": "search term and historical conversion evidence",
-            "preconditions": []
-          }
-        ],
-        "assumptions": ["缺失数据具有足够决策价值"],
-        "expected_benefit": "降低误杀关键词或继续浪费预算的概率",
-        "cost": "延迟最终动作",
-        "known_tradeoffs": ["决策质量 vs 决策速度"],
-        "known_risk_signals": ["补数据期间仍需限制新增无效消耗"],
-        "reversibility": "high",
-        "time_to_effect": "数据取得后",
-        "data_needed": ["完整搜索词明细", "历史转化表现"],
-        "success_criteria": ["取得足以区分继续测试与暂停的决定性证据"],
-        "stop_conditions": ["数据源不可用时转为受控experiment或保守方案"],
-        "derived_from": {"conflict_refs": ["CF-AD-001"]},
-        "difference_dimensions": ["information_requirement", "action_direction", "resource_commitment"],
-        "similarity_group": null,
-        "distinctness": "high"
-      }
+      {"option_id": "OPT-001", "option_type": "conservative", "objective": "立即控制继续消耗", "rationale": "61点击0订单已经形成负面信号，保守路径优先控制成本，但保留未来恢复可能性", "actions": [{"action_id": "ACT-001", "action_type": "pause_target", "target": "travel mahjong set / 当前广告目标", "change": "pause", "scope": "current ASIN", "preconditions": ["确认该目标不是当前唯一核心流量入口"]}], "assumptions": ["当前点击质量不足以支持继续原强度投放"], "expected_benefit": "快速停止新增无转化花费", "cost": "可能损失后续学习和潜在流量", "known_tradeoffs": ["效率保护 vs 关键词学习"], "known_risk_signals": ["可能过早结束测试"], "reversibility": "high", "time_to_effect": "短期", "data_needed": [], "success_criteria": ["新增无效花费停止"], "stop_conditions": ["获得新证据证明该词具有明确转化价值时重新评估"], "derived_from": {"evidence_refs": ["CTX-C04-001"], "conflict_refs": ["CF-AD-001"]}, "difference_dimensions": ["action_direction", "information_requirement"], "similarity_group": null, "distinctness": "high"},
+      {"option_id": "OPT-002", "option_type": "experiment", "objective": "降低试错成本并继续验证关键词价值", "rationale": "不直接判死关键词，通过降低投入强度继续获取验证数据", "actions": [{"action_id": "ACT-002", "action_type": "lower_bid", "target": "travel mahjong set / 当前广告目标", "change": "降低竞价至受控测试区间", "scope": "current ASIN", "intensity": "reduced", "duration_or_window": "下一完整观察窗口", "preconditions": ["库存与利润底线允许继续小范围测试"]}], "assumptions": ["关键词可能存在价值，但当前竞价/流量质量不匹配"], "expected_benefit": "以更低成本继续学习", "cost": "仍可能产生部分无转化花费", "known_tradeoffs": ["继续学习 vs 继续承担有限试错成本"], "known_risk_signals": ["低竞价可能减少样本获取速度"], "reversibility": "high", "time_to_effect": "一个观察窗口", "data_needed": ["后续点击、订单、CPC、搜索词质量"], "success_criteria": ["受控成本下出现转化或搜索词质量改善"], "stop_conditions": ["达到配置的停止条件仍无有效转化"], "derived_from": {"evidence_refs": ["CTX-C04-001"], "conflict_refs": ["CF-AD-001"]}, "difference_dimensions": ["action_direction", "action_strength", "time_horizon"], "similarity_group": null, "distinctness": "high"},
+      {"option_id": "OPT-003", "option_type": "information_first", "objective": "先补决定性证据再决定暂停或继续", "rationale": "当前缺完整搜索词与历史转化，补齐这些信息可能直接改变方案选择", "actions": [{"action_id": "ACT-003", "action_type": "retrieve_decision_evidence", "target": "travel mahjong set", "scope": "search term and historical conversion evidence", "preconditions": []}], "assumptions": ["缺失数据具有足够决策价值"], "expected_benefit": "降低误杀关键词或继续浪费预算的概率", "cost": "延迟最终动作", "known_tradeoffs": ["决策质量 vs 决策速度"], "known_risk_signals": ["补数据期间仍需限制新增无效消耗"], "reversibility": "high", "time_to_effect": "数据取得后", "data_needed": ["完整搜索词明细", "历史转化表现"], "success_criteria": ["取得足以区分继续测试与暂停的决定性证据"], "stop_conditions": ["数据源不可用时转为受控experiment或保守方案"], "derived_from": {"conflict_refs": ["CF-AD-001"]}, "difference_dimensions": ["information_requirement", "action_direction", "resource_commitment"], "similarity_group": null, "distinctness": "high"}
     ],
-    "excluded_options": [
-      {"option": "直接扩大预算", "reason": "证据不足且违反当前约束"}
-    ],
+    "excluded_options": [{"option": "直接扩大预算", "reason": "证据不足且违反当前约束"}],
     "generation_notes": [],
     "next_action": "continue_to_S06"
   }

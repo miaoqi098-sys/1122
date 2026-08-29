@@ -1,23 +1,49 @@
 {
   "event_id": "EVT-20260829-0001",
-  "source_agent": "Agent-4",
-  "product_id": "MAHJONG-001",
-  "asin": null,
   "event_type": "广告关键词异常",
+  "source_type": "professional_agent",
+  "source": {
+    "agent_id": "Agent-4",
+    "result_ref": "A4-RESULT-20260829-0188"
+  },
+  "scope_type": "keyword",
+  "scope_id": "KW-travel-mahjong-set",
+  "scope_objects": [
+    {
+      "type": "campaign",
+      "id": "CMP-MAHJONG-001"
+    },
+    {
+      "type": "keyword",
+      "id": "KW-travel-mahjong-set"
+    }
+  ],
   "severity": "P2",
   "occurred_at": "2026-08-29T14:00:00+08:00",
+  "observed_at": "2026-08-29T14:05:00+08:00",
   "summary": "travel mahjong set 出现高点击无转化",
   "facts": [
-    "关键词累计 61 次点击",
-    "当前观察窗口内 0 订单"
+    {
+      "fact": "关键词累计61次点击",
+      "evidence_ref": "ADS-SNAPSHOT-20260829-1400"
+    },
+    {
+      "fact": "当前观察窗口内0订单",
+      "evidence_ref": "ADS-SNAPSHOT-20260829-1400"
+    }
   ],
   "metrics": {
     "clicks": 61,
     "orders": 0
   },
-  "recommendation": "检查流量质量、Listing 相关性、库存与利润上下文后决定降价、暂停或转 Exact 测试",
+  "recommendation": "检查流量质量、Listing相关性、库存、利润与活动上下文后再决定是否调整匹配方式或竞价",
   "confidence": 0.86,
-  "related_events": [],
+  "evidence_refs": [
+    "ADS-SNAPSHOT-20260829-1400"
+  ],
+  "related_event_ids": [],
   "requires_decision_by": null,
-  "attachments": []
+  "metadata": {
+    "recommendation_is_optional_source_opinion": true
+  }
 }

@@ -1,1 +1,72 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S07任务编排输出","type":"object","required":["skill_id","tasks","execution_order"],"properties":{"skill_id":{"const":"S07"},"tasks":{"type":"array","items":{"type":"object","required":["task_id","decision_id","product_id","owner","action","priority","approval_level","success_criteria","stop_conditions","validator"],"properties":{"task_id":{"type":"string"},"decision_id":{"type":"string"},"product_id":{"type":"string"},"owner":{"type":"string"},"action":{"type":"string"},"priority":{"enum":["P0","P1","P2","P3"]},"dependencies":{"type":"array"},"approval_level":{"type":"string"},"start_condition":{},"deadline_or_window":{},"success_criteria":{"type":"array"},"stop_conditions":{"type":"array"},"rollback":{},"validator":{"type":"string"}}}},"execution_order":{"type":"array"},"parallel_groups":{"type":"array"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S07 任务编排输出规范 V1.1",
+  "type": "object",
+  "required": ["skill_id", "decision_id", "tasks", "task_graph", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S07"},
+    "decision_id": {"type": "string"},
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task_id", "decision_id", "product_id", "task_type", "owner", "executor", "action", "business_priority", "approval_level", "success_criteria", "stop_conditions", "validator", "status"],
+        "properties": {
+          "task_id": {"type": "string"},
+          "decision_id": {"type": "string"},
+          "product_id": {"type": "string"},
+          "option_id": {"type": ["string", "null"]},
+          "task_type": {"enum": ["execution", "monitoring", "approval", "data_collection", "validation", "control", "rollback"]},
+          "owner": {"type": "string"},
+          "executor": {"type": "string"},
+          "approver": {"type": ["string", "null"]},
+          "validator": {"type": "string"},
+          "action": {
+            "type": "object",
+            "required": ["action_type", "target"],
+            "properties": {
+              "action_type": {"type": "string"},
+              "target": {"type": "string"},
+              "operation": {},
+              "parameters": {},
+              "scope": {},
+              "tool_or_executor": {},
+              "expected_state_change": {}
+            },
+            "additionalProperties": true
+          },
+          "business_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+          "depends_on": {"type": "array", "items": {"type": "string"}},
+          "blocks": {"type": "array", "items": {"type": "string"}},
+          "parallel_with": {"type": "array", "items": {"type": "string"}},
+          "mutex_with": {"type": "array", "items": {"type": "string"}},
+          "approval_level": {"type": "string"},
+          "start_condition": {},
+          "deadline_or_window": {},
+          "success_criteria": {"type": "array"},
+          "stop_conditions": {"type": "array"},
+          "rollback": {},
+          "required_controls": {"type": "array"},
+          "status": {"enum": ["created", "pending_approval", "ready", "running", "blocked", "failed", "cancelled", "awaiting_validation", "completed", "rolled_back"]},
+          "blocked_reason": {"type": ["string", "null"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "task_graph": {
+      "type": "object",
+      "properties": {
+        "execution_order": {"type": "array"},
+        "parallel_groups": {"type": "array"},
+        "mutex_groups": {"type": "array"},
+        "entry_tasks": {"type": "array"},
+        "validation_tasks": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "unresolved_dependencies": {"type": "array"},
+    "orchestration_notes": {"type": "array"},
+    "next_action": {"enum": ["send_to_scheduler", "request_approval", "resolve_dependency", "request_more_information", "reject_plan"]}
+  },
+  "additionalProperties": true
+}

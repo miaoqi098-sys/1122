@@ -1,40 +1,14 @@
 {
   "input": {
-    "product_id": "ASIN-EXAMPLE",
+    "scope": {"scope_type": "product", "scope_id": "ASIN-EXAMPLE", "product_id": "ASIN-EXAMPLE"},
     "decision_items": [
-      {
-        "item_id": "DI-001",
-        "item_type": "risk",
-        "subject": "库存",
-        "problem": "当前库存覆盖时间较短，继续放量可能增加断货风险",
-        "goal_layer": "survival_operations",
-        "urgency": "high",
-        "dependency_count": 2,
-        "blocked_items": ["DI-002"],
-        "reversibility": "medium",
-        "evidence_strength": "high",
-        "previous_priority": "P2"
-      },
-      {
-        "item_id": "DI-002",
-        "item_type": "opportunity",
-        "subject": "广告增长",
-        "problem": "高效率广告存在扩大流量机会",
-        "goal_layer": "growth_expansion",
-        "urgency": "medium",
-        "dependency_count": 0,
-        "blocked_items": [],
-        "reversibility": "high",
-        "evidence_strength": "medium",
-        "previous_priority": "P1"
-      }
+      {"decision_item_id": "DI-001", "item_type": "risk", "subject": "库存", "problem_definition": "当前库存覆盖时间较短，继续放量可能增加断货风险", "objective": "先确认库存安全边界与补货承接能力", "goal_layer": "survival_operations", "urgency": "high", "dependency_count": 2, "blocked_items": ["DI-002"], "reversibility": "medium", "evidence_strength": "high", "conflict_refs": ["CF-001"], "previous_priority": "P2"},
+      {"decision_item_id": "DI-002", "item_type": "opportunity", "subject": "广告增长", "problem_definition": "高效率广告存在扩大流量机会", "objective": "在资源允许时扩大有效流量", "goal_layer": "growth_expansion", "urgency": "medium", "dependency_count": 0, "blocked_items": [], "reversibility": "high", "evidence_strength": "medium", "conflict_refs": ["CF-001"], "previous_priority": "P1"}
     ],
-    "current_goals": {
-      "primary": "保持可持续增长",
-      "constraints": ["避免断货"]
-    },
-    "business_state": {
-      "inventory_risk": "elevated"
+    "context_package": {
+      "C02_business_state": {"inventory_risk": "elevated"},
+      "C03_current_goals": {"primary": "保持可持续增长"},
+      "C10_active_tasks_and_constraints": {"constraints": ["避免断货"]}
     }
   },
   "expected_output": {
@@ -42,46 +16,8 @@
     "gate_status": "protected",
     "gate_reasons": ["库存风险限制增长类放量事项"],
     "ranked_items": [
-      {
-        "item_id": "DI-001",
-        "business_priority": "P1",
-        "rank": 1,
-        "priority_basis": "库存风险位于增长目标上层，并阻塞后续广告放量",
-        "priority_factors": ["survival_operations", "high urgency", "blocks growth item"],
-        "promotion_reasons": ["库存状态由安全转为风险状态", "该事项阻塞广告增长决策"],
-        "demotion_reasons": [],
-        "goal_layer": "survival_operations",
-        "urgency": "high",
-        "dependency_impact": "blocks_one",
-        "confidence": "high",
-        "previous_priority": "P2",
-        "current_priority": "P1",
-        "priority_change": "promoted",
-        "change_trigger": ["inventory_state_changed"],
-        "blocked_by": [],
-        "must_resolve_before": [],
-        "defer_until": null
-      },
-      {
-        "item_id": "DI-002",
-        "business_priority": "P2",
-        "rank": 2,
-        "priority_basis": "增长机会有效，但当前受到库存保护约束",
-        "priority_factors": ["growth_expansion", "inventory protection"],
-        "promotion_reasons": [],
-        "demotion_reasons": ["库存风险未解除"],
-        "goal_layer": "growth_expansion",
-        "urgency": "medium",
-        "dependency_impact": "none",
-        "confidence": "medium",
-        "previous_priority": "P1",
-        "current_priority": "P2",
-        "priority_change": "demoted",
-        "change_trigger": ["inventory_constraint_activated"],
-        "blocked_by": ["DI-001"],
-        "must_resolve_before": ["确认补货与安全放量空间"],
-        "defer_until": null
-      }
+      {"decision_item_id": "DI-001", "problem_definition": "当前库存覆盖时间较短，继续放量可能增加断货风险", "objective": "先确认库存安全边界与补货承接能力", "business_priority": "P1", "rank": 1, "priority_basis": "库存风险位于增长目标上层，并阻塞后续广告放量", "priority_factors": ["survival_operations", "high urgency", "blocks growth item"], "promotion_reasons": ["库存状态由安全转为风险状态", "该事项阻塞广告增长决策"], "demotion_reasons": [], "goal_layer": "survival_operations", "urgency": "high", "dependency_impact": "blocks_one", "confidence": "high", "previous_priority": "P2", "current_priority": "P1", "priority_change": "promoted", "change_trigger": ["inventory_state_changed"], "conflict_refs": ["CF-001"], "blocked_by": [], "must_resolve_before": [], "defer_until": null},
+      {"decision_item_id": "DI-002", "problem_definition": "高效率广告存在扩大流量机会", "objective": "在资源允许时扩大有效流量", "business_priority": "P2", "rank": 2, "priority_basis": "增长机会有效，但当前受到库存保护约束", "priority_factors": ["growth_expansion", "inventory protection"], "promotion_reasons": [], "demotion_reasons": ["库存风险未解除"], "goal_layer": "growth_expansion", "urgency": "medium", "dependency_impact": "none", "confidence": "medium", "previous_priority": "P1", "current_priority": "P2", "priority_change": "demoted", "change_trigger": ["inventory_constraint_activated"], "conflict_refs": ["CF-001"], "blocked_by": ["DI-001"], "must_resolve_before": ["确认补货与安全放量空间"], "defer_until": null}
     ],
     "unranked_items": [],
     "next_action": "continue_to_S05"

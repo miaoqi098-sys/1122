@@ -1,1 +1,72 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S10策略防抖输入","type":"object","required":["product_id","proposed_action","active_or_recent_tasks"],"properties":{"product_id":{"type":"string"},"proposed_action":{"type":"object"},"active_or_recent_tasks":{"type":"array"},"business_state":{"type":"object"},"new_evidence":{"type":"array"},"stop_conditions":{"type":"array"},"current_time":{"type":"string"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S10 策略防抖输入规范 V1.1",
+  "type": "object",
+  "required": ["product_id", "proposed_action", "active_or_recent_tasks"],
+  "properties": {
+    "product_id": {"type": "string", "minLength": 1},
+    "proposed_action": {
+      "type": "object",
+      "required": ["target", "action_type", "direction"],
+      "properties": {
+        "target": {"type": "string"},
+        "action_type": {"type": "string"},
+        "direction": {"type": "string"},
+        "magnitude": {},
+        "scope": {},
+        "time_horizon": {},
+        "reason": {"type": ["string", "null"]},
+        "source_decision_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "active_or_recent_tasks": {"type": "array"},
+    "strategy_chain": {
+      "type": "object",
+      "properties": {
+        "strategy_chain_id": {"type": "string"},
+        "decision_id": {"type": ["string", "null"]},
+        "option_id": {"type": ["string", "null"]},
+        "target": {"type": ["string", "null"]},
+        "original_direction": {"type": ["string", "null"]},
+        "current_direction": {"type": ["string", "null"]},
+        "started_at": {"type": ["string", "null"]},
+        "observation_window": {},
+        "adjustment_count": {"type": "integer", "minimum": 0},
+        "reversal_count": {"type": "integer", "minimum": 0},
+        "last_change_at": {"type": ["string", "null"]},
+        "current_status": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "original_evidence": {
+      "type": "object",
+      "properties": {
+        "strength": {"enum": ["A", "B", "C", "D", "unknown"]},
+        "confidence": {"enum": ["low", "medium", "high", "unknown"]},
+        "evidence_refs": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "new_evidence": {"type": "array"},
+    "new_evidence_summary": {
+      "type": "object",
+      "properties": {
+        "strength": {"enum": ["A", "B", "C", "D", "unknown"]},
+        "confidence": {"enum": ["low", "medium", "high", "unknown"]},
+        "critical_new_fact": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "business_state_before": {"type": "object"},
+    "business_state": {"type": "object"},
+    "state_change": {"type": "object"},
+    "guardrail_conditions": {"type": "array"},
+    "stop_conditions": {"type": "array"},
+    "observation_window": {"type": "object"},
+    "current_time": {"type": "string"},
+    "permissions": {"type": "object"},
+    "approval_context": {"type": "object"}
+  },
+  "additionalProperties": true
+}

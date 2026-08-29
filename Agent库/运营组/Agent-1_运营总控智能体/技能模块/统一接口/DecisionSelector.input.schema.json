@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DecisionSelector Input V1.0",
+  "type": "object",
+  "required": ["scope", "ranked_decision_item", "options", "option_risks", "context_package"],
+  "properties": {
+    "scope": {"type": "object"},
+    "ranked_decision_item": {
+      "type": "object",
+      "required": ["decision_item_id", "problem_definition", "objective", "business_priority", "priority_basis"],
+      "properties": {
+        "decision_item_id": {"type": "string"},
+        "problem_definition": {"type": "string"},
+        "objective": {"type": "string"},
+        "business_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+        "priority_basis": {"type": "string"},
+        "goal_layer": {"enum": ["safety_sellability", "survival_operations", "business_quality", "growth_expansion", "unknown"]},
+        "conflict_refs": {"type": "array", "items": {"type": "string"}},
+        "constraint_refs": {"type": "array", "items": {"type": "string"}},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "options": {"type": "array", "minItems": 1},
+    "option_risks": {"type": "array", "minItems": 1},
+    "context_package": {"type": "object", "description": "目标、状态、约束、知识、历史等唯一从ContextPackage读取。"},
+    "strategy_chain": {"type": ["object", "null"]},
+    "active_tasks": {"type": "array"},
+    "s10_result": {"type": ["object", "null"], "description": "若本次选择会改变正在运行策略，应提供S10结果或先路由S10。"},
+    "selection_policy": {"type": "object"}
+  },
+  "additionalProperties": true
+}

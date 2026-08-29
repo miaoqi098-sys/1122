@@ -1,135 +1,127 @@
 # S10｜策略防抖
 
 ## 技能定位
-贯穿计划、执行、观察和验证阶段，识别短期噪声、重复事件、正常微调、真正趋势、经营状态切换与重大风险，防止Agent-1在证据不足时频繁反向调整策略，同时允许在关键新事实出现时及时打断旧策略。
+S10贯穿计划、执行、观察和验证阶段，识别噪声、重复事件、正常微调、趋势、状态切换和重大风险，防止Agent-1在证据不足时频繁反向调整策略，同时允许关键新事实及时打断旧策略。
 
-S10不是“禁止改变”，而是判断：现在这个新动作，是正常迭代，还是没有足够新理由的策略摇摆。
+S10不是主链固定第10步，而是横向策略稳定器。
 
-## 调用位置
+## 正式调用位置
 ```text
-新事件 / 新建议 / 新任务候选
+新Event / 新Option / 新Decision proposal
 ↓
-S03：是否与当前结论/策略冲突
+判断是否可能影响现有StrategyChain
 ↓
-S10：是否构成反转或抖动
+必要时S03确认strategy conflict
 ↓
-Action Relation
-↓
-Strategy Chain
-↓
-Evidence Delta
-↓
-Signal Classification
-↓
-Hold Gate / Override Gate
+S10 StrategyStabilization
 ↓
 allow / hold / merge / escalate / override
-↓
-如允许改变 → S07重新编排任务
-如hold → 保持原策略并等待release condition
-如override → 处理旧任务并建立新任务链
 ```
 
-## 防抖对象
-广告竞价/预算、价格与促销、Listing内容、库存放量策略、关键词测试、实验任务及其他需要观察窗口的动作。
+- allow：进入正常DecisionSelector/S07链；
+- hold：保持当前策略，不创建反向Task；
+- merge：并入现有StrategyChain；
+- escalate：进入审批/复核；
+- override：保留旧Decision/Task历史，并交S07重新编排。
+
+## 正式作用域
+S10使用统一`scope`，支持product/account/store/campaign/keyword/task/decision等作用域，不再要求顶层product_id作为唯一对象模型。
+
+## StrategyChain
+正式StrategyChain使用：
+- strategy_chain_id
+- scope
+- target
+- decision_item_id
+- decision_ids[]
+- option_ids[]
+- task_ids[]
+- validation_ids[]
+- original_direction
+- current_direction
+- observation_window
+- adjustment_count
+- reversal_count
+- current_status
+
+一条策略链可以跨多个Decision版本，因此不再只保存单一`decision_id`。
 
 ## Action Relation
-新动作与当前策略关系：
-- `same_direction`：同方向继续推进；
-- `minor_adjustment`：同策略内小幅微调；
-- `neutral`：不改变当前方向；
-- `partial_reversal`：部分反转；
-- `full_reversal`：完全反转；
-- `conflicting_action`：动作类型或目标冲突，需进一步判断。
-
-比较维度至少包括：target、action_type、direction、magnitude、scope、time_horizon。
-
-## Strategy Chain
-S10不只看单个Task，而应追踪完整策略链：
-- `strategy_chain_id`
-- `decision_id`
-- `option_id`
-- `target`
-- `original_direction`
-- `current_direction`
-- `started_at`
-- `observation_window`
-- `adjustment_count`
-- `reversal_count`
-- `last_change_at`
-- `current_status`
-
-连续多次小改即使没有单次full reversal，也可能构成慢性抖动。
+- same_direction
+- minor_adjustment
+- neutral
+- partial_reversal
+- full_reversal
+- conflicting_action
 
 ## Evidence Delta
-比较启动原策略时的证据与当前新证据：
-- `weaker`
-- `same`
-- `stronger`
-- `critical_new_fact`
-
-同时考虑original_evidence_strength、new_evidence_strength、original_confidence、new_confidence、state_change、risk_trigger、stop_condition_trigger。
+- weaker
+- same
+- stronger
+- critical_new_fact
+- unknown
 
 ## Signal Classification
-- `noise`：单点/低质量短期波动；
-- `repeated_signal`：同一事实重复上报；
-- `trend`：连续同方向证据形成趋势；
-- `state_change`：经营状态确认切换；
-- `guardrail_trigger`：保护指标触发；
-- `stop_trigger`：明确停止条件触发；
-- `critical_risk`：合规、不可售、重大库存/资金等高层风险。
-
-不同signal_class不能用同一种防抖处理。
+- noise
+- repeated_signal
+- trend
+- state_change
+- guardrail_trigger
+- stop_trigger
+- critical_risk
 
 ## Hold Gate
 hold必须说明：
-- `hold_reason`
-- `hold_until`
-- `release_conditions`
-- `review_trigger`
-- `required_new_evidence`
+- hold_reason
+- hold_until
+- release_conditions
+- review_trigger
+- required_new_evidence
 
-hold不是机械等待固定天数。正常等待观察窗口，但stop condition、状态切换或critical risk可以提前释放。
+hold不是固定天数死等。stop condition、guardrail、state change或critical risk可提前释放。
 
 ## Override Gate
-override通常需要至少一种情况：
-- stop_condition明确触发；
-- guardrail达到不可接受风险；
-- critical risk出现；
-- 经营状态确认切换并使旧策略失效；
-- 出现critical_new_fact；
-- 新证据显著强于启动旧策略时的证据。
+允许override的典型情况：
+- stop_condition触发；
+- guardrail达到不可接受水平；
+- critical risk；
+- 状态确认切换导致旧策略失效；
+- critical_new_fact；
+- 新证据显著强于启动旧策略的证据。
 
 ## Override Record
-每次override应记录：
-- `overridden_decision_id`
-- `overridden_task_ids`
-- `strategy_chain_id`
-- `trigger`
-- `evidence_refs`
-- `previous_direction`
-- `new_direction`
-- `reason`
-- `approval_required`
-- `old_task_actions`
+每次override至少保留：
+- overridden_decision_id
+- overridden_task_ids
+- strategy_chain_id
+- trigger
+- evidence_refs
+- previous_direction
+- new_direction
+- reason
+- approval_required
+- old_task_actions
 
-old_task_actions用于告诉S07：旧任务是cancel、pause、rollback还是继续monitor。
+旧任务处置由S07重新编排，S10不直接执行cancel/pause/rollback。
 
-## 输出状态
-- `allow`：允许进入正常新决策/任务编排；
-- `hold`：继续现有策略观察窗口；
-- `merge`：重复事件或同策略更新并入当前策略链；
-- `escalate`：证据/风险冲突，需要更高审批或专业复核；
-- `override`：关键新事实或保护条件足以提前覆盖旧策略。
+## 正式输出追溯
+S10输出必须生成唯一`stabilization_id`，并尽量保留：
+- strategy_chain_id
+- source_decision_id
+- source_decision_item_id
+- matched_tasks
 
 ## 模块边界
-- S03：判断结论/策略之间是否冲突；
-- S10：判断现在是否有足够理由改变已经运行的策略；
-- S07：变化被允许后，负责取消/暂停/回滚旧任务并重新编排新任务；
-- S08：最终验证旧/新策略经营效果。
+- S03：发现冲突；
+- S10：判断现在是否足以改变运行中的策略；
+- DecisionSelector：形成新的FinalDecision；
+- S07：重新编排任务；
+- S08：验证实际经营结果。
 
 ## 核心原则
-成熟系统既不能一天一个策略，也不能死守已经被事实推翻的旧策略。S10负责区分噪声、微调、趋势、状态切换和真正必须立刻响应的风险。
+成熟系统既不能一天一个策略，也不能死守已被事实推翻的旧策略。S10负责把“噪声”和“真正必须改变的事实”分开。
 
 ## 当前版本
-V1.1：加入Action Relation、Strategy Chain、Evidence Delta、Signal Classification、Hold Gate、Override Gate和Override Record。
+- 业务规则：V1.1；
+- 接口：V1.2，已统一scope、StrategyChain决策历史和stabilization_id；
+- 执行程序：待系统运行层实现StrategyComparator、EvidenceDeltaEvaluator、SignalClassifier和StabilizationResolver。

@@ -1,0 +1,148 @@
+{
+  "template_id": "DT-A1-INV-001",
+  "template_name": "库存经营决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "inventory",
+  "description": "用于Agent-1处理断货、过量库存、库龄、补货节奏、在途延迟和库存承载能力等经营问题，并与广告、促销、利润、价格和增长目标联合决策。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["store", "parent_product", "product", "sku"],
+  "trigger_patterns": [
+    "stockout_risk",
+    "overstock_risk",
+    "aged_inventory_growth",
+    "inbound_delay",
+    "replenishment_gap",
+    "promotion_inventory_conflict",
+    "advertising_inventory_conflict",
+    "sku_inventory_imbalance"
+  ],
+  "applicable_states": ["生命周期/经营情境/风险/机会状态引用经营状态识别模块"],
+  "exclusion_conditions": [
+    "problem_definition不明确",
+    "当前可售/在途/补货周期关键事实缺失且无法安全估计",
+    "主要问题明确属于利润或价格促销且库存只是次要约束",
+    "所有候选方案均违反硬约束"
+  ],
+  "required_context": [
+    "当前业务目标与goal_layer",
+    "可售库存与库存状态",
+    "在途/计划补货信息",
+    "补货周期与供应不确定性",
+    "近期销售速度和需求变化",
+    "广告/促销/价格计划",
+    "利润与现金流约束",
+    "库龄/仓储风险",
+    "当前active_tasks和strategy_chain（适用时）"
+  ],
+  "required_metrics": [
+    {"metric_ref": "inventory.sellable_units", "purpose": "判断当前可售承载", "freshness_requirement": "当前库存快照", "requirement_level": "required"},
+    {"metric_ref": "inventory.inbound_units", "purpose": "判断未来补充能力", "freshness_requirement": "当前在途状态", "requirement_level": "required"},
+    {"metric_ref": "inventory.coverage_days", "purpose": "衡量库存覆盖风险", "freshness_requirement": "使用当前需求速度", "requirement_level": "required"},
+    {"metric_ref": "inventory.lead_time", "purpose": "判断补货窗口", "freshness_requirement": "当前供应链假设", "requirement_level": "preferred"},
+    {"metric_ref": "inventory.aged_inventory", "purpose": "识别库龄与仓储压力", "freshness_requirement": "最近库存龄报告", "requirement_level": "preferred"},
+    {"metric_ref": "sales.velocity", "purpose": "估计库存消耗速度", "freshness_requirement": "与当前经营状态一致", "requirement_level": "required"},
+    {"metric_ref": "profit.cash_flow_constraint", "purpose": "约束补货或清库存动作", "freshness_requirement": "当前成本与资金状态", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "可售库存/在途库存/补货事实", "requirement_level": "required", "freshness_requirement": "当前状态"},
+    {"evidence_type": "销售速度与需求变化", "requirement_level": "required", "freshness_requirement": "当前观察窗口"},
+    {"evidence_type": "补货周期/供应风险", "requirement_level": "preferred", "freshness_requirement": "当前供应链条件"},
+    {"evidence_type": "活动/广告放量计划", "requirement_level": "preferred", "freshness_requirement": "当前计划版本"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-7", "purpose": "提供库存、补货、在途、库龄和供应链风险分析", "requirement_level": "required"},
+    {"agent_id": "Agent-6", "purpose": "提供现金流和利润约束", "requirement_level": "preferred"},
+    {"agent_id": "Agent-4", "purpose": "提供广告放量/收缩计划", "requirement_level": "preferred"},
+    {"agent_id": "Agent-10", "purpose": "提供价格促销计划和活动状态", "requirement_level": "preferred"}
+  ],
+  "required_constraints": [
+    "断货与可售资格风险",
+    "补货周期与供应不确定性",
+    "现金流和采购资金约束",
+    "仓储/库龄成本约束",
+    "广告与促销计划约束",
+    "价格体系与清库存动作约束"
+  ],
+  "key_questions": [
+    "当前问题是短缺、过量、库龄、补货延迟还是需求变化造成的库存错配？",
+    "可售+可信在途是否能覆盖当前需求与计划放量？",
+    "补货动作会不会造成现金流或库龄风险？",
+    "是否需要调整广告、促销或价格来控制库存消耗速度？",
+    "库存风险是否是暂时性还是结构性？",
+    "哪些动作是可逆的，哪些会造成长期价格或品牌影响？"
+  ],
+  "option_comparison_dimensions": [
+    "断货风险",
+    "过量/库龄风险",
+    "现金流影响",
+    "利润影响",
+    "销售机会损失",
+    "补货可行性",
+    "执行时效",
+    "可逆性",
+    "对价格/广告/促销的次生影响"
+  ],
+  "risk_focus": [
+    "高估在途导致断货",
+    "低估需求导致活动期断货",
+    "过量补货造成现金流和库龄压力",
+    "过度清库存破坏价格体系",
+    "库存收缩动作过早导致增长机会损失",
+    "多SKU库存不均衡造成错误总体判断"
+  ],
+  "approval_focus": [
+    "大额补货/采购",
+    "明显改变价格或促销以清库存",
+    "大幅收缩广告/流量策略",
+    "会改变长期库存策略的动作"
+  ],
+  "task_requirements": [
+    "明确product/sku scope",
+    "区分可售、在途、计划补货和不确定库存",
+    "明确需求速度假设",
+    "定义库存风险阈值引用和观察窗口",
+    "涉及广告/促销调整时建立跨域任务依赖"
+  ],
+  "observation_requirements": [
+    "持续观察覆盖天数、销售速度和在途状态",
+    "活动前后分开评估需求速度",
+    "补货计划变动时立即重算覆盖风险",
+    "清库存动作同时观察利润和价格体系影响"
+  ],
+  "rollback_requirements": [
+    "需求显著低于假设时停止过量补货",
+    "断货风险升级时停止过度放量",
+    "清库存动作导致利润/价格体系越界时回滚",
+    "供应延迟加剧时重新生成库存与流量控制方案"
+  ],
+  "review_triggers": [
+    "覆盖天数跨越风险区间",
+    "在途到货日期明显变化",
+    "活动计划改变",
+    "销售速度显著变化",
+    "采购/补货条件改变",
+    "库龄风险升级"
+  ],
+  "learning_focus": [
+    "不同生命周期下真实补货节奏",
+    "活动/广告对库存消耗的实际影响",
+    "供应链延迟分布",
+    "清库存动作对利润和价格体系的影响",
+    "SKU级库存失衡模式"
+  ],
+  "supersedes": null,
+  "tags": ["inventory", "replenishment", "stockout", "overstock", "aged_inventory", "supply_chain"],
+  "canonical_refs": {
+    "decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json",
+    "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json",
+    "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"
+  },
+  "extensions": {
+    "domain_notes": [
+      "库存阈值由经营指标库/产品状态决定，不在模板内硬编码",
+      "真实库存和补货数据未来由数据接口层接入"
+    ]
+  }
+}

@@ -1,1 +1,44 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S05方案生成输入","type":"object","required":["product_id","problem","context_package","current_goals"],"properties":{"product_id":{"type":"string"},"problem":{"type":"object"},"context_package":{"type":"object"},"current_goals":{"type":"object"},"constraints":{"type":"array"},"knowledge_matches":{"type":"array"},"historical_lessons":{"type":"array"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S05 方案生成输入规范 V1.1",
+  "type": "object",
+  "required": ["product_id", "decision_item", "context_package", "current_goals"],
+  "properties": {
+    "product_id": {"type": "string", "minLength": 1},
+    "decision_item": {
+      "type": "object",
+      "required": ["decision_item_id", "business_priority", "problem_definition", "objective"],
+      "properties": {
+        "decision_item_id": {"type": "string"},
+        "business_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+        "problem_definition": {"type": "string"},
+        "objective": {"type": "string"},
+        "goal_layer": {"enum": ["safety_sellability", "survival_operations", "business_quality", "growth_expansion", "unknown"]},
+        "priority_basis": {"type": ["string", "null"]},
+        "conflict_refs": {"type": "array", "items": {"type": "string"}},
+        "constraint_refs": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "context_package": {"type": "object"},
+    "current_goals": {"type": "object"},
+    "business_state": {"type": "object"},
+    "constraints": {"type": "array"},
+    "conflicts": {"type": "array"},
+    "knowledge_matches": {"type": "array"},
+    "historical_lessons": {"type": "array"},
+    "agent_analyses": {"type": "array"},
+    "generation_policy": {
+      "type": "object",
+      "properties": {
+        "min_options": {"type": "integer", "minimum": 1},
+        "max_options": {"type": "integer", "minimum": 1},
+        "allow_observe": {"type": "boolean"},
+        "allow_information_first": {"type": "boolean"},
+        "prefer_reversible_when_uncertain": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

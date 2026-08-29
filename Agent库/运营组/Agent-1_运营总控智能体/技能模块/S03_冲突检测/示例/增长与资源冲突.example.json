@@ -1,0 +1,76 @@
+{
+  "input": {
+    "event_id": "EVT-GROWTH-0001",
+    "product_id": "ASIN-EXAMPLE",
+    "normalized_elements": [
+      {
+        "element_id": "E1",
+        "element_type": "recommendation",
+        "source": "Agent-4广告运营智能体",
+        "source_agent": "Agent-4",
+        "subject": "广告预算",
+        "goal": "扩大有效流量",
+        "action_direction": "increase_spend",
+        "confidence": "medium"
+      },
+      {
+        "element_id": "E2",
+        "element_type": "fact",
+        "source": "Agent-7库存供应链智能体",
+        "source_agent": "Agent-7",
+        "subject": "FBA库存",
+        "topic_or_metric": "days_of_cover",
+        "value": 7,
+        "unit": "days",
+        "confidence": "high"
+      },
+      {
+        "element_id": "E3",
+        "element_type": "analysis",
+        "source": "Agent-6利润财务智能体",
+        "source_agent": "Agent-6",
+        "subject": "利润",
+        "topic_or_metric": "profit_pressure",
+        "value": "high",
+        "confidence": "medium"
+      }
+    ],
+    "current_goals": {
+      "primary": "保持可持续增长",
+      "constraints": ["避免断货", "不得突破利润底线"]
+    }
+  },
+  "expected_output": {
+    "skill_id": "S03",
+    "status": "conflicts_found",
+    "conflicts": [
+      {
+        "conflict_id": "CF-001",
+        "conflict_group_id": "CFG-001",
+        "type": "goal",
+        "involved_agents": ["Agent-4", "Agent-7", "Agent-6"],
+        "subject": "增长放量",
+        "shared_facts": ["当前存在扩量机会", "库存覆盖仅约7天", "利润存在压力"],
+        "disputed_points": ["当前是否应继续扩大广告投入"],
+        "root_conflict": "增长目标 vs 当前资源承受能力",
+        "evidence_needed": ["在途补货到仓时间", "当前单位利润与利润底线", "放量后的预计库存消耗"],
+        "severity": "high",
+        "decision_impact": "changes_ranking",
+        "resolution_status": "unresolved",
+        "recommended_next_step": "先确认补货与利润约束，再进入S04排序"
+      }
+    ],
+    "conflict_groups": [
+      {
+        "conflict_group_id": "CFG-001",
+        "root_conflict": "增长目标 vs 当前资源承受能力",
+        "related_conflicts": ["CF-001"],
+        "involved_agents": ["Agent-4", "Agent-7", "Agent-6"],
+        "highest_severity": "high",
+        "highest_decision_impact": "changes_ranking"
+      }
+    ],
+    "unresolved_points": ["补货是否能在预计断货前到仓", "放量是否突破利润底线"],
+    "next_action": "continue_to_S04"
+  }
+}

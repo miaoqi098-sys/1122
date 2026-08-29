@@ -1,1 +1,102 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S09经验沉淀输出","type":"object","required":["skill_id","memory_writes","learning_items"],"properties":{"skill_id":{"const":"S09"},"memory_writes":{"type":"array"},"learning_items":{"type":"array","items":{"type":"object","required":["learning_id","level","statement","evidence","applicability","confidence"],"properties":{"learning_id":{"type":"string"},"level":{"enum":["observation","product_lesson","reusable_pattern","knowledge_candidate","validated_knowledge"]},"statement":{"type":"string"},"evidence":{"type":"array"},"applicability":{"type":"array"},"invalid_when":{"type":"array"},"confidence":{"enum":["low","medium","high"]},"valid_until":{"type":["string","null"]},"review_trigger":{"type":"array"}}}},"supersedes":{"type":"array"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S09 经验沉淀输出规范 V1.1",
+  "type": "object",
+  "required": ["skill_id", "fact_records", "interpretation_records", "learning_items", "knowledge_candidates", "memory_writes", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S09"},
+    "fact_records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fact_id", "statement", "source_refs"],
+        "properties": {
+          "fact_id": {"type": "string"},
+          "statement": {"type": "string"},
+          "source_refs": {"type": "array"},
+          "observed_at": {"type": ["string", "null"]},
+          "data_quality": {"enum": ["high", "medium", "low", "unknown"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "interpretation_records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["interpretation_id", "statement", "fact_refs", "attribution_strength", "confidence"],
+        "properties": {
+          "interpretation_id": {"type": "string"},
+          "statement": {"type": "string"},
+          "fact_refs": {"type": "array"},
+          "attribution_strength": {"enum": ["strong", "moderate", "weak", "confounded", "not_evaluable"]},
+          "confounders": {"type": "array"},
+          "confidence": {"enum": ["low", "medium", "high"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "learning_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["learning_id", "level", "learning_action", "statement", "evidence", "applicability", "confidence", "promotion_gate"],
+        "properties": {
+          "learning_id": {"type": "string"},
+          "level": {"enum": ["observation", "product_lesson", "reusable_pattern", "knowledge_candidate", "validated_knowledge"]},
+          "learning_action": {"enum": ["record_fact", "create_lesson", "promote", "merge", "refine", "deprecate", "hold"]},
+          "statement": {"type": "string"},
+          "source_decision_id": {"type": ["string", "null"]},
+          "source_task_ids": {"type": "array"},
+          "source_validation_ids": {"type": "array"},
+          "evidence": {"type": "array"},
+          "evidence_quality": {"enum": ["high", "medium", "low", "unknown"]},
+          "attribution_strength": {"enum": ["strong", "moderate", "weak", "confounded", "not_evaluable"]},
+          "applicability": {"type": "array"},
+          "invalid_when": {"type": "array"},
+          "confidence": {"enum": ["low", "medium", "high"]},
+          "support_count": {"type": "integer", "minimum": 0},
+          "contradiction_count": {"type": "integer", "minimum": 0},
+          "relationships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["type", "target_learning_id"],
+              "properties": {
+                "type": {"enum": ["supports", "contradicts", "refines", "supersedes", "coexists"]},
+                "target_learning_id": {"type": "string"},
+                "reason": {"type": ["string", "null"]}
+              }
+            }
+          },
+          "knowledge_domain": {"type": ["string", "null"]},
+          "version": {"type": ["string", "integer"]},
+          "created_at": {"type": ["string", "null"]},
+          "last_validated_at": {"type": ["string", "null"]},
+          "valid_until": {"type": ["string", "null"]},
+          "review_trigger": {"type": "array"},
+          "promotion_gate": {"enum": ["eligible", "hold", "needs_more_evidence", "conflicted", "rejected"]},
+          "promotion_reasons": {"type": "array"},
+          "blocking_reasons": {"type": "array"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "knowledge_candidates": {"type": "array"},
+    "memory_writes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "write_type": {"enum": ["fact", "interpretation", "lesson", "knowledge_candidate", "relationship", "review_queue"]},
+          "target_store": {"type": "string"},
+          "record_ref": {"type": "string"},
+          "status": {"enum": ["planned", "queued", "written", "failed"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_action": {"enum": ["write_memory", "queue_for_review", "request_more_evidence", "no_learning_upgrade"]}
+  },
+  "additionalProperties": true
+}

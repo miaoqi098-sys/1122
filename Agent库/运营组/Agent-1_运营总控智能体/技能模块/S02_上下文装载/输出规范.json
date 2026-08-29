@@ -1,18 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S02 上下文装载输出规范",
+  "title": "S02 上下文装载输出规范 V1.1",
   "type": "object",
-  "required": ["skill_id", "event_id", "product_id", "status", "context_package", "missing_context", "stale_context", "next_action"],
+  "required": ["skill_id", "event_id", "scope", "status", "question", "context_package", "missing_context", "stale_context", "next_action"],
   "properties": {
     "skill_id": {"const": "S02"},
     "event_id": {"type": "string"},
-    "product_id": {"type": "string"},
-    "status": {
-      "enum": ["ready", "ready_with_gaps", "needs_information", "blocked"]
+    "scope": {
+      "type": "object",
+      "required": ["scope_type"],
+      "properties": {
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global"]},
+        "scope_id": {"type": ["string", "null"]},
+        "product_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
     },
+    "status": {"enum": ["ready", "ready_with_gaps", "needs_information", "blocked"]},
     "question": {"type": "string"},
     "context_package": {
       "type": "object",
+      "description": "后续Skill的上下文唯一事实源。不得用并列快捷字段建立第二事实源。",
       "properties": {
         "C01_product_identity": {},
         "C02_business_state": {},
@@ -27,63 +35,13 @@
       },
       "additionalProperties": false
     },
-    "loaded_items": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["context_id", "domain", "source", "freshness_status", "relevance"],
-        "properties": {
-          "context_id": {"type": "string"},
-          "domain": {"type": "string"},
-          "source": {"type": "string"},
-          "as_of": {"type": ["string", "null"]},
-          "freshness_status": {"enum": ["fresh", "usable", "stale", "unknown"]},
-          "relevance": {"enum": ["required", "high", "medium", "low"]},
-          "confidence": {"type": ["string", "number", "null"]}
-        },
-        "additionalProperties": true
-      }
-    },
-    "missing_context": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["domain", "item", "decision_impact"],
-        "properties": {
-          "domain": {"type": "string"},
-          "item": {"type": "string"},
-          "decision_impact": {"enum": ["blocking", "high", "medium", "low"]},
-          "suggested_source": {"type": ["string", "null"]}
-        }
-      }
-    },
-    "stale_context": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["item", "reason"],
-        "properties": {
-          "item": {"type": "string"},
-          "reason": {"type": "string"},
-          "refresh_required": {"type": "boolean"}
-        }
-      }
-    },
-    "excluded_context": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["item", "reason"],
-        "properties": {
-          "item": {"type": "string"},
-          "reason": {"type": "string"}
-        }
-      }
-    },
+    "loaded_items": {"type": "array"},
+    "missing_context": {"type": "array"},
+    "stale_context": {"type": "array"},
+    "excluded_context": {"type": "array"},
+    "context_refs": {"type": "array", "items": {"type": "string"}},
     "context_summary": {"type": "string"},
-    "next_action": {
-      "enum": ["continue_analysis", "refresh_context", "request_information", "request_agent_analysis", "hold_for_review"]
-    }
+    "next_action": {"enum": ["continue_analysis", "refresh_context", "request_information", "request_agent_analysis", "hold_for_review"]}
   },
   "additionalProperties": true
 }

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Canonical StrategyChain V1.0",
+  "type": "object",
+  "required": ["strategy_chain_id", "scope", "target", "original_direction", "current_direction", "started_at", "current_status"],
+  "properties": {
+    "strategy_chain_id": {"type": "string", "minLength": 1},
+    "scope": {"type": "object"},
+    "target": {"type": "string"},
+    "decision_item_id": {"type": ["string", "null"]},
+    "decision_ids": {"type": "array", "items": {"type": "string"}},
+    "option_ids": {"type": "array", "items": {"type": "string"}},
+    "task_ids": {"type": "array", "items": {"type": "string"}},
+    "validation_ids": {"type": "array", "items": {"type": "string"}},
+    "original_direction": {"type": "string"},
+    "current_direction": {"type": "string"},
+    "started_at": {"type": "string"},
+    "observation_window": {},
+    "adjustment_count": {"type": "integer", "minimum": 0},
+    "reversal_count": {"type": "integer", "minimum": 0},
+    "last_change_at": {"type": ["string", "null"]},
+    "current_status": {"enum": ["planned", "active", "observing", "held", "overridden", "closed", "cancelled"]},
+    "original_evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "latest_evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "review_trigger": {"type": "array"}
+  },
+  "additionalProperties": true
+}

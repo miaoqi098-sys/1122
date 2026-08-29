@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S03 冲突检测输出规范 V1.1",
+  "title": "S03 冲突检测输出规范 V1.2",
   "type": "object",
   "required": ["skill_id", "status", "conflicts", "conflict_groups", "next_action"],
   "properties": {
@@ -31,24 +31,9 @@
         "additionalProperties": true
       }
     },
-    "conflict_groups": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["conflict_group_id", "root_conflict", "related_conflicts"],
-        "properties": {
-          "conflict_group_id": {"type": "string"},
-          "root_conflict": {"type": "string"},
-          "related_conflicts": {"type": "array", "items": {"type": "string"}},
-          "involved_agents": {"type": "array", "items": {"type": "string"}},
-          "highest_severity": {"enum": ["critical", "high", "medium", "low"]},
-          "highest_decision_impact": {"enum": ["none", "confidence_only", "changes_ranking", "blocks_decision", "requires_escalation"]}
-        },
-        "additionalProperties": true
-      }
-    },
+    "conflict_groups": {"type": "array"},
     "unresolved_points": {"type": "array"},
-    "next_action": {"enum": ["continue_to_S04", "request_evidence", "request_agent_review", "send_to_S10", "hold_for_review"]}
+    "next_action": {"enum": ["continue_to_decision_item_builder", "request_evidence", "request_agent_review", "send_to_S10", "hold_for_review"]}
   },
   "additionalProperties": true
 }

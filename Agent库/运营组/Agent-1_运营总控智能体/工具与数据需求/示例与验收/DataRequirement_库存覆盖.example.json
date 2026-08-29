@@ -1,0 +1,34 @@
+{
+  "requirement_id": "DR-A1-INVENTORY-COVERAGE-001",
+  "name": "活动前库存覆盖与到货可信度",
+  "domain": "inventory",
+  "business_purpose": "在广告/促销放量前确认库存是否能够承载计划需求，并识别断货风险。",
+  "supports": ["context", "risk", "option", "approval"],
+  "requirement_level": "required",
+  "data_kind": "raw_fact",
+  "scope_requirement": {
+    "allowed_scope_types": ["parent_product", "product", "sku"],
+    "must_match_decision_scope": true,
+    "aggregation_notes": "父体判断必须保留SKU级结构，不能仅使用父体总量掩盖单SKU断货风险。"
+  },
+  "time_requirement": {
+    "freshness_class": "same_day",
+    "max_age": "24h",
+    "window_requirement": "覆盖当前可售、可信在途、计划活动期和补货提前期",
+    "attribution_delay_notes": null
+  },
+  "accepted_source_types": ["specialist_agent", "shared_data_interface", "human_input"],
+  "preferred_source": "Agent-7 + 标准化库存数据接口",
+  "fallback_sources": ["经确认仍有效的人工补货计划"],
+  "minimum_evidence_quality": "high",
+  "required_fields": ["sellable_units", "inbound_units", "inbound_eta", "sales_velocity_or_demand_assumption", "lead_time"],
+  "comparison_requirements": ["活动计划需求与库存覆盖窗口对齐", "区分可售和可信在途"],
+  "conflict_checks": ["Agent-7快照与共享库存接口时间是否一致", "人工到货计划是否比平台在途状态更新"],
+  "failure_behavior": {
+    "on_missing": "block",
+    "on_stale": "request_refresh",
+    "on_conflict": "reconcile_sources"
+  },
+  "canonical_refs": ["DecisionItem", "ContextPackage", "RiskAssessment"],
+  "notes": ["库存资格型required数据缺失时，不允许仅凭历史平均覆盖天数继续高影响放量决策。"]
+}

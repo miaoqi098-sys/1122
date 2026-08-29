@@ -1,1 +1,52 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S08结果验证输出","type":"object","required":["skill_id","task_id","result_status","confidence","next_action"],"properties":{"skill_id":{"const":"S08"},"task_id":{"type":"string"},"result_status":{"enum":["success","partial_success","no_effect","failed","inconclusive","rollback_triggered"]},"criteria_results":{"type":"array"},"side_effects":{"type":"array"},"attribution_notes":{"type":"array"},"confidence":{"enum":["low","medium","high"]},"next_action":{"enum":["close_task","continue_observation","rollback","rediagnose","continue_to_S09"]}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S08 结果验证输出规范 V1.1",
+  "type": "object",
+  "required": ["skill_id", "task_id", "execution_status", "business_outcome_status", "overall_validation_status", "observation_window_status", "attribution_status", "confidence", "decision_implication", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S08"},
+    "task_id": {"type": "string"},
+    "decision_id": {"type": ["string", "null"]},
+    "execution_status": {"enum": ["not_started", "success", "partial", "failed", "unknown"]},
+    "business_outcome_status": {"enum": ["positive", "partial_positive", "no_effect", "negative", "not_evaluable"]},
+    "overall_validation_status": {"enum": ["success", "partial_success", "no_effect", "failed", "inconclusive", "rollback_triggered"]},
+    "criteria_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["criterion_id", "criterion_type", "status"],
+        "properties": {
+          "criterion_id": {"type": "string"},
+          "criterion_type": {"enum": ["primary", "secondary", "guardrail", "stop_condition"]},
+          "metric": {},
+          "baseline": {},
+          "target": {},
+          "actual": {},
+          "comparison": {},
+          "status": {"enum": ["met", "partially_met", "not_met", "breached", "not_evaluable"]},
+          "window": {},
+          "data_quality": {"enum": ["high", "medium", "low", "unknown"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "observation_window_status": {"enum": ["not_started", "incomplete", "complete", "invalid"]},
+    "data_completeness": {"enum": ["high", "medium", "low", "unknown"]},
+    "data_freshness": {"enum": ["fresh", "stale", "mixed", "unknown"]},
+    "data_quality": {"enum": ["high", "medium", "low", "unknown"]},
+    "side_effects": {"type": "array"},
+    "attribution_status": {"enum": ["strong", "moderate", "weak", "confounded", "not_evaluable"]},
+    "confounders": {"type": "array"},
+    "supporting_evidence": {"type": "array"},
+    "contradicting_evidence": {"type": "array"},
+    "failure_type": {
+      "type": ["string", "null"],
+      "enum": ["execution_failure", "strategy_failure", "guardrail_breach", "data_failure", "external_confounding", "assumption_failure", "premature_evaluation", null]
+    },
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "decision_implication": {"enum": ["keep", "scale", "continue_observation", "adjust", "rollback", "rediagnose"]},
+    "validation_summary": {"type": "string"},
+    "next_action": {"enum": ["close_task", "continue_observation", "rollback", "rediagnose", "continue_to_S09"]}
+  },
+  "additionalProperties": true
+}

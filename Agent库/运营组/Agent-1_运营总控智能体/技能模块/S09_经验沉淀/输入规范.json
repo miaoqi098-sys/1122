@@ -1,17 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S09 经验沉淀输入规范 V1.1",
+  "title": "S09 经验沉淀输入规范 V1.2",
   "type": "object",
-  "required": ["product_id", "decision_id", "verification_result"],
+  "required": ["scope", "validation_result"],
   "properties": {
-    "product_id": {"type": "string", "minLength": 1},
-    "decision_id": {"type": "string", "minLength": 1},
-    "task_ids": {"type": "array", "items": {"type": "string"}},
-    "verification_result": {
+    "scope": {"type": "object"},
+    "validation_result": {
       "type": "object",
-      "required": ["execution_status", "business_outcome_status", "overall_validation_status", "observation_window_status", "attribution_status", "confidence", "decision_implication"],
+      "description": "必须直接承接S08输出，不再使用verification_result别名。",
+      "required": ["validation_id", "execution_result_id", "task_id", "decision_id", "decision_item_id", "execution_status", "business_outcome_status", "overall_validation_status", "observation_window_status", "attribution_status", "confidence", "decision_implication"],
       "properties": {
-        "task_id": {"type": ["string", "null"]},
+        "validation_id": {"type": "string"},
+        "execution_result_id": {"type": "string"},
+        "task_id": {"type": "string"},
+        "task_plan_id": {"type": ["string", "null"]},
+        "decision_id": {"type": "string"},
+        "decision_item_id": {"type": "string"},
+        "option_id": {"type": ["string", "null"]},
+        "strategy_chain_id": {"type": ["string", "null"]},
         "execution_status": {"enum": ["not_started", "success", "partial", "failed", "unknown"]},
         "business_outcome_status": {"enum": ["positive", "partial_positive", "no_effect", "negative", "not_evaluable"]},
         "overall_validation_status": {"enum": ["success", "partial_success", "no_effect", "failed", "inconclusive", "rollback_triggered"]},
@@ -25,7 +31,7 @@
         "confounders": {"type": "array"},
         "supporting_evidence": {"type": "array"},
         "contradicting_evidence": {"type": "array"},
-        "failure_type": {"type": ["string", "null"], "enum": ["execution_failure", "strategy_failure", "guardrail_breach", "data_failure", "external_confounding", "assumption_failure", "premature_evaluation", null]},
+        "failure_type": {"type": ["string", "null"]},
         "confidence": {"enum": ["low", "medium", "high"]},
         "decision_implication": {"enum": ["keep", "scale", "continue_observation", "adjust", "rollback", "rediagnose"]},
         "validation_summary": {"type": ["string", "null"]}

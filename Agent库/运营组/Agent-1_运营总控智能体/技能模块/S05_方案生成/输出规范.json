@@ -1,1 +1,74 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S05方案生成输出","type":"object","required":["skill_id","options","next_action"],"properties":{"skill_id":{"const":"S05"},"options":{"type":"array","minItems":1,"items":{"type":"object","required":["option_id","objective","actions","assumptions","expected_benefit","risks","reversibility","success_criteria","stop_conditions"],"properties":{"option_id":{"type":"string"},"objective":{"type":"string"},"actions":{"type":"array"},"assumptions":{"type":"array"},"expected_benefit":{},"cost":{},"risks":{"type":"array"},"reversibility":{"enum":["high","medium","low"]},"time_to_effect":{},"data_needed":{"type":"array"},"success_criteria":{"type":"array"},"stop_conditions":{"type":"array"}}}},"next_action":{"const":"continue_to_S06"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S05 方案生成输出规范 V1.1",
+  "type": "object",
+  "required": ["skill_id", "decision_item_id", "status", "options", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S05"},
+    "decision_item_id": {"type": "string"},
+    "status": {"enum": ["options_generated", "single_feasible_option", "needs_information", "no_feasible_option"]},
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option_id", "option_type", "objective", "rationale", "actions", "assumptions", "expected_benefit", "known_tradeoffs", "reversibility", "success_criteria", "stop_conditions", "difference_dimensions"],
+        "properties": {
+          "option_id": {"type": "string"},
+          "option_type": {"enum": ["conservative", "balanced", "aggressive", "experiment", "observe", "information_first"]},
+          "objective": {"type": "string"},
+          "rationale": {"type": "string"},
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["action_id", "action_type", "target"],
+              "properties": {
+                "action_id": {"type": "string"},
+                "action_type": {"type": "string"},
+                "target": {"type": "string"},
+                "change": {},
+                "scope": {},
+                "intensity": {},
+                "duration_or_window": {},
+                "preconditions": {"type": "array"}
+              },
+              "additionalProperties": true
+            }
+          },
+          "assumptions": {"type": "array"},
+          "expected_benefit": {},
+          "cost": {},
+          "known_tradeoffs": {"type": "array"},
+          "known_risk_signals": {"type": "array"},
+          "reversibility": {"enum": ["high", "medium", "low"]},
+          "time_to_effect": {},
+          "data_needed": {"type": "array"},
+          "success_criteria": {"type": "array"},
+          "stop_conditions": {"type": "array"},
+          "derived_from": {
+            "type": "object",
+            "properties": {
+              "evidence_refs": {"type": "array", "items": {"type": "string"}},
+              "knowledge_refs": {"type": "array", "items": {"type": "string"}},
+              "historical_refs": {"type": "array", "items": {"type": "string"}},
+              "agent_refs": {"type": "array", "items": {"type": "string"}},
+              "conflict_refs": {"type": "array", "items": {"type": "string"}}
+            },
+            "additionalProperties": true
+          },
+          "difference_dimensions": {
+            "type": "array",
+            "items": {"enum": ["action_direction", "action_strength", "scope", "resource_commitment", "time_horizon", "information_requirement", "reversibility"]}
+          },
+          "similarity_group": {"type": ["string", "null"]},
+          "distinctness": {"enum": ["high", "medium", "low"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "excluded_options": {"type": "array"},
+    "generation_notes": {"type": "array"},
+    "next_action": {"enum": ["continue_to_S06", "request_information", "redefine_problem_or_constraints"]}
+  },
+  "additionalProperties": true
+}

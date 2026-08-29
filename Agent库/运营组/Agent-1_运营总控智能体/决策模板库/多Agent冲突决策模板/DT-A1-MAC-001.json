@@ -1,0 +1,41 @@
+{
+  "template_id": "DT-A1-MAC-001",
+  "template_name": "多Agent冲突决策模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "multi_agent_conflict",
+  "description": "用于Agent-1处理多个专业Agent建议互斥、证据冲突、目标冲突和时间窗口不一致问题，在S03已识别冲突的基础上形成唯一FinalDecision。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["global", "store", "parent_product", "product", "sku", "campaign", "decision"],
+  "trigger_patterns": ["agent_recommendation_conflict", "evidence_conflict", "goal_conflict", "constraint_conflict", "time_window_conflict", "strategy_conflict"],
+  "applicable_states": ["任何经营状态；具体状态语义引用经营状态识别模块"],
+  "exclusion_conditions": ["不存在已确认冲突", "冲突仅为字段格式差异且不影响经营含义", "问题本质是多个DecisionItem联合规划而非单一冲突收敛"],
+  "required_context": ["S03冲突结果", "相关DecisionItem", "各Agent建议与证据引用", "目标与goal_layer", "硬约束", "经营状态", "历史决策与active_tasks", "StrategyChain（适用时）"],
+  "required_metrics": [
+    {"metric_ref": "conflict.evidence_strength_by_source", "purpose": "比较冲突证据质量", "freshness_requirement": "同一决策窗口", "requirement_level": "required"},
+    {"metric_ref": "conflict.business_impact", "purpose": "评估不同建议对目标和约束影响", "freshness_requirement": "当前", "requirement_level": "required"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "冲突双方/多方的原始证据引用", "requirement_level": "required", "freshness_requirement": "当前决策窗口"},
+    {"evidence_type": "冲突识别结果", "requirement_level": "required", "freshness_requirement": "当前"},
+    {"evidence_type": "目标与约束依据", "requirement_level": "required", "freshness_requirement": "当前"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "冲突涉及的所有专业Agent", "purpose": "提供各自事实、证据、建议和限制条件", "requirement_level": "required"}
+  ],
+  "required_constraints": ["风险资格", "硬业务约束", "目标层", "证据强度", "时间窗口一致性", "策略稳定性", "审批要求"],
+  "key_questions": ["冲突是事实冲突、解释冲突、目标冲突还是动作冲突？", "各方使用的数据窗口和Scope是否一致？", "是否存在硬约束直接淘汰某些方案？", "哪个建议与当前目标和经营状态更一致？", "是否需要补证据而不是强行选边？", "冲突解决是否会构成正在运行策略的反转？"],
+  "option_comparison_dimensions": ["证据强度", "目标对齐", "硬约束资格", "业务影响", "风险", "可逆性", "时效", "策略稳定性", "信息缺口"],
+  "risk_focus": ["固定按Agent身份决定优先级", "不同时间窗口数据直接比较", "低质量证据覆盖高质量证据", "忽略硬约束", "强行解决本应补证据的冲突", "产生多个互斥FinalDecision"],
+  "approval_focus": ["账户/合规级冲突", "突破利润/库存等保护线", "高影响策略反转", "证据仍存在重大分歧但必须立即行动"],
+  "task_requirements": ["保留所有冲突来源引用", "明确冲突类型", "记录淘汰方案及原因", "需要补证据时生成调查任务", "最终只生成一个决策出口"],
+  "observation_requirements": ["跟踪冲突选择后的关键预测是否成立", "验证被拒方案担忧是否出现", "新证据到达时重新评估"],
+  "rollback_requirements": ["关键前提被新证据推翻时重新决策", "所选方案触发高风险约束时回滚/停止", "策略反转效果不达标时对齐S10处理"],
+  "review_triggers": ["新证据到达", "冲突Agent更新结论", "关键状态变化", "观察窗口结束", "硬约束变化"],
+  "learning_focus": ["常见跨Agent冲突模式", "不同证据源可靠性", "冲突解决后的实际结果", "哪些信息缺口最常导致冲突"],
+  "supersedes": null,
+  "tags": ["multi_agent", "conflict", "evidence", "constraint", "decision"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["S03负责识别冲突，本模板不复制冲突检测算法", "跨域固定优先级不在模板中硬编码"]}
+}

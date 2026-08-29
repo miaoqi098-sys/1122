@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent-2 商品状态快照 V1.0",
+  "type": "object",
+  "required": [
+    "snapshot_id",
+    "scope_type",
+    "scope_id",
+    "observed_at",
+    "source_refs",
+    "domains",
+    "raw_facts",
+    "evidence_refs",
+    "freshness",
+    "confidence"
+  ],
+  "properties": {
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "scope_type": {
+      "enum": ["parent_product", "product", "sku", "account", "store"]
+    },
+    "scope_id": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "source_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "domains": {
+      "type": "object",
+      "properties": {
+        "availability_state": {"enum": ["active", "inactive", "suppressed", "unavailable", "out_of_stock_display", "restricted", "under_review", "unknown"]},
+        "page_state": {"enum": ["accessible", "dog_page_or_not_found", "partial_render", "content_missing", "marketplace_mismatch", "unknown"]},
+        "offer_state": {"enum": ["featured_offer_owned", "featured_offer_lost", "featured_offer_unknown", "no_offer_visible", "unknown"]},
+        "price_display_state": {"enum": ["normal", "reference_price_visible", "reference_price_missing", "coupon_visible", "coupon_missing", "deal_visible", "deal_missing", "inconsistent", "unknown"]},
+        "content_state": {"enum": ["complete", "partial_missing", "pending_publish", "front_back_mismatch", "suppressed_content", "unknown"]},
+        "variation_state": {"enum": ["healthy", "child_detached", "variation_missing", "relation_changed", "parent_unavailable", "unknown"]},
+        "rating_state": {"enum": ["normal", "changed", "missing", "shared_review_changed", "unknown"]},
+        "qualification_state": {"enum": ["clear", "pending_review", "action_required", "restricted", "failed", "unknown"]}
+      },
+      "additionalProperties": false
+    },
+    "raw_facts": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "freshness": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["fresh", "aging", "stale", "unknown"]},
+        "valid_until": {"type": ["string", "null"], "format": "date-time"}
+      },
+      "additionalProperties": false
+    },
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "previous_snapshot_id": {"type": ["string", "null"]},
+    "source_conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field", "source_refs"],
+        "properties": {
+          "field": {"type": "string"},
+          "source_refs": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+          "note": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

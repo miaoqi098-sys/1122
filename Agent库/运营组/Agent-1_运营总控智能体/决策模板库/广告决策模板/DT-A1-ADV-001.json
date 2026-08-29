@@ -1,0 +1,160 @@
+{
+  "template_id": "DT-A1-ADV-001",
+  "template_name": "广告经营决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "advertising",
+  "description": "用于Agent-1处理广告效率、流量质量、预算竞价、搜索词与广告结构等经营问题，并把广告建议置于库存、利润、价格、转化、活动与风险约束中形成最终决策。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["store", "parent_product", "product", "campaign", "ad_group", "keyword"],
+  "trigger_patterns": [
+    "spend_up_without_sales_growth",
+    "high_click_low_conversion",
+    "acos_or_roas_deviation",
+    "budget_limited_with_valid_demand",
+    "search_term_harvest_or_negation",
+    "bid_reallocation",
+    "ad_structure_conflict",
+    "promotion_period_adaptation",
+    "inventory_constrained_advertising",
+    "profit_constrained_advertising"
+  ],
+  "applicable_states": ["生命周期/经营情境/风险/机会状态由经营状态识别模块引用，不在模板内重定义"],
+  "exclusion_conditions": [
+    "核心问题尚未形成明确problem_definition",
+    "关键广告证据严重过期或互相冲突",
+    "主要根因明确属于Listing转化、库存、价格促销或风险合规且广告仅为表象",
+    "所有候选广告动作均被S06判定不可执行",
+    "需要改变正在运行策略但尚未完成必要的S10检查"
+  ],
+  "required_context": [
+    "当前业务目标与goal_layer",
+    "当前产品/广告Scope",
+    "经营状态与特殊活动状态",
+    "当前广告结构和在运行策略",
+    "Listing转化状态",
+    "库存可售与覆盖风险",
+    "利润/边际贡献约束",
+    "价格和促销状态",
+    "历史广告动作与观察窗口",
+    "当前active_tasks与strategy_chain（适用时）"
+  ],
+  "required_metrics": [
+    {"metric_ref": "advertising.spend", "purpose": "识别投入变化", "freshness_requirement": "与当前决策观察窗口一致", "requirement_level": "required"},
+    {"metric_ref": "advertising.sales_or_revenue", "purpose": "判断广告投入产出", "freshness_requirement": "与spend同窗口", "requirement_level": "required"},
+    {"metric_ref": "advertising.clicks", "purpose": "判断流量规模与点击质量", "freshness_requirement": "与转化窗口一致", "requirement_level": "required"},
+    {"metric_ref": "advertising.orders_or_conversions", "purpose": "判断广告转化", "freshness_requirement": "考虑归因延迟", "requirement_level": "required"},
+    {"metric_ref": "advertising.acos_roas", "purpose": "作为效率信号而非唯一目标", "freshness_requirement": "与归因窗口一致", "requirement_level": "preferred"},
+    {"metric_ref": "listing.conversion_rate", "purpose": "区分广告流量质量与商品转化问题", "freshness_requirement": "当前经营窗口", "requirement_level": "preferred"},
+    {"metric_ref": "inventory.coverage_or_stock_risk", "purpose": "防止广告策略与库存安全冲突", "freshness_requirement": "当前可用库存窗口", "requirement_level": "preferred"},
+    {"metric_ref": "profit.contribution_or_margin", "purpose": "约束广告可承受成本", "freshness_requirement": "当前成本/售价版本", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "广告表现与搜索词证据", "requirement_level": "required", "freshness_requirement": "覆盖当前分析窗口"},
+    {"evidence_type": "当前广告结构/匹配方式/预算/竞价事实", "requirement_level": "required", "freshness_requirement": "当前状态"},
+    {"evidence_type": "活动期与价格状态", "requirement_level": "preferred", "freshness_requirement": "当前状态"},
+    {"evidence_type": "历史广告策略与最近调整记录", "requirement_level": "preferred", "freshness_requirement": "覆盖当前观察窗口"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-4", "purpose": "提供广告结构、表现、搜索词、预算竞价与优化建议", "requirement_level": "required"},
+    {"agent_id": "Agent-9", "purpose": "提供Listing与转化根因信息", "requirement_level": "preferred"},
+    {"agent_id": "Agent-7", "purpose": "提供库存/断货约束", "requirement_level": "preferred"},
+    {"agent_id": "Agent-6", "purpose": "提供利润和成本约束", "requirement_level": "preferred"},
+    {"agent_id": "Agent-10", "purpose": "提供价格、Coupon、BD/LD等促销状态", "requirement_level": "preferred"}
+  ],
+  "required_constraints": [
+    "账户/广告资格约束",
+    "库存安全约束",
+    "利润底线与现金流约束",
+    "价格/促销活动约束",
+    "策略观察窗口与防抖约束",
+    "审批与执行权限约束"
+  ],
+  "key_questions": [
+    "当前广告问题是流量质量问题、转化问题、预算限制、竞价结构问题还是其他经营域问题的表象？",
+    "当前广告动作服务于什么业务目标，而不是只服务于ACOS/ROAS？",
+    "数据窗口是否覆盖归因延迟与最近一次策略调整后的观察期？",
+    "库存、利润、价格、促销或Listing状态是否限制广告动作？",
+    "搜索词/关键词是否应继续观察、迁移、否定、降价、提价或隔离测试？",
+    "候选动作中哪些是可逆测试，哪些可能造成流量或排名的明显断层？",
+    "是否存在正在运行的广告策略，当前动作会不会构成策略反转？"
+  ],
+  "option_comparison_dimensions": [
+    "目标对齐",
+    "增量销售/流量潜力",
+    "广告成本与利润影响",
+    "库存消耗影响",
+    "转化依赖",
+    "可逆性",
+    "执行复杂度",
+    "数据置信度",
+    "观察窗口",
+    "次生风险"
+  ],
+  "risk_focus": [
+    "过早否定导致有效流量损失",
+    "预算/竞价上调导致利润快速恶化",
+    "库存不足仍持续放量",
+    "活动期数据污染导致误判",
+    "归因延迟导致过早反向调整",
+    "多匹配方式/多活动重复流量造成归因混淆",
+    "Listing转化问题被误诊为广告问题"
+  ],
+  "approval_focus": [
+    "大幅预算提升",
+    "大规模批量否定或暂停",
+    "明显改变正在执行的广告策略",
+    "会突破利润/现金流保护边界的放量动作"
+  ],
+  "task_requirements": [
+    "每个广告动作必须绑定具体campaign/ad_group/keyword/search_term或product scope",
+    "明确动作前值、目标值或动作类型",
+    "明确观察窗口",
+    "明确成功/失败判据",
+    "需要时拆分测试与对照",
+    "涉及策略反转时保留strategy_chain引用"
+  ],
+  "observation_requirements": [
+    "观察窗口不得短于数据归因和策略生效所需时间",
+    "同时观察广告效率、订单/销售、转化、库存和利润影响",
+    "活动期与常态期数据分开解释",
+    "避免在同一观察窗口内多次反向调整同一对象"
+  ],
+  "rollback_requirements": [
+    "出现明显利润/现金流越界时停止放量",
+    "库存风险升级时收缩流量",
+    "转化显著恶化且证据指向动作副作用时回滚",
+    "测试未达到最低成功标准时恢复原策略或进入新一轮方案生成",
+    "策略反转必须保留supersedes/strategy_chain关系"
+  ],
+  "review_triggers": [
+    "观察窗口结束",
+    "核心广告指标显著越界",
+    "价格/促销状态改变",
+    "库存风险等级改变",
+    "Listing发生重大变更",
+    "竞品/市场环境出现重大变化",
+    "策略连续调整达到S10防抖阈值"
+  ],
+  "learning_focus": [
+    "关键词/搜索词真实转化意图",
+    "不同匹配方式表现差异",
+    "广告与自然流量/活动流量关系",
+    "产品在不同阶段可承受的广告效率区间",
+    "策略调整的生效时间与反转风险"
+  ],
+  "supersedes": null,
+  "tags": ["advertising", "ppc", "search_term", "bid", "budget", "conversion", "amazon"],
+  "canonical_refs": {
+    "decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json",
+    "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json",
+    "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"
+  },
+  "extensions": {
+    "domain_notes": [
+      "广告模板不定义ACOS/ROAS固定阈值，阈值应来自经营指标库、目标与当前状态",
+      "广告模板不直接执行广告动作，最终任务由S07编排并交未来执行层"
+    ]
+  }
+}

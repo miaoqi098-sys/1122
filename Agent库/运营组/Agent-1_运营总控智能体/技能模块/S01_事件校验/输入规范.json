@@ -1,25 +1,28 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S01 事件校验输入规范",
+  "title": "S01 事件校验输入规范 V1.1",
   "type": "object",
   "required": ["event"],
   "properties": {
     "event": {
       "type": "object",
-      "required": [
-        "event_id",
-        "source_agent",
-        "product_id",
-        "event_type",
-        "severity",
-        "occurred_at",
-        "summary",
-        "facts"
-      ],
+      "required": ["event_id", "source_agent", "scope_type", "event_type", "severity", "occurred_at", "summary", "facts"],
       "properties": {
         "event_id": {"type": "string", "minLength": 1},
         "source_agent": {"type": "string", "minLength": 1},
-        "product_id": {"type": "string", "minLength": 1},
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global"]},
+        "scope_id": {"type": ["string", "null"]},
+        "product_id": {"type": ["string", "null"]},
+        "scope_objects": {
+          "type": "object",
+          "properties": {
+            "affected_products": {"type": "array", "items": {"type": "string"}},
+            "affected_accounts": {"type": "array", "items": {"type": "string"}},
+            "affected_stores": {"type": "array", "items": {"type": "string"}},
+            "affected_areas": {"type": "array", "items": {"type": "string"}}
+          },
+          "additionalProperties": true
+        },
         "event_type": {"type": "string", "minLength": 1},
         "severity": {"type": "string", "minLength": 1},
         "occurred_at": {"type": "string", "minLength": 1},
@@ -27,23 +30,18 @@
         "facts": {"type": "array", "minItems": 1},
         "recommendation": {}
       },
+      "allOf": [
+        {
+          "if": {"properties": {"scope_type": {"enum": ["product", "parent_product", "sku"]}}},
+          "then": {"required": ["product_id"], "properties": {"product_id": {"type": "string", "minLength": 1}}}
+        }
+      ],
       "additionalProperties": true
     },
-    "known_product_ids": {
-      "type": "array",
-      "items": {"type": "string"}
-    },
-    "allowed_sources": {
-      "type": "array",
-      "items": {"type": "string"}
-    },
-    "existing_events": {
-      "type": "array",
-      "items": {"type": "object"}
-    },
-    "current_time": {
-      "type": "string"
-    }
+    "known_product_ids": {"type": "array", "items": {"type": "string"}},
+    "allowed_sources": {"type": "array", "items": {"type": "string"}},
+    "existing_events": {"type": "array", "items": {"type": "object"}},
+    "current_time": {"type": "string"}
   },
   "additionalProperties": true
 }

@@ -1,0 +1,36 @@
+{
+  "input": {
+    "event": {
+      "event_id": "EVT-AD-0001",
+      "source_agent": "Agent-4",
+      "product_id": "ASIN-EXAMPLE",
+      "event_type": "advertising_high_clicks_zero_orders",
+      "severity": "medium",
+      "occurred_at": "2026-08-29T18:00:00+09:00",
+      "summary": "目标关键词过去14天产生61次点击但0订单。",
+      "facts": [
+        "过去14天点击61次",
+        "过去14天订单0",
+        "当前投放为Broad广告"
+      ],
+      "recommendation": "建议进入广告与转化联合诊断。"
+    },
+    "known_product_ids": ["ASIN-EXAMPLE"],
+    "allowed_sources": ["Agent-2", "Agent-3", "Agent-4", "Agent-5", "Agent-6", "Agent-7", "Agent-8", "Agent-9", "Agent-10", "Agent-11", "Agent-12", "Agent-13"],
+    "existing_events": [],
+    "current_time": "2026-08-29T18:30:00+09:00"
+  },
+  "expected_output": {
+    "skill_id": "S01",
+    "event_id": "EVT-AD-0001",
+    "status": "passed",
+    "blocking_errors": [],
+    "warnings": [],
+    "missing_information": [],
+    "duplicate_signal": {
+      "is_possible_duplicate": false,
+      "matched_event_ids": []
+    },
+    "next_action": "continue_to_S02"
+  }
+}

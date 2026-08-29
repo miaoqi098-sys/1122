@@ -1,80 +1,44 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S01 事件校验输出规范",
+  "title": "S01 事件校验输出规范 V1.1",
   "type": "object",
-  "required": [
-    "skill_id",
-    "event_id",
-    "status",
-    "blocking_errors",
-    "warnings",
-    "missing_information",
-    "normalized_event",
-    "next_action"
-  ],
+  "required": ["skill_id", "event_id", "status", "blocking_errors", "warnings", "missing_information", "normalized_event", "next_action"],
   "properties": {
     "skill_id": {"const": "S01"},
     "event_id": {"type": "string"},
-    "status": {
-      "enum": [
-        "passed",
-        "passed_with_warnings",
-        "needs_information",
-        "rejected"
-      ]
-    },
-    "blocking_errors": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["code", "message"],
-        "properties": {
-          "code": {"type": "string"},
-          "field": {"type": ["string", "null"]},
-          "message": {"type": "string"}
-        }
-      }
-    },
-    "warnings": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["code", "message"],
-        "properties": {
-          "code": {"type": "string"},
-          "field": {"type": ["string", "null"]},
-          "message": {"type": "string"}
-        }
-      }
-    },
-    "missing_information": {
-      "type": "array",
-      "items": {"type": "string"}
-    },
+    "status": {"enum": ["passed", "passed_with_warnings", "needs_information", "rejected"]},
+    "blocking_errors": {"type": "array"},
+    "warnings": {"type": "array"},
+    "missing_information": {"type": "array", "items": {"type": "string"}},
     "duplicate_signal": {
       "type": "object",
       "properties": {
         "is_possible_duplicate": {"type": "boolean"},
-        "matched_event_ids": {
-          "type": "array",
-          "items": {"type": "string"}
-        }
+        "matched_event_ids": {"type": "array", "items": {"type": "string"}}
       }
     },
     "normalized_event": {
-      "type": ["object", "null"]
+      "type": ["object", "null"],
+      "required": ["event_id", "source_agent", "scope_type", "event_type", "severity", "occurred_at", "summary", "facts"],
+      "properties": {
+        "event_id": {"type": "string"},
+        "source_agent": {"type": "string"},
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global"]},
+        "scope_id": {"type": ["string", "null"]},
+        "product_id": {"type": ["string", "null"]},
+        "scope_objects": {"type": "object"},
+        "event_type": {"type": "string"},
+        "severity": {"type": "string"},
+        "occurred_at": {"type": "string"},
+        "summary": {"type": "string"},
+        "facts": {"type": "array"},
+        "recommendation": {},
+        "source_event_ref": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
     },
-    "next_action": {
-      "enum": [
-        "continue_to_S02",
-        "request_information",
-        "hold_for_review",
-        "discard_event"
-      ]
-    },
-    "validation_summary": {
-      "type": "string"
-    }
+    "next_action": {"enum": ["continue_to_S02", "request_information", "hold_for_review", "discard_event"]},
+    "validation_summary": {"type": "string"}
   },
   "additionalProperties": true
 }

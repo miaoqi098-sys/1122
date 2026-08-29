@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ProfessionalAgentEventHandoff.schema.json",
+  "title": "ProfessionalAgentEventHandoff V1.0",
+  "type": "object",
+  "required": ["protocol_version", "source_agent", "domain_schema", "domain_event_id", "domain_event", "canonical_event"],
+  "properties": {
+    "protocol_version": {"const": "1.0"},
+    "source_agent": {"type": "string", "pattern": "^Agent-(?:[2-9]|1[0-3])$"},
+    "domain_schema": {"type": "string", "minLength": 1},
+    "domain_event_id": {"type": "string", "minLength": 1},
+    "domain_event": {"type": "object"},
+    "canonical_event": {
+      "$ref": "../Agent-1_运营总控智能体/输入规范/智能事件包.schema.json"
+    },
+    "normalization_notes": {"type": "array", "items": {"type": "string"}},
+    "mapped_at": {"type": ["string", "null"], "format": "date-time"},
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "allOf": [
+    {
+      "properties": {
+        "canonical_event": {
+          "properties": {
+            "source_type": {"const": "professional_agent"}
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

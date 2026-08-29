@@ -1,10 +1,15 @@
 {
   "input": {
-    "product_id": "ASIN-EXAMPLE",
-    "decision_id": "DEC-AD-001",
-    "task_ids": ["TASK-AD-001"],
-    "verification_result": {
+    "scope": {"scope_type": "product", "scope_id": "ASIN-EXAMPLE", "product_id": "ASIN-EXAMPLE"},
+    "validation_result": {
+      "validation_id": "VAL-AD-001",
+      "execution_result_id": "EXEC-AD-001",
       "task_id": "TASK-AD-001",
+      "task_plan_id": "TPLAN-AD-001",
+      "decision_id": "DEC-AD-001",
+      "decision_item_id": "DI-AD-001",
+      "option_id": "OPT-AD-002",
+      "strategy_chain_id": "CHAIN-AD-001",
       "execution_status": "success",
       "business_outcome_status": "positive",
       "overall_validation_status": "partial_success",
@@ -26,81 +31,31 @@
       "decision_implication": "continue_observation",
       "validation_summary": "经营结果方向正向，但同期Coupon削弱归因。"
     },
-    "decision_context": {
-      "action": "travel mahjong set竞价降低20%",
-      "window": "7天"
-    },
+    "decision_context": {"action": "travel mahjong set竞价降低20%", "window": "7天"},
     "previous_lessons": []
   },
   "expected_output": {
     "skill_id": "S09",
+    "learning_batch_id": "LB-AD-001",
+    "validation_id": "VAL-AD-001",
+    "execution_result_id": "EXEC-AD-001",
+    "task_id": "TASK-AD-001",
+    "decision_id": "DEC-AD-001",
+    "decision_item_id": "DI-AD-001",
     "fact_records": [
-      {
-        "fact_id": "FACT-001",
-        "statement": "travel mahjong set竞价实际降低20%",
-        "source_refs": ["TASK-AD-001"],
-        "observed_at": null,
-        "data_quality": "high"
-      },
-      {
-        "fact_id": "FACT-002",
-        "statement": "完整7天窗口内CPA由30降至24，订单由10降至9",
-        "source_refs": ["TASK-AD-001", "CRIT-001", "CRIT-002"],
-        "observed_at": null,
-        "data_quality": "high"
-      },
-      {
-        "fact_id": "FACT-003",
-        "statement": "同期存在Coupon活动",
-        "source_refs": ["S08.confounders"],
-        "observed_at": null,
-        "data_quality": "high"
-      }
+      {"fact_id": "FACT-001", "statement": "travel mahjong set竞价实际降低20%", "source_refs": ["EXEC-AD-001"], "observed_at": null, "data_quality": "high"},
+      {"fact_id": "FACT-002", "statement": "完整7天窗口内CPA由30降至24，订单由10降至9", "source_refs": ["VAL-AD-001", "CRIT-001", "CRIT-002"], "observed_at": null, "data_quality": "high"},
+      {"fact_id": "FACT-003", "statement": "同期存在Coupon活动", "source_refs": ["VAL-AD-001"], "observed_at": null, "data_quality": "high"}
     ],
     "interpretation_records": [
-      {
-        "interpretation_id": "INT-001",
-        "statement": "降竞价后CPA方向改善，但同期Coupon使该改善不能可靠归因于降竞价动作本身。",
-        "fact_refs": ["FACT-001", "FACT-002", "FACT-003"],
-        "attribution_strength": "weak",
-        "confounders": ["同期Coupon"],
-        "confidence": "medium"
-      }
+      {"interpretation_id": "INT-001", "statement": "降竞价后CPA方向改善，但同期Coupon使该改善不能可靠归因于降竞价动作本身。", "fact_refs": ["FACT-001", "FACT-002", "FACT-003"], "attribution_strength": "weak", "confounders": ["同期Coupon"], "confidence": "medium"}
     ],
     "learning_items": [
-      {
-        "learning_id": "LEARN-AD-001",
-        "level": "product_lesson",
-        "learning_action": "create_lesson",
-        "statement": "对当前ASIN，降低travel mahjong set竞价20%后出现CPA改善方向，但需要在无Coupon干扰的窗口继续验证。",
-        "source_decision_id": "DEC-AD-001",
-        "source_task_ids": ["TASK-AD-001"],
-        "source_validation_ids": ["TASK-AD-001:S08"],
-        "evidence": ["FACT-001", "FACT-002", "INT-001"],
-        "evidence_quality": "high",
-        "attribution_strength": "weak",
-        "applicability": ["当前ASIN", "travel mahjong set", "类似广告结构"],
-        "invalid_when": ["促销强度显著不同", "价格发生重大变化", "关键词意图或Listing发生重大变化"],
-        "confidence": "medium",
-        "support_count": 1,
-        "contradiction_count": 0,
-        "relationships": [],
-        "knowledge_domain": "广告竞价",
-        "version": "1.0",
-        "created_at": null,
-        "last_validated_at": null,
-        "valid_until": null,
-        "review_trigger": ["获得无Coupon干扰的完整观察窗口", "同类竞价调整出现新反例"],
-        "promotion_gate": "needs_more_evidence",
-        "promotion_reasons": ["执行真实完成", "数据质量高", "结果方向正向"],
-        "blocking_reasons": ["归因强度仅weak", "存在同期Coupon混杂", "当前只有单次支持"]
-      }
+      {"learning_id": "LEARN-AD-001", "level": "product_lesson", "learning_action": "create_lesson", "statement": "对当前ASIN，降低travel mahjong set竞价20%后出现CPA改善方向，但需要在无Coupon干扰的窗口继续验证。", "source_decision_id": "DEC-AD-001", "source_decision_item_id": "DI-AD-001", "source_task_ids": ["TASK-AD-001"], "source_execution_result_ids": ["EXEC-AD-001"], "source_validation_ids": ["VAL-AD-001"], "evidence": ["FACT-001", "FACT-002", "INT-001"], "evidence_quality": "high", "attribution_strength": "weak", "applicability": ["当前ASIN", "travel mahjong set", "类似广告结构"], "invalid_when": ["促销强度显著不同", "价格发生重大变化", "关键词意图或Listing发生重大变化"], "confidence": "medium", "support_count": 1, "contradiction_count": 0, "relationships": [], "knowledge_domain": "广告竞价", "version": "1.0", "created_at": null, "last_validated_at": null, "valid_until": null, "review_trigger": ["获得无Coupon干扰的完整观察窗口", "同类竞价调整出现新反例"], "promotion_gate": "needs_more_evidence", "promotion_reasons": ["执行真实完成", "数据质量高", "结果方向正向"], "blocking_reasons": ["归因强度仅weak", "存在同期Coupon混杂", "当前只有单次支持"]}
     ],
     "knowledge_candidates": [],
     "memory_writes": [
       {"write_type": "fact", "target_store": "产品历史事实", "record_ref": "FACT-001", "status": "planned"},
-      {"write_type": "fact", "target_store": "产品历史事实", "record_ref": "FACT-002", "status": "planned"},
-      {"write_type": "fact", "target_store": "产品历史事实", "record_ref": "FACT-003", "status": "planned"},
       {"write_type": "interpretation", "target_store": "决策验证记录", "record_ref": "INT-001", "status": "planned"},
       {"write_type": "lesson", "target_store": "产品经验库", "record_ref": "LEARN-AD-001", "status": "planned"},
       {"write_type": "review_queue", "target_store": "经验复核队列", "record_ref": "LEARN-AD-001", "status": "planned"}

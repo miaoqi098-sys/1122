@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skill Invocation Envelope V1.0",
+  "type": "object",
+  "required": ["run_id", "trace_id", "skill_id", "skill_version", "trigger", "input", "started_at", "status"],
+  "properties": {
+    "run_id": {"type": "string", "minLength": 1},
+    "trace_id": {"type": "string", "minLength": 1},
+    "parent_run_id": {"type": ["string", "null"]},
+    "skill_id": {"enum": ["S01", "S02", "S03", "S04", "S05", "S06", "S07", "S08", "S09", "S10"]},
+    "skill_version": {"type": "string", "minLength": 1},
+    "agent_id": {"type": "string", "default": "Agent-1"},
+    "scope": {
+      "type": "object",
+      "required": ["scope_type"],
+      "properties": {
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "campaign", "ad_group", "target", "keyword", "task", "decision", "other"]},
+        "product_id": {"type": ["string", "null"]},
+        "scope_id": {"type": ["string", "null"]},
+        "marketplace": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "trigger": {
+      "type": "object",
+      "required": ["trigger_type"],
+      "properties": {
+        "trigger_type": {"enum": ["event", "manual", "scheduler", "agent_request", "state_change", "task_result", "validation", "strategy_change", "retry", "other"]},
+        "trigger_ref": {"type": ["string", "null"]},
+        "reason": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "input_refs": {"type": "array", "items": {"type": "string"}},
+    "input": {"type": "object"},
+    "started_at": {"type": "string"},
+    "completed_at": {"type": ["string", "null"]},
+    "status": {"enum": ["created", "running", "succeeded", "succeeded_with_warnings", "needs_information", "blocked", "failed", "cancelled"]},
+    "result": {"type": ["object", "null"]},
+    "next_route": {
+      "type": ["object", "null"],
+      "properties": {
+        "route_type": {"enum": ["skill", "brain", "state_engine", "scheduler", "approval", "execution", "memory", "request_information", "stop"]},
+        "target": {"type": ["string", "null"]},
+        "reason": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "warnings": {"type": "array"},
+    "errors": {"type": "array"},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "schema_version": {"type": "string", "default": "1.0"}
+  },
+  "additionalProperties": true
+}

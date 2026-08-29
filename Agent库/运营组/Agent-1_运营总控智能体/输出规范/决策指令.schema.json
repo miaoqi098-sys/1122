@@ -1,36 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Agent-1 决策指令",
+  "title": "Agent-1 旧决策指令兼容格式（deprecated）",
+  "description": "旧版兼容Schema。新的canonical输出为FinalDecision.schema.json；新模块不得继续以本格式作为正式决策对象。",
+  "deprecated": true,
   "type": "object",
-  "required": ["decision_id", "product_id", "priority", "decision", "reasoning_summary", "tasks", "approval_level", "created_at"],
+  "required": ["decision_id", "priority", "decision", "created_at"],
   "properties": {
     "decision_id": {"type": "string"},
-    "product_id": {"type": "string"},
+    "product_id": {"type": ["string", "null"], "description": "旧字段，仅兼容历史单产品决策。新格式使用scope。"},
     "asin": {"type": ["string", "null"]},
-    "priority": {"type": "string", "enum": ["P0", "P1", "P2", "P3"]},
-    "decision": {"type": "string"},
+    "priority": {"type": "string", "enum": ["P0", "P1", "P2", "P3"], "description": "旧字段，对应新格式business_priority。"},
+    "decision": {"type": "string", "description": "旧文本决策；新格式使用selected_option + decision_basis。"},
     "reasoning_summary": {"type": "array", "items": {"type": "string"}},
     "evidence_event_ids": {"type": "array", "items": {"type": "string"}},
     "constraints": {"type": "array", "items": {"type": "string"}},
-    "tasks": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["task_id", "owner", "action", "success_criteria"],
-        "properties": {
-          "task_id": {"type": "string"},
-          "owner": {"type": "string"},
-          "action": {"type": "string"},
-          "deadline": {"type": ["string", "null"], "format": "date-time"},
-          "success_criteria": {"type": "string"},
-          "rollback_condition": {"type": ["string", "null"]}
-        },
-        "additionalProperties": false
-      }
-    },
-    "approval_level": {"type": "string", "enum": ["L0", "L1", "L2", "L3"]},
+    "tasks": {"type": "array", "description": "deprecated：新链路中Task必须由S07在FinalDecision之后生成，不应嵌入canonical决策对象。"},
+    "approval_level": {"type": ["string", "null"], "description": "旧审批字段；新格式使用approval对象。"},
     "review_at": {"type": ["string", "null"], "format": "date-time"},
-    "created_at": {"type": "string", "format": "date-time"}
+    "created_at": {"type": "string", "format": "date-time"},
+    "migration_target": {"const": "FinalDecision.schema.json"}
   },
-  "additionalProperties": false
+  "additionalProperties": true
 }

@@ -1,0 +1,46 @@
+{
+  "template_id": "DT-A1-CMT-001",
+  "template_name": "竞品与市场决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "competitor_market",
+  "description": "用于Agent-1处理竞品价格、排名、促销、评论、Listing变化、新品进入和市场机会等外部环境变化，并决定是否响应以及如何响应。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["risk", "problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["store", "parent_product", "product"],
+  "trigger_patterns": ["competitor_price_change", "competitor_promotion", "competitor_rank_shift", "new_competitor_entry", "competitor_listing_change", "market_demand_shift", "competitive_opportunity"],
+  "applicable_states": ["生命周期/经营情境/风险/机会状态引用经营状态识别模块"],
+  "exclusion_conditions": ["竞品证据来源不可追溯", "单一竞品短时动作且无持续性证据", "主要问题属于自身Listing/库存/利润且竞争变化只是伴随现象"],
+  "required_context": ["业务目标", "自身价格/促销/Listing/广告/库存/利润状态", "竞品池与证据", "市场需求变化", "历史竞争动作", "当前经营状态"],
+  "required_metrics": [
+    {"metric_ref": "competition.price_position", "purpose": "判断价格相对位置", "freshness_requirement": "当前", "requirement_level": "preferred"},
+    {"metric_ref": "competition.rank_or_visibility", "purpose": "观察竞争可见度变化", "freshness_requirement": "当前窗口", "requirement_level": "preferred"},
+    {"metric_ref": "market.demand_signal", "purpose": "区分竞品动作与市场整体变化", "freshness_requirement": "当前窗口", "requirement_level": "preferred"},
+    {"metric_ref": "listing.conversion_rate", "purpose": "判断自身承接是否同步变化", "freshness_requirement": "可比窗口", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "竞品价格/促销/排名/Listing等可追溯证据", "requirement_level": "required", "freshness_requirement": "当前分析窗口"},
+    {"evidence_type": "自身经营状态", "requirement_level": "required", "freshness_requirement": "当前"},
+    {"evidence_type": "市场整体变化证据", "requirement_level": "preferred", "freshness_requirement": "当前窗口"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-3", "purpose": "提供竞品与市场情报分析", "requirement_level": "required"},
+    {"agent_id": "Agent-8", "purpose": "提供市场趋势与需求变化信息", "requirement_level": "preferred"},
+    {"agent_id": "Agent-10", "purpose": "提供自身价格促销约束", "requirement_level": "preferred"},
+    {"agent_id": "Agent-6", "purpose": "提供利润边界", "requirement_level": "preferred"}
+  ],
+  "required_constraints": ["自身目标", "利润边界", "库存承载", "价格体系", "品牌定位", "证据强度"],
+  "key_questions": ["竞品变化是短期噪声还是结构性变化？", "是否影响自身核心目标或流量/转化？", "跟随、差异化、观察还是不响应哪个更合理？", "响应动作是否破坏自身利润、库存或价格体系？", "市场整体变化是否比单个竞品更重要？"],
+  "option_comparison_dimensions": ["竞争影响", "目标对齐", "利润影响", "库存影响", "品牌/价格体系影响", "证据强度", "响应时效", "可逆性"],
+  "risk_focus": ["机械跟随竞品", "把短时促销误判为长期策略", "过度依赖单一竞品", "为了竞争牺牲自身利润/价格体系", "忽略市场整体趋势"],
+  "approval_focus": ["大幅跟价", "重大定位/Listing变化", "高成本竞争投入", "长期价格策略改变"],
+  "task_requirements": ["保留竞品证据引用", "明确响应假设", "定义观察窗口", "对比不响应方案", "跨价格/广告/内容动作建立依赖"],
+  "observation_requirements": ["持续观察竞品动作是否延续", "同步观察自身流量转化和利润", "区分市场趋势与单一竞品影响"],
+  "rollback_requirements": ["竞品动作恢复后撤销无必要响应", "自身利润/转化恶化时停止跟随", "证据不足时降级为观察"],
+  "review_triggers": ["竞品动作持续/结束", "市场需求明显变化", "自身核心指标变化", "新品进入", "竞品价格/促销结构重大改变"],
+  "learning_focus": ["竞品动作真实持续时间", "自身对价格/促销竞争的敏感度", "不同竞争场景的有效响应", "市场趋势与单竞品影响区分"],
+  "supersedes": null,
+  "tags": ["competitor", "market", "pricing", "ranking", "promotion", "intelligence"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["竞品信息属于外部证据，不能替代自身目标与约束", "市场趋势信号可与Agent-8输入组合"]}
+}

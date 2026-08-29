@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Skill Invocation Envelope V1.0",
+  "title": "Skill Invocation Envelope V1.1",
   "type": "object",
   "required": ["run_id", "trace_id", "skill_id", "skill_version", "trigger", "input", "started_at", "status"],
   "properties": {
@@ -14,7 +14,7 @@
       "type": "object",
       "required": ["scope_type"],
       "properties": {
-        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "campaign", "ad_group", "target", "keyword", "task", "decision", "other"]},
+        "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global", "campaign", "ad_group", "target", "keyword", "task", "decision", "other"]},
         "product_id": {"type": ["string", "null"]},
         "scope_id": {"type": ["string", "null"]},
         "marketplace": {"type": ["string", "null"]}
@@ -40,7 +40,7 @@
     "next_route": {
       "type": ["object", "null"],
       "properties": {
-        "route_type": {"enum": ["skill", "brain", "state_engine", "scheduler", "approval", "execution", "memory", "request_information", "stop"]},
+        "route_type": {"enum": ["skill", "bridge", "brain", "state_engine", "scheduler", "approval", "execution", "memory", "request_information", "stop"]},
         "target": {"type": ["string", "null"]},
         "reason": {"type": ["string", "null"]}
       },
@@ -49,7 +49,7 @@
     "warnings": {"type": "array"},
     "errors": {"type": "array"},
     "evidence_refs": {"type": "array", "items": {"type": "string"}},
-    "schema_version": {"type": "string", "default": "1.0"}
+    "schema_version": {"type": "string", "default": "1.1"}
   },
   "additionalProperties": true
 }

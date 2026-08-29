@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "InventorySupplyEvent.schema.json",
+  "title": "InventorySupplyEvent",
+  "type": "object",
+  "required": ["event_id", "agent_id", "event_type", "scope", "observed_at", "severity", "confidence", "inventory_state", "evidence"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "agent_id": {"const": "Agent-7"},
+    "event_type": {
+      "type": "string",
+      "enum": ["STOCKOUT_RISK", "LOW_COVERAGE", "OVERSTOCK_RISK", "AGED_INVENTORY", "INBOUND_DELAY", "RECEIVING_STALL", "UNFULFILLABLE_SPIKE", "DEMAND_SURGE_SUPPLY_GAP", "DEMAND_DROP_OVERHANG", "SUPPLIER_LEADTIME_DRIFT", "STORAGE_COST_RISK", "DATA_QUALITY_RISK"]
+    },
+    "scope": {"type": "object"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "severity": {"type": "string", "enum": ["info", "low", "medium", "high", "critical"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "inventory_state": {"type": "object"},
+    "demand_baseline": {"type": "object"},
+    "supply_timeline": {"type": "array", "items": {"type": "object"}},
+    "projected_stockout_at": {"type": ["string", "null"], "format": "date-time"},
+    "projected_overstock_days": {"type": ["number", "null"]},
+    "recommended_review_window": {"type": ["string", "null"]},
+    "requires_other_agents": {"type": "array", "items": {"type": "string"}},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "source_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

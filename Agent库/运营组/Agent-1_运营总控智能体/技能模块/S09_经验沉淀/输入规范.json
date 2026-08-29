@@ -1,1 +1,41 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S09经验沉淀输入","type":"object","required":["product_id","decision_id","verification_result"],"properties":{"product_id":{"type":"string"},"decision_id":{"type":"string"},"task_ids":{"type":"array"},"verification_result":{"type":"object"},"decision_context":{"type":"object"},"previous_lessons":{"type":"array"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S09 经验沉淀输入规范 V1.1",
+  "type": "object",
+  "required": ["product_id", "decision_id", "verification_result"],
+  "properties": {
+    "product_id": {"type": "string", "minLength": 1},
+    "decision_id": {"type": "string", "minLength": 1},
+    "task_ids": {"type": "array", "items": {"type": "string"}},
+    "verification_result": {
+      "type": "object",
+      "required": ["execution_status", "business_outcome_status", "overall_validation_status", "observation_window_status", "attribution_status", "confidence", "decision_implication"],
+      "properties": {
+        "task_id": {"type": ["string", "null"]},
+        "execution_status": {"enum": ["not_started", "success", "partial", "failed", "unknown"]},
+        "business_outcome_status": {"enum": ["positive", "partial_positive", "no_effect", "negative", "not_evaluable"]},
+        "overall_validation_status": {"enum": ["success", "partial_success", "no_effect", "failed", "inconclusive", "rollback_triggered"]},
+        "criteria_results": {"type": "array"},
+        "observation_window_status": {"enum": ["not_started", "incomplete", "complete", "invalid"]},
+        "data_completeness": {"enum": ["high", "medium", "low", "unknown"]},
+        "data_freshness": {"enum": ["fresh", "stale", "mixed", "unknown"]},
+        "data_quality": {"enum": ["high", "medium", "low", "unknown"]},
+        "side_effects": {"type": "array"},
+        "attribution_status": {"enum": ["strong", "moderate", "weak", "confounded", "not_evaluable"]},
+        "confounders": {"type": "array"},
+        "supporting_evidence": {"type": "array"},
+        "contradicting_evidence": {"type": "array"},
+        "failure_type": {"type": ["string", "null"], "enum": ["execution_failure", "strategy_failure", "guardrail_breach", "data_failure", "external_confounding", "assumption_failure", "premature_evaluation", null]},
+        "confidence": {"enum": ["low", "medium", "high"]},
+        "decision_implication": {"enum": ["keep", "scale", "continue_observation", "adjust", "rollback", "rediagnose"]},
+        "validation_summary": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "decision_context": {"type": "object"},
+    "previous_lessons": {"type": "array"},
+    "historical_evidence": {"type": "array"},
+    "knowledge_governance": {"type": "object"}
+  },
+  "additionalProperties": true
+}

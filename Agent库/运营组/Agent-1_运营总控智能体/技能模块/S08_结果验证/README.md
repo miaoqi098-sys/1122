@@ -1,140 +1,137 @@
 # S08｜结果验证
 
 ## 技能定位
-验证S07任务执行后是否真正产生预期经营结果，并区分“动作是否执行成功”“经营结果是否达标”“结果能否归因于本次决策”。
+S08验证S07任务执行后是否真正产生预期经营结果，并严格区分：动作是否执行成功、业务结果是否达标、结果能否归因于本次决策。
 
-S08不是看一眼指标涨跌，而是建立完整验证链：执行事实 → 数据窗口 → 目标标准 → 保护指标 → 副作用 → 因果归因 → 决策含义。
-
-## 调用位置
+## 正式调用位置
 ```text
-S07任务计划
+S07 Task
 ↓
-执行层返回actual_execution
+执行层
 ↓
-观察/数据窗口成熟
+ExecutionResult
++
+baseline / observed_results / observation_window
 ↓
-S08验证执行事实
+S08 OutcomeValidation
 ↓
-验证success criteria / guardrails / stop conditions
+ValidationResult
 ↓
-检查副作用与经营状态变化
+Agent-1 keep / scale / continue_observation / adjust / rollback / rediagnose
 ↓
-检查concurrent events与归因可信度
-↓
-输出validation result
-↓
-Agent-1决定keep / scale / adjust / rollback / rediagnose
-↓
-满足学习条件后进入S09
+S09
 ```
 
-## 三层结果必须分离
-### 1. execution_status
-动作本身是否真实执行：
-- `not_started`
-- `success`
-- `partial`
-- `failed`
-- `unknown`
+## 正式执行输入
+执行层必须先把API、工具或人工执行结果标准化为Canonical `ExecutionResult`。
 
-### 2. business_outcome_status
-经营结果是否达到预期：
-- `positive`
-- `partial_positive`
-- `no_effect`
-- `negative`
-- `not_evaluable`
+S08正式输入使用`execution_result`，不再使用`actual_execution`旧别名。
 
-### 3. overall_validation_status
-综合执行、经营结果、保护指标和归因后形成最终验证状态：
-- `success`
-- `partial_success`
-- `no_effect`
-- `failed`
-- `inconclusive`
-- `rollback_triggered`
+ExecutionResult至少应可追溯：
+- execution_result_id
+- task_id
+- task_plan_id
+- decision_id
+- decision_item_id
+- option_id（如有）
+- strategy_chain_id（如有）
+- requested_action
+- actual_action
+- execution_status
+- executor
 
-执行成功不等于经营成功；执行失败时通常不能直接证明策略失败。
+## 三层结果
+### execution_status
+- not_started
+- success
+- partial
+- failed
+- unknown
 
-## 验证标准 criterion
-每个标准应尽量结构化为：
-- `criterion_id`
-- `criterion_type`
-- `metric`
-- `baseline`
-- `target`
-- `actual`
-- `comparison`
-- `status`
-- `window`
-- `data_quality`
+### business_outcome_status
+- positive
+- partial_positive
+- no_effect
+- negative
+- not_evaluable
 
+### overall_validation_status
+- success
+- partial_success
+- no_effect
+- failed
+- inconclusive
+- rollback_triggered
+
+执行成功不等于业务成功；执行失败通常也不能直接证明策略失败。
+
+## ValidationResult正式主键
+S08必须生成唯一`validation_id`。
+
+ValidationResult至少保留：
+- validation_id
+- execution_result_id
+- task_id
+- task_plan_id
+- decision_id
+- decision_item_id
+- option_id / strategy_chain_id（如有）
+- criteria_results
+- observation_window_status
+- data_quality
+- attribution_status
+- failure_type
+- confidence
+- decision_implication
+
+## criterion
 criterion_type：
-- `primary`：核心目标；
-- `secondary`：辅助目标；
-- `guardrail`：保护指标；
-- `stop_condition`：止损/停止条件。
+- primary
+- secondary
+- guardrail
+- stop_condition
 
-## 观察窗口
-`observation_window_status`：
-- `not_started`
-- `incomplete`
-- `complete`
-- `invalid`
+不得在看到结果后修改原success criteria迎合结果。
 
-同时记录：
-- `data_completeness`
-- `data_freshness`
-- `data_quality`
+## 观察窗口与数据质量
+观察窗口：
+- not_started
+- incomplete
+- complete
+- invalid
 
-观察窗口未完整时，不因短期波动过早判定策略失败。
+数据质量应记录完整性、新鲜度和总体质量。
+
+观察窗口未成熟时，不因短期波动过早判定策略失败。
 
 ## 因果归因
-`attribution_status`：
-- `strong`
-- `moderate`
-- `weak`
-- `confounded`
-- `not_evaluable`
+attribution_status：
+- strong
+- moderate
+- weak
+- confounded
+- not_evaluable
 
-同时记录：
-- `confounders`
-- `supporting_evidence`
-- `contradicting_evidence`
+同期促销、价格变化、竞品变化、季节因素和其他并行动作都必须进入confounders判断。
 
-同期促销、价格变化、竞品断货、季节变化、其他任务等必须进入归因判断。
+## failure_type
+- execution_failure
+- strategy_failure
+- guardrail_breach
+- data_failure
+- external_confounding
+- assumption_failure
+- premature_evaluation
 
-## 失败分类
-`failure_type`：
-- `execution_failure`
-- `strategy_failure`
-- `guardrail_breach`
-- `data_failure`
-- `external_confounding`
-- `assumption_failure`
-- `premature_evaluation`
+该字段直接约束S09后续能学到什么。
 
-失败分类直接影响S09后续能学到什么。
+## 与S07边界
+S07定义Task和验证条件；S08验证真实执行与经营结果，不负责重新编排任务。
 
-## 决策含义
-S08可输出 `decision_implication`：
-- `keep`
-- `scale`
-- `continue_observation`
-- `adjust`
-- `rollback`
-- `rediagnose`
-
-它表示验证结果对原决策意味着什么，不代表S08越权生成新的经营方案。
-
-## 与S07的边界
-S07定义任务、成功标准、停止条件、验证节点；S08读取实际执行结果和观测数据进行验收，不事后修改原success_criteria来迎合结果。
-
-## 与S09的边界
-S08负责判断“发生了什么、效果如何、归因多可信”；S09负责判断“哪些经验值得沉淀、适用范围是什么”。低归因可信度不得被包装成高置信经营规律。
-
-## 核心原则
-Agent-1必须知道：我们计划做什么、实际上做了什么、结果发生了什么，以及结果究竟有多大把握是这次动作造成的。
+## 与S09边界
+S08回答“发生了什么、效果怎样、归因多可信”；S09回答“哪些内容值得成为事实、经验或知识候选”。
 
 ## 当前版本
-V1.1：加入S07完整承接、执行/经营/总体结果分离、结构化criteria、观察窗口与数据质量、结构化归因、失败分类和decision_implication。
+- 业务规则：V1.1；
+- 接口：V1.2，已统一ExecutionResult输入并正式生成ValidationResult/validation_id；
+- 执行程序：待系统运行层实现ExecutionVerifier、CriteriaEvaluator、AttributionEvaluator和ValidationPackager。

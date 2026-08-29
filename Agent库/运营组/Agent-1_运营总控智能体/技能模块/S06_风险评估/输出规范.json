@@ -1,1 +1,62 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S06风险评估输出","type":"object","required":["skill_id","option_risks"],"properties":{"skill_id":{"const":"S06"},"option_risks":{"type":"array","items":{"type":"object","required":["option_id","overall_risk","approval_level","eligible"],"properties":{"option_id":{"type":"string"},"overall_risk":{"enum":["R0","R1","R2","R3","R4"]},"risks":{"type":"array"},"mitigations":{"type":"array"},"residual_risk":{"type":["string","null"]},"approval_level":{"type":"string"},"eligible":{"type":"boolean"},"reason":{"type":"string"}}}}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S06 风险评估输出规范 V1.1",
+  "type": "object",
+  "required": ["skill_id", "option_risks", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S06"},
+    "option_risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option_id", "inherent_risk", "controlled_risk", "residual_risk", "aggregation_rule", "eligibility", "approval_level"],
+        "properties": {
+          "option_id": {"type": "string"},
+          "inherent_risk": {"enum": ["R0", "R1", "R2", "R3", "R4"]},
+          "controlled_risk": {"enum": ["R0", "R1", "R2", "R3", "R4"]},
+          "residual_risk": {"enum": ["R0", "R1", "R2", "R3", "R4"]},
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["risk_id", "category", "likelihood", "impact", "inherent_risk_level", "residual_risk_level"],
+              "properties": {
+                "risk_id": {"type": "string"},
+                "category": {"enum": ["compliance_account", "sellability", "inventory", "cash_flow", "profit", "price_system", "advertising", "traffic_asset", "customer_experience", "execution", "data_uncertainty", "irreversibility"]},
+                "source": {},
+                "trigger": {},
+                "affected_object": {},
+                "likelihood": {"enum": ["high", "medium", "low", "unknown"]},
+                "impact": {"enum": ["critical", "high", "medium", "low", "unknown"]},
+                "time_horizon": {},
+                "detectability": {"enum": ["high", "medium", "low", "unknown"]},
+                "reversibility": {"enum": ["high", "medium", "low", "unknown"]},
+                "exposure": {},
+                "evidence_strength": {"enum": ["high", "medium", "low", "unknown"]},
+                "mitigation_actions": {"type": "array"},
+                "inherent_risk_level": {"enum": ["R0", "R1", "R2", "R3", "R4"]},
+                "controlled_risk_level": {"enum": ["R0", "R1", "R2", "R3", "R4"]},
+                "residual_risk_level": {"enum": ["R0", "R1", "R2", "R3", "R4"]},
+                "worst_case": {"type": ["string", "null"]}
+              },
+              "additionalProperties": true
+            }
+          },
+          "mitigations": {"type": "array"},
+          "aggregation_rule": {"type": "string"},
+          "dominant_risk": {"type": ["string", "null"]},
+          "risk_drivers": {"type": "array"},
+          "worst_case": {"type": ["string", "null"]},
+          "eligibility": {"enum": ["eligible", "eligible_with_controls", "requires_approval", "requires_more_evidence", "prohibited"]},
+          "required_controls": {"type": "array"},
+          "approval_level": {"type": "string"},
+          "reason": {"type": "string"},
+          "risk_confidence": {"enum": ["high", "medium", "low"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_action": {"enum": ["continue_to_decision_comparison", "request_more_evidence", "request_approval", "remove_prohibited_options"]}
+  },
+  "additionalProperties": true
+}

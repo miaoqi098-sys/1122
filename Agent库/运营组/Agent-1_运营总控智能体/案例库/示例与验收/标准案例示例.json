@@ -1,0 +1,72 @@
+{
+  "case_id": "EXAMPLE-CASE-A1-001",
+  "case_version": "0.1.0",
+  "case_status": "draft",
+  "case_type": ["conflict", "experiment"],
+  "title": "广告放量与库存风险冲突示例",
+  "summary": "示例展示Agent-4建议加预算但Agent-7提示断货风险时，案例如何引用完整决策链而不复制canonical对象。",
+  "scope": {
+    "type": "product",
+    "id": "EXAMPLE-ASIN"
+  },
+  "time_window": {
+    "start_at": "2026-08-01T00:00:00+00:00",
+    "end_at": "2026-08-14T23:59:59+00:00",
+    "observation_window": "7d"
+  },
+  "business_state_refs": ["state:example-product-growth", "risk:inventory-warning"],
+  "goal_refs": ["goal:growth_with_stock_safety"],
+  "problem_summary": "广告存在可验证的增量机会，但按当前销售速度与在途不确定性继续放量可能在补货到仓前断货。",
+  "hypotheses": [
+    "温和增加高质量Exact预算可以获得增量订单",
+    "若整体预算大幅放量，库存覆盖天数将跌破计划补货缓冲"
+  ],
+  "missing_information": ["部分在途到仓日期仍有不确定性"],
+  "source_event_refs": ["event:example-ad-opportunity", "event:example-inventory-risk"],
+  "context_snapshot_refs": ["context:example-001"],
+  "conflict_refs": ["conflict:example-ad-vs-inventory"],
+  "evidence_refs": ["evidence:example-ad-performance", "evidence:example-inventory-coverage"],
+  "historical_refs": ["history:example-previous-stockout"],
+  "decision_item_refs": ["decision-item:example-001"],
+  "template_refs": [
+    {"template_id": "DT-A1-MAC-001", "template_version": "0.1.0", "role": "primary"},
+    {"template_id": "DT-A1-ADV-001", "template_version": "0.1.0", "role": "supporting"},
+    {"template_id": "DT-A1-INV-001", "template_version": "0.1.0", "role": "supporting"}
+  ],
+  "option_refs": ["option:example-hold", "option:example-controlled-scale", "option:example-full-scale"],
+  "decision_refs": ["decision:example-controlled-scale"],
+  "task_plan_refs": ["task-plan:example-001"],
+  "task_refs": ["task:example-budget-adjust", "task:example-stock-monitor"],
+  "execution_result_refs": ["execution:example-budget-adjust"],
+  "validation_refs": ["validation:example-001"],
+  "learning_refs": ["learning:example-001"],
+  "strategy_chain_id": "strategy:example-ad-growth-001",
+  "decision_summary": "不做全量放量，仅扩大已验证高转化流量，同时建立库存覆盖观察门槛；库存风险升级即停止增量预算。",
+  "execution_summary": "示例执行受控预算调整，并同步库存监控任务。",
+  "outcome": {
+    "status": "success",
+    "summary": "示例结果：在观察窗口内获得增量订单，库存仍保持在预设安全缓冲以上。",
+    "success_criteria_met": true,
+    "validation_quality": "medium",
+    "attribution_strength": "moderate"
+  },
+  "confounders": ["同期自然流量存在轻微上涨"],
+  "reusable_summary": "在广告机会与库存风险并存时，可优先把增量集中在高置信度流量，而不是按单域建议整体放量；是否复用仍需检查当前补货周期、需求速度和利润约束。",
+  "applicability": ["存在已验证广告机会", "库存覆盖处于预警但非立即断货", "可将放量拆成可逆的小范围动作"],
+  "invalid_when": ["已进入立即断货风险", "补货到仓事实与示例明显不同", "广告机会本身证据不足", "利润约束不允许增量广告投入"],
+  "freshness": {
+    "last_reviewed_at": "2026-08-30T00:00:00+00:00",
+    "valid_until": null,
+    "review_triggers": ["库存策略变化", "广告模板版本变化", "补货模式变化"]
+  },
+  "human_correction": null,
+  "relationships": [],
+  "revision_reason": null,
+  "supersedes_case_version": null,
+  "created_at": "2026-08-30T00:00:00+00:00",
+  "updated_at": null,
+  "metadata": {
+    "example_only": true,
+    "not_real_business_record": true
+  }
+}

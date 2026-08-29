@@ -1,0 +1,47 @@
+{
+  "event_id": "EVT-A2-20260830-0001",
+  "source_type": "professional_agent",
+  "source_agent": "Agent-2",
+  "source_ref": "A2-SNAPSHOT-DIFF-0001",
+  "event_type": "listing_suppressed",
+  "scope_type": "sku",
+  "scope_id": "SKU-MAHJONG-PINK-001",
+  "scope_objects": [
+    {
+      "type": "product",
+      "id": "ASIN-B0EXAMPLE01"
+    },
+    {
+      "type": "sku",
+      "id": "SKU-MAHJONG-PINK-001"
+    }
+  ],
+  "product_id": "ASIN-B0EXAMPLE01",
+  "asin": "B0EXAMPLE01",
+  "severity": "P1",
+  "occurred_at": "2026-08-30T04:30:00+08:00",
+  "received_at": "2026-08-30T04:31:00+08:00",
+  "summary": "SKU后台状态由active变为suppressed，前台页面同时不可购买",
+  "facts": [
+    "04:30后台SKU状态显示suppressed",
+    "04:30前台detail page仍可访问但无可购买Offer"
+  ],
+  "metrics": {},
+  "recommendation": "建议Agent-1优先补充抑制原因证据；若涉及政策/资质，联合Agent-12复核",
+  "confidence": 0.97,
+  "evidence_refs": [
+    "BACKEND-SNAPSHOT-0001",
+    "FRONTEND-SNAPSHOT-0001"
+  ],
+  "related_events": [],
+  "parent_event_id": null,
+  "requires_decision_by": null,
+  "data_window": "2026-08-30T04:25:00+08:00/2026-08-30T04:31:00+08:00",
+  "attachments": [],
+  "metadata": {
+    "status_domain": "availability_state",
+    "previous_state": "active",
+    "current_state": "suppressed",
+    "dedupe_fingerprint": "sku|SKU-MAHJONG-PINK-001|availability_state|active_to_suppressed"
+  }
+}

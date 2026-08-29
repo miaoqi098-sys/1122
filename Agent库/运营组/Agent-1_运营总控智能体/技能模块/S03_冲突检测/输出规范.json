@@ -1,1 +1,54 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S03冲突检测输出","type":"object","required":["skill_id","status","conflicts","next_action"],"properties":{"skill_id":{"const":"S03"},"status":{"enum":["clear","conflicts_found","needs_evidence","blocked"]},"conflicts":{"type":"array","items":{"type":"object","required":["conflict_id","type","severity","disputed_points","resolution_status"],"properties":{"conflict_id":{"type":"string"},"type":{"enum":["fact","interpretation","goal","agent","task","strategy","time_horizon","constraint"]},"severity":{"enum":["critical","high","medium","low"]},"parties":{"type":"array"},"shared_facts":{"type":"array"},"disputed_points":{"type":"array"},"evidence_needed":{"type":"array"},"resolution_status":{"enum":["unresolved","partially_resolved","resolved","escalated"]}}}},"next_action":{"enum":["continue_to_S04","request_evidence","request_agent_review","hold_for_review"]}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S03 冲突检测输出规范 V1.1",
+  "type": "object",
+  "required": ["skill_id", "status", "conflicts", "conflict_groups", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S03"},
+    "status": {"enum": ["clear", "conflicts_found", "needs_evidence", "blocked"]},
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["conflict_id", "type", "severity", "decision_impact", "disputed_points", "resolution_status"],
+        "properties": {
+          "conflict_id": {"type": "string"},
+          "conflict_group_id": {"type": ["string", "null"]},
+          "type": {"enum": ["fact", "interpretation", "goal", "task", "strategy", "time_horizon", "constraint"]},
+          "involved_agents": {"type": "array", "items": {"type": "string"}},
+          "parties": {"type": "array"},
+          "subject": {"type": ["string", "null"]},
+          "shared_facts": {"type": "array"},
+          "disputed_points": {"type": "array"},
+          "root_conflict": {"type": ["string", "null"]},
+          "evidence_needed": {"type": "array"},
+          "severity": {"enum": ["critical", "high", "medium", "low"]},
+          "decision_impact": {"enum": ["none", "confidence_only", "changes_ranking", "blocks_decision", "requires_escalation"]},
+          "resolution_status": {"enum": ["unresolved", "partially_resolved", "resolved", "escalated"]},
+          "recommended_next_step": {"type": ["string", "null"]},
+          "resolution_evidence": {"type": "array"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "conflict_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["conflict_group_id", "root_conflict", "related_conflicts"],
+        "properties": {
+          "conflict_group_id": {"type": "string"},
+          "root_conflict": {"type": "string"},
+          "related_conflicts": {"type": "array", "items": {"type": "string"}},
+          "involved_agents": {"type": "array", "items": {"type": "string"}},
+          "highest_severity": {"enum": ["critical", "high", "medium", "low"]},
+          "highest_decision_impact": {"enum": ["none", "confidence_only", "changes_ranking", "blocks_decision", "requires_escalation"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "unresolved_points": {"type": "array"},
+    "next_action": {"enum": ["continue_to_S04", "request_evidence", "request_agent_review", "send_to_S10", "hold_for_review"]}
+  },
+  "additionalProperties": true
+}

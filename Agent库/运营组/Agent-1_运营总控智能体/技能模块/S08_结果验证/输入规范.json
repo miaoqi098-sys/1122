@@ -1,17 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S08 结果验证输入规范 V1.1",
+  "title": "S08 结果验证输入规范 V1.2",
   "type": "object",
-  "required": ["task", "actual_execution", "baseline", "observed_results"],
+  "required": ["task", "execution_result", "baseline", "observed_results"],
   "properties": {
     "task": {
       "type": "object",
-      "required": ["task_id", "decision_id", "product_id", "task_type", "action", "success_criteria", "stop_conditions", "validator"],
+      "required": ["task_id", "task_plan_id", "decision_id", "decision_item_id", "task_type", "action", "success_criteria", "stop_conditions", "validator"],
       "properties": {
         "task_id": {"type": "string"},
+        "task_plan_id": {"type": "string"},
         "decision_id": {"type": "string"},
-        "product_id": {"type": "string"},
+        "decision_item_id": {"type": "string"},
         "option_id": {"type": ["string", "null"]},
+        "strategy_chain_id": {"type": ["string", "null"]},
+        "scope": {"type": "object"},
         "task_type": {"enum": ["execution", "monitoring", "approval", "data_collection", "validation", "control", "rollback"]},
         "action": {"type": "object"},
         "success_criteria": {"type": "array"},
@@ -23,43 +26,33 @@
       },
       "additionalProperties": true
     },
-    "actual_execution": {
+    "execution_result": {
       "type": "object",
-      "required": ["execution_status"],
+      "required": ["execution_result_id", "task_id", "execution_status", "requested_action", "executor"],
       "properties": {
+        "execution_result_id": {"type": "string"},
+        "task_id": {"type": "string"},
+        "decision_id": {"type": ["string", "null"]},
+        "decision_item_id": {"type": ["string", "null"]},
+        "option_id": {"type": ["string", "null"]},
         "execution_status": {"enum": ["not_started", "success", "partial", "failed", "unknown"]},
+        "requested_action": {"type": "object"},
+        "actual_action": {"type": ["object", "null"]},
+        "executor": {"type": "string"},
         "started_at": {"type": ["string", "null"]},
         "finished_at": {"type": ["string", "null"]},
-        "executor": {"type": ["string", "null"]},
-        "actual_action": {"type": ["object", "null"]},
-        "execution_logs": {"type": "array"},
-        "execution_errors": {"type": "array"}
+        "logs": {"type": "array"},
+        "errors": {"type": "array"},
+        "observed_state_change": {},
+        "source_response_refs": {"type": "array"}
       },
       "additionalProperties": true
     },
     "baseline": {"type": "object"},
     "observed_results": {"type": "object"},
     "criteria": {"type": "array"},
-    "observation_window": {
-      "type": "object",
-      "properties": {
-        "planned_start": {},
-        "planned_end": {},
-        "actual_start": {},
-        "actual_end": {},
-        "status": {"enum": ["not_started", "incomplete", "complete", "invalid"]}
-      },
-      "additionalProperties": true
-    },
-    "data_quality": {
-      "type": "object",
-      "properties": {
-        "completeness": {"enum": ["high", "medium", "low", "unknown"]},
-        "freshness": {"enum": ["fresh", "stale", "mixed", "unknown"]},
-        "quality": {"enum": ["high", "medium", "low", "unknown"]}
-      },
-      "additionalProperties": true
-    },
+    "observation_window": {"type": "object"},
+    "data_quality": {"type": "object"},
     "business_state_before": {"type": "object"},
     "business_state_after": {"type": "object"},
     "concurrent_events": {"type": "array"},

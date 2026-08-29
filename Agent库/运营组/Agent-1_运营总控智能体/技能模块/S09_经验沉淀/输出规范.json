@@ -1,10 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S09 经验沉淀输出规范 V1.1",
+  "title": "S09 经验沉淀输出规范 V1.2",
   "type": "object",
-  "required": ["skill_id", "fact_records", "interpretation_records", "learning_items", "knowledge_candidates", "memory_writes", "next_action"],
+  "required": ["skill_id", "learning_batch_id", "validation_id", "fact_records", "interpretation_records", "learning_items", "knowledge_candidates", "memory_writes", "next_action"],
   "properties": {
     "skill_id": {"const": "S09"},
+    "learning_batch_id": {"type": "string", "minLength": 1},
+    "validation_id": {"type": "string", "minLength": 1},
+    "execution_result_id": {"type": ["string", "null"]},
+    "task_id": {"type": ["string", "null"]},
+    "decision_id": {"type": ["string", "null"]},
+    "decision_item_id": {"type": ["string", "null"]},
     "fact_records": {
       "type": "array",
       "items": {
@@ -20,35 +26,22 @@
         "additionalProperties": true
       }
     },
-    "interpretation_records": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["interpretation_id", "statement", "fact_refs", "attribution_strength", "confidence"],
-        "properties": {
-          "interpretation_id": {"type": "string"},
-          "statement": {"type": "string"},
-          "fact_refs": {"type": "array"},
-          "attribution_strength": {"enum": ["strong", "moderate", "weak", "confounded", "not_evaluable"]},
-          "confounders": {"type": "array"},
-          "confidence": {"enum": ["low", "medium", "high"]}
-        },
-        "additionalProperties": true
-      }
-    },
+    "interpretation_records": {"type": "array"},
     "learning_items": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["learning_id", "level", "learning_action", "statement", "evidence", "applicability", "confidence", "promotion_gate"],
+        "required": ["learning_id", "level", "learning_action", "statement", "source_validation_ids", "evidence", "applicability", "confidence", "promotion_gate"],
         "properties": {
           "learning_id": {"type": "string"},
           "level": {"enum": ["observation", "product_lesson", "reusable_pattern", "knowledge_candidate", "validated_knowledge"]},
           "learning_action": {"enum": ["record_fact", "create_lesson", "promote", "merge", "refine", "deprecate", "hold"]},
           "statement": {"type": "string"},
           "source_decision_id": {"type": ["string", "null"]},
+          "source_decision_item_id": {"type": ["string", "null"]},
           "source_task_ids": {"type": "array"},
-          "source_validation_ids": {"type": "array"},
+          "source_execution_result_ids": {"type": "array"},
+          "source_validation_ids": {"type": "array", "minItems": 1},
           "evidence": {"type": "array"},
           "evidence_quality": {"enum": ["high", "medium", "low", "unknown"]},
           "attribution_strength": {"enum": ["strong", "moderate", "weak", "confounded", "not_evaluable"]},
@@ -57,18 +50,7 @@
           "confidence": {"enum": ["low", "medium", "high"]},
           "support_count": {"type": "integer", "minimum": 0},
           "contradiction_count": {"type": "integer", "minimum": 0},
-          "relationships": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "required": ["type", "target_learning_id"],
-              "properties": {
-                "type": {"enum": ["supports", "contradicts", "refines", "supersedes", "coexists"]},
-                "target_learning_id": {"type": "string"},
-                "reason": {"type": ["string", "null"]}
-              }
-            }
-          },
+          "relationships": {"type": "array"},
           "knowledge_domain": {"type": ["string", "null"]},
           "version": {"type": ["string", "integer"]},
           "created_at": {"type": ["string", "null"]},
@@ -91,7 +73,7 @@
           "write_type": {"enum": ["fact", "interpretation", "lesson", "knowledge_candidate", "relationship", "review_queue"]},
           "target_store": {"type": "string"},
           "record_ref": {"type": "string"},
-          "status": {"enum": ["planned", "queued", "written", "failed"]}
+          "status": {"enum": ["planned", "queued", "failed"], "description": "S09只生成写回计划，不允许宣称真正written。"}
         },
         "additionalProperties": true
       }

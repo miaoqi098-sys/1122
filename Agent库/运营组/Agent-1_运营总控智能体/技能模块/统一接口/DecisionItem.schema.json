@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Canonical DecisionItem V1.0",
+  "type": "object",
+  "required": ["decision_item_id", "item_type", "subject", "problem_definition", "objective", "goal_layer"],
+  "properties": {
+    "decision_item_id": {"type": "string", "minLength": 1},
+    "item_type": {"enum": ["risk", "problem", "opportunity", "goal_gap", "decision", "investigation"]},
+    "subject": {"type": "string", "minLength": 1},
+    "problem_definition": {"type": "string", "minLength": 1},
+    "objective": {"type": "string", "minLength": 1},
+    "goal_layer": {"enum": ["safety_sellability", "survival_operations", "business_quality", "growth_expansion", "unknown"]},
+    "severity": {"type": ["string", "null"]},
+    "urgency": {"enum": ["immediate", "high", "medium", "low", "unknown"]},
+    "deadline": {"type": ["string", "null"]},
+    "state_relevance": {"type": ["string", "null"]},
+    "target_deviation": {},
+    "dependency_count": {"type": "integer", "minimum": 0},
+    "blocked_items": {"type": "array", "items": {"type": "string"}},
+    "opportunity_window": {},
+    "reversibility": {"enum": ["high", "medium", "low", "unknown"]},
+    "evidence_strength": {"enum": ["high", "medium", "low", "unknown"]},
+    "resource_cost": {},
+    "conflict_refs": {"type": "array", "items": {"type": "string"}},
+    "constraint_refs": {"type": "array", "items": {"type": "string"}},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "source_event_refs": {"type": "array", "items": {"type": "string"}},
+    "context_refs": {"type": "array", "items": {"type": "string"}},
+    "previous_priority": {"enum": ["P0", "P1", "P2", "P3", "none", "unknown"]},
+    "created_at": {"type": ["string", "null"]}
+  },
+  "additionalProperties": true
+}

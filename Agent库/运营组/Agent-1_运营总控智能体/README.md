@@ -142,18 +142,22 @@ S10 StrategyStabilization是横向策略稳定性控制，在策略反转、替�
 14. 高风险、不可逆或越权动作必须遵守approval和权限边界。
 
 ## 6. 当前框架状态
-Agent-1主要一级模块已完成框架层逐模块L3验收。当前进入Agent级L4一致性回顾阶段，重点不是继续堆目录，而是检查：
-- 根README与实际目录一致性；
-- canonical对象/Schema引用；
-- 已封板模块中的旧固定优先级、旧Lx审批、旧product_id硬必填、deprecated输出引用等残留；
-- 输入→决策→任务→执行→验证→学习全链闭合；
-- 运行依赖是否与Agent框架正确分离。
+Agent-1 的一级模块已完成框架层逐模块 L3 验收，并已完成 Agent 级 L4 一致性回顾。
 
-L4通过前，不宣称Agent-1整体最终封板。
+当前 Agent库 已进入 L5 全库一致性验收。Agent-1 在 L5 中继续作为以下公共规则的权威来源：
+- 唯一最终经营决策出口；
+- `智能事件包.schema.json` 作为专业Agent主动事件进入总控的 Canonical Event；
+- `专业Agent结果.schema.json` 作为专业请求响应进入总控的 Canonical Response；
+- Event → Decision → Task → Execution → Validation → Learning 的业务主链；
+- run_id / trace_id 等运行追踪字段不替代业务主键。
+
+跨 Agent 领域事件/响应的规范化、职责覆盖和协作路由统一见：`../公共协议/`。
+
+Agent-1 的静态框架已通过 L4；真实Runner、API、数据库、Scheduler、Executor、持久化和运行期动态测试仍属于共享运行依赖，不影响其框架层完成状态。
 
 ## 7. 与运行层的关系
-当前阶段优先完成Agent库框架，不实施真实运行层。
+当前阶段完成的是Agent库静态框架，不实施真实运行层。
 
-未来运行能力包括：Skill Runner、Agent Runner、Schema Validator、Amazon SP-API/Ads API、长期记忆数据库、Scheduler、Executor、ExecutionResultNormalizer、LearningWriteExecutor、StrategyChain持久化等，统一在运行依赖中挂账。
+未来运行能力包括：Skill Runner、Agent Runner、Schema Validator、Amazon SP-API/Ads API、长期记忆数据库、Scheduler、Executor、ExecutionResultNormalizer、LearningWriteExecutor、StrategyChain持久化、专业Agent事件/响应Normalizer等，统一在运行依赖中挂账。
 
 **框架层完成 ≠ 动态运行完成。**

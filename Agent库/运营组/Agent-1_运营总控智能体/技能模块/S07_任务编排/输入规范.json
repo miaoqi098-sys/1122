@@ -1,1 +1,52 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S07任务编排输入","type":"object","required":["decision_id","product_id","selected_option"],"properties":{"decision_id":{"type":"string"},"product_id":{"type":"string"},"selected_option":{"type":"object"},"risk_assessment":{"type":"object"},"active_tasks":{"type":"array"},"agent_capabilities":{"type":"object"},"permissions":{"type":"object"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S07 任务编排输入规范 V1.1",
+  "type": "object",
+  "required": ["decision_id", "product_id", "selected_option", "risk_assessment"],
+  "properties": {
+    "decision_id": {"type": "string", "minLength": 1},
+    "product_id": {"type": "string", "minLength": 1},
+    "selected_option": {
+      "type": "object",
+      "required": ["option_id", "option_type", "actions", "success_criteria", "stop_conditions"],
+      "properties": {
+        "option_id": {"type": "string"},
+        "option_type": {"enum": ["conservative", "balanced", "aggressive", "experiment", "observe", "information_first"]},
+        "objective": {"type": ["string", "null"]},
+        "actions": {"type": "array", "minItems": 1},
+        "assumptions": {"type": "array"},
+        "expected_benefit": {},
+        "cost": {},
+        "reversibility": {"enum": ["high", "medium", "low"]},
+        "time_to_effect": {},
+        "data_needed": {"type": "array"},
+        "success_criteria": {"type": "array"},
+        "stop_conditions": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "risk_assessment": {
+      "type": "object",
+      "required": ["option_id", "eligibility", "approval_level"],
+      "properties": {
+        "option_id": {"type": "string"},
+        "eligibility": {"enum": ["eligible", "eligible_with_controls", "requires_approval", "requires_more_evidence", "prohibited"]},
+        "required_controls": {"type": "array"},
+        "approval_level": {"type": "string"},
+        "dominant_risk": {"type": ["string", "null"]},
+        "risk_drivers": {"type": "array"},
+        "residual_risk": {"enum": ["R0", "R1", "R2", "R3", "R4"]},
+        "mitigations": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "business_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+    "active_tasks": {"type": "array"},
+    "agent_capabilities": {"type": "object"},
+    "executor_capabilities": {"type": "object"},
+    "permissions": {"type": "object"},
+    "resource_capacity": {"type": "object"},
+    "scheduling_constraints": {"type": "object"}
+  },
+  "additionalProperties": true
+}

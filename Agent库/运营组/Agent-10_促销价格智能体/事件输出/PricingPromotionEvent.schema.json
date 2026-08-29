@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "PricingPromotionEvent.schema.json",
+  "title": "PricingPromotionEvent",
+  "type": "object",
+  "required": ["event_id", "agent_id", "event_type", "scope", "observed_at", "severity", "confidence", "evidence"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "agent_id": {"const": "Agent-10"},
+    "event_type": {
+      "type": "string",
+      "enum": ["REFERENCE_PRICE_LOST", "PRICE_DISPLAY_MISMATCH", "PROMOTION_NOT_VISIBLE", "PROMOTION_STACKING_RISK", "DEAL_ELIGIBILITY_RISK", "PRICE_HISTORY_CONSTRAINT", "MARGIN_CONSTRAINT", "INVENTORY_CONSTRAINT", "COMPETITIVE_PRICE_GAP", "PROMOTION_UNDERPERFORMANCE", "PROMOTION_OVERDISCOUNT", "PRICING_OPPORTUNITY", "DATA_QUALITY_RISK"]
+    },
+    "scope": {"type": "object"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "severity": {"type": "string", "enum": ["info", "low", "medium", "high", "critical"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "price_context": {"type": "object"},
+    "promotion_context": {"type": ["object", "null"]},
+    "rule_version_ref": {"type": ["string", "null"]},
+    "constraints": {"type": "array", "items": {"type": "object"}},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "requires_other_agents": {"type": "array", "items": {"type": "string"}},
+    "recommended_next_step": {"type": ["string", "null"]},
+    "source_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

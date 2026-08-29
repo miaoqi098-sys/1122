@@ -1,0 +1,122 @@
+{
+  "input": {
+    "task": {
+      "task_id": "TASK-AD-001",
+      "decision_id": "DEC-AD-001",
+      "product_id": "ASIN-EXAMPLE",
+      "option_id": "OPT-AD-002",
+      "task_type": "execution",
+      "action": {
+        "action_type": "lower_bid",
+        "target": "travel mahjong set",
+        "operation": "decrease",
+        "parameters": {"adjustment": "-20%"}
+      },
+      "success_criteria": ["CPA改善", "订单量不出现不可接受下降"],
+      "stop_conditions": ["自然排名显著恶化", "订单量跌破保护线"],
+      "required_controls": ["观察窗口内不反向频繁调价"],
+      "deadline_or_window": "7天完整观察窗口",
+      "validator": "S08 / Agent-4"
+    },
+    "actual_execution": {
+      "execution_status": "success",
+      "started_at": "2026-08-01T00:00:00Z",
+      "finished_at": "2026-08-01T00:05:00Z",
+      "executor": "Amazon Ads执行器",
+      "actual_action": {
+        "action_type": "lower_bid",
+        "target": "travel mahjong set",
+        "operation": "decrease",
+        "parameters": {"adjustment": "-20%"}
+      },
+      "execution_logs": ["竞价修改成功并核验实际值"],
+      "execution_errors": []
+    },
+    "baseline": {
+      "CPA": 30,
+      "orders_per_7d": 10
+    },
+    "observed_results": {
+      "CPA": 24,
+      "orders_per_7d": 9
+    },
+    "criteria": [
+      {
+        "criterion_id": "CRIT-001",
+        "criterion_type": "primary",
+        "metric": "CPA",
+        "target": "低于baseline"
+      },
+      {
+        "criterion_id": "CRIT-002",
+        "criterion_type": "guardrail",
+        "metric": "orders_per_7d",
+        "target": "不出现不可接受下降"
+      }
+    ],
+    "observation_window": {
+      "planned_start": "2026-08-01",
+      "planned_end": "2026-08-08",
+      "actual_start": "2026-08-01",
+      "actual_end": "2026-08-08",
+      "status": "complete"
+    },
+    "data_quality": {
+      "completeness": "high",
+      "freshness": "fresh",
+      "quality": "high"
+    },
+    "concurrent_events": [
+      {"event": "同期上线Coupon", "possible_effect": "可能提高转化"}
+    ],
+    "external_factors": []
+  },
+  "expected_output": {
+    "skill_id": "S08",
+    "task_id": "TASK-AD-001",
+    "decision_id": "DEC-AD-001",
+    "execution_status": "success",
+    "business_outcome_status": "positive",
+    "overall_validation_status": "partial_success",
+    "criteria_results": [
+      {
+        "criterion_id": "CRIT-001",
+        "criterion_type": "primary",
+        "metric": "CPA",
+        "baseline": 30,
+        "target": "低于baseline",
+        "actual": 24,
+        "comparison": "改善20%",
+        "status": "met",
+        "window": "7天",
+        "data_quality": "high"
+      },
+      {
+        "criterion_id": "CRIT-002",
+        "criterion_type": "guardrail",
+        "metric": "orders_per_7d",
+        "baseline": 10,
+        "target": "不出现不可接受下降",
+        "actual": 9,
+        "comparison": "小幅下降",
+        "status": "met",
+        "window": "7天",
+        "data_quality": "high"
+      }
+    ],
+    "observation_window_status": "complete",
+    "data_completeness": "high",
+    "data_freshness": "fresh",
+    "data_quality": "high",
+    "side_effects": [],
+    "attribution_status": "weak",
+    "confounders": ["同期Coupon可能提高转化，因此CPA改善不能完全归因于降竞价"],
+    "supporting_evidence": ["竞价实际降低20%", "完整7天窗口内CPA由30降至24"],
+    "contradicting_evidence": ["同期Coupon构成明显转化干扰"],
+    "failure_type": null,
+    "confidence": "medium",
+    "decision_implication": "continue_observation",
+    "validation_summary": "经营结果方向正向，但同期Coupon削弱因果归因，暂不把本次结果认定为高置信策略成功。",
+    "next_action": "continue_to_S09"
+  }
+}

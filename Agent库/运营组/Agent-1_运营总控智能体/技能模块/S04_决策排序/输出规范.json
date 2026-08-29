@@ -1,1 +1,43 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S04决策排序输出","type":"object","required":["skill_id","ranked_items","next_action"],"properties":{"skill_id":{"const":"S04"},"ranked_items":{"type":"array","items":{"type":"object","required":["item_id","priority","rank","reason"],"properties":{"item_id":{"type":"string"},"priority":{"enum":["P0","P1","P2","P3"]},"rank":{"type":"integer","minimum":1},"reason":{"type":"string"},"blocked_by":{"type":"array"},"must_resolve_before":{"type":"array"},"defer_until":{"type":["string","null"]}}}},"next_action":{"enum":["continue_to_S05","resolve_blocker","request_information"]}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S04 决策排序输出规范 V1.1",
+  "type": "object",
+  "required": ["skill_id", "gate_status", "ranked_items", "next_action"],
+  "properties": {
+    "skill_id": {"const": "S04"},
+    "gate_status": {"enum": ["normal", "protected", "blocked", "escalated"]},
+    "gate_reasons": {"type": "array"},
+    "ranked_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["item_id", "business_priority", "rank", "priority_basis", "confidence", "priority_change"],
+        "properties": {
+          "item_id": {"type": "string"},
+          "business_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+          "rank": {"type": "integer", "minimum": 1},
+          "priority_basis": {"type": "string"},
+          "priority_factors": {"type": "array"},
+          "promotion_reasons": {"type": "array"},
+          "demotion_reasons": {"type": "array"},
+          "goal_layer": {"enum": ["safety_sellability", "survival_operations", "business_quality", "growth_expansion", "unknown"]},
+          "urgency": {"enum": ["immediate", "high", "medium", "low", "unknown"]},
+          "dependency_impact": {"enum": ["blocks_many", "blocks_one", "none", "unknown"]},
+          "confidence": {"enum": ["high", "medium", "low"]},
+          "previous_priority": {"enum": ["P0", "P1", "P2", "P3", "none", "unknown"]},
+          "current_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+          "priority_change": {"enum": ["promoted", "demoted", "unchanged", "new"]},
+          "change_trigger": {"type": "array"},
+          "blocked_by": {"type": "array"},
+          "must_resolve_before": {"type": "array"},
+          "defer_until": {"type": ["string", "null"]},
+          "execution_notes": {"type": "array", "description": "只记录必要执行约束，不在S04完成任务编排。"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "unranked_items": {"type": "array"},
+    "next_action": {"enum": ["continue_to_S05", "resolve_blocker", "request_information", "escalate_review"]}
+  },
+  "additionalProperties": true
+}

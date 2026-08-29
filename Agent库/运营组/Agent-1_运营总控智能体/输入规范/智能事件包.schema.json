@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "运营组智能事件包",
+  "type": "object",
+  "required": ["event_id", "source_agent", "product_id", "event_type", "severity", "occurred_at", "summary", "facts", "recommendation"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "source_agent": {"type": "string", "pattern": "^Agent-(?:[2-9]|1[0-3])$"},
+    "product_id": {"type": "string"},
+    "asin": {"type": ["string", "null"]},
+    "event_type": {"type": "string"},
+    "severity": {"type": "string", "enum": ["P0", "P1", "P2", "P3"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "summary": {"type": "string"},
+    "facts": {"type": "array", "items": {"type": "string"}},
+    "metrics": {"type": "object", "additionalProperties": true},
+    "recommendation": {"type": "string"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "related_events": {"type": "array", "items": {"type": "string"}},
+    "requires_decision_by": {"type": ["string", "null"], "format": "date-time"},
+    "attachments": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

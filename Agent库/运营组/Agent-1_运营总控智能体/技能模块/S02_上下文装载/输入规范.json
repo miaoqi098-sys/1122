@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S02 上下文装载输入规范",
+  "type": "object",
+  "required": ["validated_event", "context_request"],
+  "properties": {
+    "validated_event": {
+      "type": "object",
+      "required": ["event_id", "product_id", "event_type"],
+      "properties": {
+        "event_id": {"type": "string", "minLength": 1},
+        "product_id": {"type": "string", "minLength": 1},
+        "event_type": {"type": "string", "minLength": 1},
+        "source_agent": {"type": "string"},
+        "occurred_at": {"type": "string"},
+        "summary": {"type": "string"},
+        "facts": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "context_request": {
+      "type": "object",
+      "required": ["question"],
+      "properties": {
+        "question": {"type": "string", "minLength": 1},
+        "decision_dependency": {"type": "string"},
+        "requested_domains": {
+          "type": "array",
+          "items": {
+            "enum": ["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10"]
+          },
+          "uniqueItems": true
+        },
+        "data_window": {"type": ["string", "object", "null"]},
+        "max_context_items": {"type": ["integer", "null"], "minimum": 1},
+        "max_context_tokens": {"type": ["integer", "null"], "minimum": 1}
+      },
+      "additionalProperties": true
+    },
+    "available_context": {
+      "type": "object",
+      "properties": {
+        "product_identity": {},
+        "business_state": {},
+        "current_goals": {},
+        "metrics": {},
+        "events_and_promotions": {},
+        "product_history": {},
+        "agent_analyses": {},
+        "market_and_competitors": {},
+        "knowledge_matches": {},
+        "active_tasks_and_constraints": {}
+      },
+      "additionalProperties": true
+    },
+    "current_time": {"type": "string"},
+    "freshness_policy": {"type": "object"}
+  },
+  "additionalProperties": true
+}

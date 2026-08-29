@@ -1,0 +1,47 @@
+{
+  "template_id": "DT-A1-LCV-001",
+  "template_name": "Listing与转化决策基础模板",
+  "template_version": "0.1.0",
+  "template_status": "draft",
+  "domain": "listing_conversion",
+  "description": "用于Agent-1处理Listing内容、页面表达和转化异常问题，并区分流量质量、价格、评价、库存和内容因素后形成内容优化决策。",
+  "owner_agent": "Agent-1",
+  "supported_item_types": ["problem", "opportunity", "goal_gap", "decision", "investigation"],
+  "supported_scopes": ["parent_product", "product"],
+  "trigger_patterns": ["conversion_drop", "high_click_low_conversion", "listing_refresh", "content_gap", "keyword_message_mismatch", "image_or_a_plus_optimization"],
+  "applicable_states": ["生命周期/经营情境/风险/机会状态引用经营状态识别模块"],
+  "exclusion_conditions": ["流量质量或价格/评价/库存已明确为主要根因", "关键页面与转化事实缺失", "拟议内容存在合规风险且尚未完成风险判断"],
+  "required_context": ["业务目标", "Listing当前版本", "页面转化与流量结构", "价格促销", "评价/VOC", "库存状态", "广告流量质量", "竞品页面与市场表达", "历史内容变更与观察窗口"],
+  "required_metrics": [
+    {"metric_ref": "listing.conversion_rate", "purpose": "判断页面承接变化", "freshness_requirement": "当前可比窗口", "requirement_level": "required"},
+    {"metric_ref": "traffic.sessions_or_detail_page_views", "purpose": "区分流量与转化变化", "freshness_requirement": "与CVR同窗口", "requirement_level": "required"},
+    {"metric_ref": "advertising.click_quality", "purpose": "识别广告流量质量影响", "freshness_requirement": "当前窗口", "requirement_level": "preferred"},
+    {"metric_ref": "review.rating_and_voc", "purpose": "识别体验与信任因素", "freshness_requirement": "当前", "requirement_level": "preferred"}
+  ],
+  "required_evidence": [
+    {"evidence_type": "当前Listing内容与版本", "requirement_level": "required", "freshness_requirement": "当前"},
+    {"evidence_type": "流量与转化变化", "requirement_level": "required", "freshness_requirement": "可比窗口"},
+    {"evidence_type": "价格/评价/库存/广告流量等排他性证据", "requirement_level": "preferred", "freshness_requirement": "当前"}
+  ],
+  "required_agent_inputs": [
+    {"agent_id": "Agent-9", "purpose": "提供Listing与转化分析和内容建议", "requirement_level": "required"},
+    {"agent_id": "Agent-4", "purpose": "提供广告流量质量信息", "requirement_level": "preferred"},
+    {"agent_id": "Agent-10", "purpose": "提供价格促销状态", "requirement_level": "preferred"},
+    {"agent_id": "Agent-11", "purpose": "提供评价/VOC信息", "requirement_level": "preferred"},
+    {"agent_id": "Agent-12", "purpose": "提供内容合规风险", "requirement_level": "preferred"}
+  ],
+  "required_constraints": ["内容合规", "品牌表达", "关键词与消费者意图", "价格/评价/库存干扰因素", "测试可解释性"],
+  "key_questions": ["转化变化是否真由Listing造成？", "消费者核心疑虑/需求是否被页面表达覆盖？", "哪个页面元素最可能是主变量？", "是否应分阶段测试而不是一次大改？", "变更是否会触发合规或品牌风险？"],
+  "option_comparison_dimensions": ["转化提升潜力", "证据强度", "改动范围", "因果可解释性", "合规风险", "品牌一致性", "实施成本", "可逆性"],
+  "risk_focus": ["把流量/价格问题误诊为内容问题", "一次修改过多变量", "内容夸大或违规", "关键词堆砌伤害可读性", "历史优质内容被无证据替换"],
+  "approval_focus": ["大规模页面重构", "品牌核心表达改变", "高风险合规文案", "主图/标题等核心资产重大调整"],
+  "task_requirements": ["明确改动对象和假设", "保留旧版本引用", "定义观察窗口和成功标准", "尽量控制变量", "涉及合规时建立风险复核任务"],
+  "observation_requirements": ["观察流量与转化而非只看CVR", "区分活动/价格变化影响", "内容上线后给足观察窗口", "必要时比较前后关键词和广告承接"],
+  "rollback_requirements": ["转化显著恶化时恢复旧版本", "出现合规风险时立即撤回", "假设未验证时停止继续扩大改动", "多个变量同时变化导致无法解释时重新设计测试"],
+  "review_triggers": ["观察窗口结束", "价格/促销变化", "评价结构变化", "主要广告流量结构变化", "竞品页面重大变化", "合规状态变化"],
+  "learning_focus": ["消费者内容偏好", "不同页面元素对转化的真实影响", "关键词与页面承接关系", "活动期与常态期转化差异"],
+  "supersedes": null,
+  "tags": ["listing", "conversion", "content", "image", "a_plus", "title", "video"],
+  "canonical_refs": {"decision_item_schema": "技能模块/统一接口/DecisionItem.schema.json", "decision_selector_input_schema": "技能模块/统一接口/DecisionSelector.input.schema.json", "final_decision_schema": "技能模块/统一接口/FinalDecision.schema.json"},
+  "extensions": {"domain_notes": ["具体内容生成属于Agent-9或工具能力，模板只规定决策结构", "页面合规风险应引用Agent-12和风险规则"]}
+}

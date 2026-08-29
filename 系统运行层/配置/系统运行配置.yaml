@@ -1,0 +1,32 @@
+system_runtime:
+  version: 0.1.0
+  status: framework_only
+
+agent_runtime:
+  default_agent_root: "../../Agent库/运营组"
+  require_structured_output: true
+  require_run_record: true
+
+context:
+  dynamic_selection: true
+  require_task_context: true
+  require_agent_definition: true
+
+model_runtime:
+  provider: null
+  model: null
+  retry_enabled: true
+
+agent_loop:
+  enabled: false
+  max_rounds: 8
+  max_tool_calls: 20
+
+safety:
+  stop_on_missing_critical_context: true
+  stop_on_unrecoverable_error: true
+  allow_fabricated_data: false
+
+notes:
+  - "当前仅建立框架，模型供应商、密钥、真实工具和自动循环尚未接入。"
+  - "施工顺序为建议方案，不锁死；应根据 Agent-1 内容成熟度和实际运行需求调整。"

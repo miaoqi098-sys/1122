@@ -1,1 +1,45 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"S06风险评估输入","type":"object","required":["product_id","options","business_state","constraints"],"properties":{"product_id":{"type":"string"},"options":{"type":"array","minItems":1},"business_state":{"type":"object"},"constraints":{"type":"array"},"permissions":{"type":"object"},"evidence_quality":{"type":"object"}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "S06 风险评估输入规范 V1.1",
+  "type": "object",
+  "required": ["product_id", "options", "business_state", "constraints"],
+  "properties": {
+    "product_id": {"type": "string", "minLength": 1},
+    "decision_item_id": {"type": ["string", "null"]},
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["option_id", "option_type", "actions", "assumptions", "reversibility", "success_criteria", "stop_conditions"],
+        "properties": {
+          "option_id": {"type": "string"},
+          "option_type": {"enum": ["conservative", "balanced", "aggressive", "experiment", "observe", "information_first"]},
+          "objective": {"type": ["string", "null"]},
+          "rationale": {"type": ["string", "null"]},
+          "actions": {"type": "array"},
+          "assumptions": {"type": "array"},
+          "expected_benefit": {},
+          "cost": {},
+          "known_tradeoffs": {"type": "array"},
+          "known_risk_signals": {"type": "array"},
+          "reversibility": {"enum": ["high", "medium", "low"]},
+          "time_to_effect": {},
+          "data_needed": {"type": "array"},
+          "success_criteria": {"type": "array"},
+          "stop_conditions": {"type": "array"},
+          "derived_from": {"type": "object"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "business_state": {"type": "object"},
+    "constraints": {"type": "array"},
+    "permissions": {"type": "object"},
+    "evidence_quality": {"type": "object"},
+    "thresholds_and_baselines": {"type": "object"},
+    "existing_controls": {"type": "array"},
+    "approval_context": {"type": "object"}
+  },
+  "additionalProperties": true
+}

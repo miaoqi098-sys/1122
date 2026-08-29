@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent-4 AdvertisingEntity V1.0",
+  "type": "object",
+  "required": ["entity_id", "entity_type", "ad_type", "marketplace", "status", "scope_refs"],
+  "properties": {
+    "entity_id": {"type": "string", "minLength": 1},
+    "entity_type": {"enum": ["portfolio", "campaign", "ad_group", "ad", "target", "search_term"]},
+    "ad_type": {"enum": ["SP", "SB", "SD"]},
+    "marketplace": {"type": "string", "minLength": 1},
+    "parent_entity_id": {"type": ["string", "null"]},
+    "campaign_id": {"type": ["string", "null"]},
+    "ad_group_id": {"type": ["string", "null"]},
+    "target_id": {"type": ["string", "null"]},
+    "target_expression": {"type": ["string", "null"]},
+    "match_type": {"enum": ["broad", "phrase", "exact", "auto", "product", "category", "audience", "not_applicable"]},
+    "search_term": {"type": ["string", "null"]},
+    "negative": {"type": "boolean"},
+    "status": {"enum": ["enabled", "paused", "archived", "unknown"]},
+    "scope_refs": {"type": "array", "items": {"type": "string"}},
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

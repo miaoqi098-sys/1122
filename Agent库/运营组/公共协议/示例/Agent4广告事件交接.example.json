@@ -1,0 +1,74 @@
+{
+  "protocol_version": "1.0",
+  "source_agent": "Agent-4",
+  "domain_schema": "AdvertisingIntelligenceEvent.schema.json",
+  "domain_event_id": "adv_evt_20260830_001",
+  "domain_event": {
+    "event_id": "adv_evt_20260830_001",
+    "source_agent": "Agent-4",
+    "event_type": "high_click_no_order",
+    "scope": {
+      "scope_type": "product",
+      "scope_id": "B0EXAMPLE01",
+      "marketplace": "US"
+    },
+    "affected_entities": [
+      {"entity_type": "target", "entity_id": "target_123"}
+    ],
+    "severity": "high",
+    "confidence": "high",
+    "status": "confirmed",
+    "current_window": {"label": "last_7_days"},
+    "baseline_window": {"label": "previous_14_days"},
+    "evidence_refs": ["ads_report:target_123:2026-08-23_2026-08-29"],
+    "metric_deltas": [{"metric": "clicks", "value": 42}, {"metric": "orders", "value": 0}],
+    "recommendation_candidates": [{"action": "reduce_bid_candidate"}],
+    "generated_at": "2026-08-30T07:00:00+08:00"
+  },
+  "canonical_event": {
+    "event_id": "evt_a1_20260830_001",
+    "source_type": "professional_agent",
+    "source_agent": "Agent-4",
+    "source_actor": null,
+    "source_ref": "adv_evt_20260830_001",
+    "event_type": "high_click_no_order",
+    "scope_type": "product",
+    "scope_id": "B0EXAMPLE01",
+    "scope_objects": [{"entity_type": "target", "entity_id": "target_123"}],
+    "product_id": "B0EXAMPLE01",
+    "asin": "B0EXAMPLE01",
+    "severity": "P1",
+    "occurred_at": "2026-08-30T07:00:00+08:00",
+    "received_at": null,
+    "summary": "目标 target_123 在最近7天出现高点击无订单异常。",
+    "facts": ["最近7天 target_123 获得42次点击且0订单。"],
+    "metrics": {"clicks": 42, "orders": 0},
+    "recommendation": "候选：降低该target竞价并进入观察窗口；最终动作由Agent-1决定。",
+    "confidence": 0.85,
+    "evidence_refs": ["ads_report:target_123:2026-08-23_2026-08-29"],
+    "related_events": [],
+    "parent_event_id": null,
+    "requires_decision_by": null,
+    "data_window": "current=last_7_days; baseline=previous_14_days",
+    "attachments": [],
+    "metadata": {
+      "domain_schema": "AdvertisingIntelligenceEvent.schema.json",
+      "domain_event_id": "adv_evt_20260830_001",
+      "domain_status": "confirmed",
+      "original_severity": "high",
+      "original_confidence": "high",
+      "normalization_version": "1.0",
+      "domain_payload": {
+        "current_window": {"label": "last_7_days"},
+        "baseline_window": {"label": "previous_14_days"}
+      }
+    }
+  },
+  "normalization_notes": [
+    "high severity mapped to P1",
+    "high confidence label normalized to 0.85",
+    "domain event id retained in source_ref"
+  ],
+  "mapped_at": "2026-08-30T07:01:00+08:00",
+  "metadata": {}
+}

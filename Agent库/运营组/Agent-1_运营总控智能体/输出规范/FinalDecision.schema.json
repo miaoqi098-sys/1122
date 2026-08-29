@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent-1 FinalDecision V1.0",
+  "type": "object",
+  "required": ["decision_id", "decision_item_id", "scope", "business_priority", "selected_option", "risk_assessment", "decision_basis", "approval", "decision_confidence", "created_at"],
+  "properties": {
+    "decision_id": {"type": "string", "minLength": 1},
+    "decision_item_id": {"type": "string", "minLength": 1},
+    "scope": {"type": "object"},
+    "business_priority": {"enum": ["P0", "P1", "P2", "P3"]},
+    "selected_option": {"type": "object"},
+    "risk_assessment": {"type": "object"},
+    "decision_basis": {
+      "type": "object",
+      "required": ["why_selected", "why_not_others"],
+      "properties": {
+        "why_selected": {"type": "string"},
+        "why_not_others": {"type": "array"},
+        "goal_alignment": {"type": "array"},
+        "state_alignment": {"type": "array"},
+        "conflict_refs": {"type": "array", "items": {"type": "string"}},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "knowledge_refs": {"type": "array", "items": {"type": "string"}},
+        "historical_refs": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "approval": {
+      "type": "object",
+      "properties": {
+        "required": {"type": "boolean"},
+        "status": {"enum": ["not_required", "pending", "approved", "rejected", "unknown"]},
+        "reason": {"type": ["string", "null"]},
+        "approver": {"type": ["string", "null"]},
+        "approval_ref": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "required_controls": {"type": "array"},
+    "strategy_chain_id": {"type": ["string", "null"]},
+    "supersedes_decision_id": {"type": ["string", "null"]},
+    "rollback_reference": {"type": ["string", "null"]},
+    "decision_confidence": {"enum": ["high", "medium", "low"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "valid_until": {"type": ["string", "null"], "format": "date-time"},
+    "review_trigger": {"type": "array"},
+    "source_event_ids": {"type": "array", "items": {"type": "string"}},
+    "trace_refs": {"type": "array", "items": {"type": "string"}},
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": false
+}

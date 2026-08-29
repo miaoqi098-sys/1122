@@ -1,0 +1,39 @@
+{
+  "request_id": "REQ-A1-A2-20260830-0001",
+  "source_agent": "Agent-2",
+  "analysis_scope": {
+    "scope_type": "product",
+    "scope_id": "ASIN-B0EXAMPLE01",
+    "asin": "B0EXAMPLE01"
+  },
+  "facts": [
+    "04:30后台SKU状态显示suppressed",
+    "04:30前台detail page可访问但无可购买Offer",
+    "上一有效快照04:00后台状态为active"
+  ],
+  "interpretation": [
+    "当前不可购买与后台suppressed状态时间上吻合",
+    "现有证据尚未说明suppressed的具体政策或内容原因"
+  ],
+  "conclusion": "可以确认商品当前存在suppressed且前台不可购买，但无法仅凭Agent-2现有证据确认抑制根因。",
+  "recommendation": "请求补充后台抑制原因/绩效通知；如涉及资质或政策，联合Agent-12。",
+  "confidence": 0.95,
+  "data_window": "2026-08-30T04:00:00+08:00/2026-08-30T04:31:00+08:00",
+  "evidence_refs": [
+    "BACKEND-SNAPSHOT-0001",
+    "FRONTEND-SNAPSHOT-0001",
+    "BACKEND-SNAPSHOT-0000"
+  ],
+  "missing_data": [
+    "suppressed具体原因字段或官方通知"
+  ],
+  "risks": [
+    "若涉及政策/资质，Agent-2不应自行解释为普通Listing问题"
+  ],
+  "valid_until": "2026-08-30T05:00:00+08:00",
+  "review_at": "2026-08-30T04:45:00+08:00",
+  "status": "answered_with_gaps",
+  "metadata": {
+    "related_event_id": "EVT-A2-20260830-0001"
+  }
+}

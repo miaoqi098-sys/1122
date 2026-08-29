@@ -1,30 +1,23 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S10 策略防抖输出规范 V1.1",
+  "title": "S10 策略防抖输出规范 V1.2",
   "type": "object",
-  "required": ["skill_id", "decision", "change_relation", "signal_class", "evidence_delta", "reason", "next_action"],
+  "required": ["skill_id", "stabilization_id", "decision", "change_relation", "signal_class", "evidence_delta", "reason", "next_action"],
   "properties": {
     "skill_id": {"const": "S10"},
+    "stabilization_id": {"type": "string", "minLength": 1},
+    "strategy_chain_id": {"type": ["string", "null"]},
+    "source_decision_id": {"type": ["string", "null"]},
+    "source_decision_item_id": {"type": ["string", "null"]},
     "decision": {"enum": ["allow", "hold", "merge", "escalate", "override"]},
     "change_relation": {"enum": ["same_direction", "minor_adjustment", "neutral", "partial_reversal", "full_reversal", "conflicting_action"]},
     "signal_class": {"enum": ["noise", "repeated_signal", "trend", "state_change", "guardrail_trigger", "stop_trigger", "critical_risk"]},
     "evidence_delta": {"enum": ["weaker", "same", "stronger", "critical_new_fact", "unknown"]},
     "matched_tasks": {"type": "array"},
-    "strategy_chain_id": {"type": ["string", "null"]},
     "observation_remaining": {},
     "triggered_conditions": {"type": "array"},
     "evidence_for_change": {"type": "array"},
-    "hold_gate": {
-      "type": ["object", "null"],
-      "properties": {
-        "hold_reason": {"type": "string"},
-        "hold_until": {},
-        "release_conditions": {"type": "array"},
-        "review_trigger": {"type": "array"},
-        "required_new_evidence": {"type": "array"}
-      },
-      "additionalProperties": true
-    },
+    "hold_gate": {"type": ["object", "null"]},
     "override_record": {
       "type": ["object", "null"],
       "properties": {
@@ -37,18 +30,7 @@
         "new_direction": {"type": ["string", "null"]},
         "reason": {"type": "string"},
         "approval_required": {},
-        "old_task_actions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["task_id", "action"],
-            "properties": {
-              "task_id": {"type": "string"},
-              "action": {"enum": ["cancel", "pause", "rollback", "continue_monitoring", "review"]},
-              "reason": {"type": ["string", "null"]}
-            }
-          }
-        }
+        "old_task_actions": {"type": "array"}
       },
       "additionalProperties": true
     },

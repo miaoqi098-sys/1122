@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "FinancialIntelligenceEvent.schema.json",
+  "title": "FinancialIntelligenceEvent",
+  "type": "object",
+  "required": ["event_id", "agent_id", "event_type", "scope", "observed_at", "severity", "confidence", "evidence", "financial_impact"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "agent_id": {"const": "Agent-6"},
+    "event_type": {
+      "type": "string",
+      "enum": ["LOSS_MAKING", "MARGIN_COMPRESSION", "COST_SPIKE", "REFUND_DRAG", "STORAGE_DRAG", "AD_COST_PRESSURE", "DISCOUNT_OVERSPEND", "FEE_CHANGE_IMPACT", "REVENUE_MIX_DILUTION", "FINANCIAL_OPPORTUNITY", "DATA_QUALITY_RISK"]
+    },
+    "scope": {
+      "type": "object",
+      "required": ["scope_type", "scope_id"],
+      "properties": {
+        "scope_type": {"type": "string"},
+        "scope_id": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "observed_at": {"type": "string", "format": "date-time"},
+    "window": {"type": "object"},
+    "severity": {"type": "string", "enum": ["info", "low", "medium", "high", "critical"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "financial_impact": {
+      "type": "object",
+      "required": ["metric", "direction"],
+      "properties": {
+        "metric": {"type": "string"},
+        "direction": {"type": "string", "enum": ["positive", "negative", "mixed", "unknown"]},
+        "absolute_change": {"type": ["number", "null"]},
+        "relative_change": {"type": ["number", "null"]},
+        "currency": {"type": ["string", "null"]},
+        "break_even_status": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "drivers": {"type": "array", "items": {"type": "object"}},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "data_quality": {"type": "object"},
+    "requires_other_agents": {"type": "array", "items": {"type": "string"}},
+    "recommended_next_step": {"type": ["string", "null"]},
+    "source_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

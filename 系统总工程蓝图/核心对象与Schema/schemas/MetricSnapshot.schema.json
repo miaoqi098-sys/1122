@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "MetricSnapshot.schema.json",
+  "title": "MetricSnapshot V1.0",
+  "description": "面向产品经营与首页经营概览的系统级事实指标快照。用于保存某一产品、业务日期与时间窗口下可追溯的数据事实，不承载Agent分析结论。",
+  "type": "object",
+  "required": ["schema_version","snapshot_id","product_id","business_date","window_start","window_end","metrics","freshness_status","quality_status","collected_at"],
+  "properties": {
+    "schema_version": {"type":"string","const":"1.0"},
+    "snapshot_id": {"type":"string","minLength":1},
+    "product_id": {"type":"string","minLength":1},
+    "seller_account_id": {"type":["string","null"]},
+    "marketplace_id": {"type":["string","null"]},
+    "business_date": {"type":"string","format":"date"},
+    "marketplace_timezone": {"type":"string","minLength":1},
+    "window_start": {"type":"string","format":"date-time"},
+    "window_end": {"type":"string","format":"date-time"},
+    "snapshot_type": {"enum":["intraday","daily","rolling","custom"]},
+    "metrics": {
+      "type":"array",
+      "minItems":1,
+      "items": {
+        "type":"object",
+        "required":["metric_code","value","value_type","source_ref","effective_at"],
+        "properties": {
+          "metric_code":{"type":"string","minLength":1},
+          "value":{"type":["number","integer","string","null"]},
+          "value_type":{"enum":["number","integer","currency","percentage","ratio","count","text","unknown"]},
+          "currency":{"type":["string","null"],"minLength":3,"maxLength":3},
+          "unit":{"type":["string","null"]},
+          "source_ref":{"type":"string","minLength":1},
+          "effective_at":{"type":"string","format":"date-time"},
+          "quality_status":{"enum":["verified","estimated","partial","unknown","error"]},
+          "calculation_ref":{"type":["string","null"]},
+          "metadata":{"type":"object"}
+        },
+        "additionalProperties":false
+      }
+    },
+    "profit": {
+      "type":["object","null"],
+      "properties": {
+        "amount":{"type":["number","null"]},
+        "currency":{"type":["string","null"],"minLength":3,"maxLength":3},
+        "profit_type":{"enum":["gross_profit","contribution_profit","net_estimate","unknown"]},
+        "calculation_status":{"enum":["complete","estimated","partial","unavailable"]},
+        "cost_model_version":{"type":["string","null"]},
+        "missing_cost_components":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+        "calculation_ref":{"type":["string","null"]}
+      },
+      "additionalProperties":false
+    },
+    "source_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "freshness_status":{"enum":["fresh","lagged","partial","stale","error","unknown"]},
+    "quality_status":{"enum":["verified","estimated","partial","mixed","error","unknown"]},
+    "collected_at":{"type":"string","format":"date-time"},
+    "latest_effective_at":{"type":["string","null"],"format":"date-time"},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

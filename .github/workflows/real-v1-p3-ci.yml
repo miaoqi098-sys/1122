@@ -37,13 +37,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install "pydantic>=2.9,<3.0" "httpx>=0.28,<1.0" "pytest>=8.3,<9.0"
 
-      - name: Run Amazon read connector, SPAPI and Ads API tests
+      - name: Run Amazon read connector, SPAPI, Ads API, auth refresh and rate-limit tests
         env:
-          PYTHONPATH: "真实实现工程/03_Amazon只读连接/01_只读Connector/src:真实实现工程/03_Amazon只读连接/02_SPAPI只读能力/src:真实实现工程/03_Amazon只读连接/03_AdsAPI只读能力/src:真实实现工程/01_基础工程骨架/04_Secret引用/src"
+          PYTHONPATH: "真实实现工程/03_Amazon只读连接/01_只读Connector/src:真实实现工程/03_Amazon只读连接/02_SPAPI只读能力/src:真实实现工程/03_Amazon只读连接/03_AdsAPI只读能力/src:真实实现工程/03_Amazon只读连接/04_认证刷新与限流集成/src:真实实现工程/01_基础工程骨架/04_Secret引用/src"
         run: |
           python -m pytest \
             --import-mode=importlib \
             "真实实现工程/03_Amazon只读连接/01_只读Connector/tests" \
             "真实实现工程/03_Amazon只读连接/02_SPAPI只读能力/tests" \
             "真实实现工程/03_Amazon只读连接/03_AdsAPI只读能力/tests" \
+            "真实实现工程/03_Amazon只读连接/04_认证刷新与限流集成/tests" \
             -q

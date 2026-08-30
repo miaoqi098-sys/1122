@@ -1,0 +1,31 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"StageSummary V1.0",
+  "type":"object",
+  "required":["schema_version","stage_summary_id","product_id","stage_code","stage_definition_version","period_start","period_end","summary","generated_at"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "stage_summary_id":{"type":"string","minLength":1},
+    "product_id":{"type":"string","minLength":1},
+    "product_stage_id":{"type":["string","null"]},
+    "stage_code":{"type":"string","minLength":1},
+    "stage_definition_version":{"type":"string","minLength":1},
+    "period_start":{"type":"string","format":"date-time"},
+    "period_end":{"type":"string","format":"date-time"},
+    "summary":{"type":"string","minLength":1},
+    "goal_refs":{"type":"array","items":{"type":"string"}},
+    "metric_snapshot_refs":{"type":"array","items":{"type":"string"}},
+    "event_refs":{"type":"array","items":{"type":"string"}},
+    "decision_refs":{"type":"array","items":{"type":"string"}},
+    "task_refs":{"type":"array","items":{"type":"string"}},
+    "action_refs":{"type":"array","items":{"type":"string"}},
+    "validation_refs":{"type":"array","items":{"type":"string"}},
+    "key_outcomes":{"type":"array","items":{"type":"string"}},
+    "open_items":{"type":"array","items":{"type":"string"}},
+    "generated_by":{"enum":["agent","human","system"]},
+    "generated_by_id":{"type":["string","null"]},
+    "generated_at":{"type":"string","format":"date-time"},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

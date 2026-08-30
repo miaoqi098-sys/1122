@@ -1,0 +1,33 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"ProductStatusCardView V0",
+  "type":"object",
+  "required":["product_id","generated_at","view_status"],
+  "properties":{
+    "product_id":{"type":"string","minLength":1},
+    "asin":{"type":["string","null"]},
+    "sku":{"type":["string","null"]},
+    "product_name":{"type":["string","null"]},
+    "business_date":{"type":["string","null"]},
+    "operating_snapshot_ref":{"type":["string","null"]},
+    "business_state_ref":{"type":["string","null"]},
+    "overall_status":{"type":["string","null"]},
+    "product_stage_ref":{"type":["string","null"]},
+    "stage_code":{"type":["string","null"]},
+    "primary_goal_ref":{"type":["string","null"]},
+    "goal_summary":{"type":["string","null"]},
+    "today_action_refs":{"type":"array","items":{"type":"string"}},
+    "today_action_count":{"type":"integer","minimum":0},
+    "open_task_refs":{"type":"array","items":{"type":"string"}},
+    "human_task_refs":{"type":"array","items":{"type":"string"}},
+    "important_event_refs":{"type":"array","items":{"type":"string"}},
+    "stage_summary_ref":{"type":["string","null"]},
+    "stage_summary_text":{"type":["string","null"]},
+    "data_freshness":{"enum":["fresh","lagged","partial","stale","error","unknown"]},
+    "missing_components":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "view_status":{"enum":["complete","degraded","unavailable"]},
+    "generated_at":{"type":"string","format":"date-time"},
+    "source_updated_at":{"type":["string","null"],"format":"date-time"}
+  },
+  "additionalProperties":false
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "goal_id": "goal_prod_us_001_20260830_01",
+  "product_id": "prod_us_001",
+  "goal_type": "profitability_improvement",
+  "title": "在不牺牲基础流量稳定性的前提下改善贡献利润",
+  "description": "示例目标，仅用于展示Goal Contract结构，不代表真实经营建议。",
+  "goal_status": "active",
+  "priority_class": "primary",
+  "source_stage_id": "stage_prod_us_001_001",
+  "source_business_state_id": "bs_prod_us_001_20260830T040000Z",
+  "source_event_refs": [],
+  "source_decision_id": "decision_example_001",
+  "parent_goal_id": null,
+  "related_goal_ids": [],
+  "success_criteria": [
+    {
+      "criterion_id": "gc_001",
+      "metric_code": "contribution_profit_margin",
+      "operator": "gte",
+      "target_value": 0.18,
+      "target_value_upper": null,
+      "unit": "ratio",
+      "baseline_ref": "ms_us_prod_001_2026-08-30T0355Z",
+      "evaluation_window": "7d"
+    }
+  ],
+  "constraints_refs": ["constraint:traffic_floor:prod_us_001"],
+  "observation_window": {
+    "start_at": "2026-08-30T04:15:00-07:00",
+    "target_end_at": "2026-09-06T04:15:00-07:00",
+    "review_at": "2026-09-02T04:15:00-07:00"
+  },
+  "created_by": {
+    "actor_type": "agent",
+    "actor_id": "Agent-1"
+  },
+  "created_at": "2026-08-30T04:15:00-07:00",
+  "activated_at": "2026-08-30T04:15:00-07:00",
+  "closed_at": null,
+  "superseded_by_goal_id": null,
+  "latest_evaluation_ref": null,
+  "metadata": {
+    "example_only": true
+  }
+}

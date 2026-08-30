@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "Goal.schema.json",
+  "title": "Goal V1.0",
+  "description": "系统级产品经营目标对象。描述当前要实现什么经营结果、为什么产生、如何衡量、何时观察/完成/失效；目标选择与冲突排序逻辑仍由Agent-1目标系统负责。",
+  "type": "object",
+  "required": ["schema_version","goal_id","product_id","goal_type","title","goal_status","priority_class","created_at","created_by","success_criteria","observation_window"],
+  "properties": {
+    "schema_version":{"type":"string","const":"1.0"},
+    "goal_id":{"type":"string","minLength":1},
+    "product_id":{"type":"string","minLength":1},
+    "goal_type":{"type":"string","minLength":1},
+    "title":{"type":"string","minLength":1},
+    "description":{"type":["string","null"]},
+    "goal_status":{"enum":["proposed","active","paused","achieved","failed","cancelled","expired","superseded"]},
+    "priority_class":{"enum":["primary","secondary","supporting","watch"]},
+    "source_stage_id":{"type":["string","null"]},
+    "source_business_state_id":{"type":["string","null"]},
+    "source_event_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "source_decision_id":{"type":["string","null"]},
+    "parent_goal_id":{"type":["string","null"]},
+    "related_goal_ids":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "success_criteria":{
+      "type":"array",
+      "minItems":1,
+      "items":{
+        "type":"object",
+        "required":["criterion_id","metric_code","operator","target_value"],
+        "properties":{
+          "criterion_id":{"type":"string","minLength":1},
+          "metric_code":{"type":"string","minLength":1},
+          "operator":{"enum":["gte","lte","gt","lt","eq","between","maintain"]},
+          "target_value":{"type":["number","integer","string"]},
+          "target_value_upper":{"type":["number","integer","string","null"]},
+          "unit":{"type":["string","null"]},
+          "baseline_ref":{"type":["string","null"]},
+          "evaluation_window":{"type":["string","null"]}
+        },
+        "additionalProperties":false
+      }
+    },
+    "constraints_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "observation_window":{
+      "type":"object",
+      "required":["start_at"],
+      "properties":{
+        "start_at":{"type":"string","format":"date-time"},
+        "target_end_at":{"type":["string","null"],"format":"date-time"},
+        "review_at":{"type":["string","null"],"format":"date-time"}
+      },
+      "additionalProperties":false
+    },
+    "created_by":{"type":"object","required":["actor_type","actor_id"],"properties":{"actor_type":{"enum":["agent","human","system"]},"actor_id":{"type":"string","minLength":1}},"additionalProperties":false},
+    "created_at":{"type":"string","format":"date-time"},
+    "activated_at":{"type":["string","null"],"format":"date-time"},
+    "closed_at":{"type":["string","null"],"format":"date-time"},
+    "superseded_by_goal_id":{"type":["string","null"]},
+    "latest_evaluation_ref":{"type":["string","null"]},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

@@ -16,8 +16,8 @@
 
 | 顺序 | 对象 | 状态 |
 |---|---|---|
-| 01 | ProductIdentity | 施工中 |
-| 02 | MetricSnapshot | 待分析 |
+| 01 | ProductIdentity | ✅ V1静态Contract通过L1 |
+| 02 | MetricSnapshot | 🔎 下一施工对象 |
 | 03 | BusinessState + ProductStage | 待分析 |
 | 04 | Goal | 待分析 |
 | 05 | Event | 待对接现有 Agent-1 事件体系 |
@@ -61,13 +61,33 @@ ProductStatusCardView / HomeCommandCenterView
 
 其中 DecisionItem、Option、FinalDecision、ValidationResult、LearningRecord 已在 Agent-1 / Skill 链中存在较强雏形，后续需要通过系统级引用关系接入，不在本阶段盲目重写。
 
-## 四、目录约定
+## 四、已完成对象
+
+### ProductIdentity V1
+正式成果：
+- `schemas/ProductIdentity.schema.json`
+- `规则/ProductIdentity引用规则.md`
+- `示例/ProductIdentity.example.json`
+- `测试/ProductIdentity静态验收.md`
+
+当前 Canonical 结论：
+- `product_id` 是全系统产品内部稳定主键；
+- ASIN/SKU/FNSKU 不作为跨模块万能主键；
+- SKU 语义绑定 `seller_account_id + marketplace_id`；
+- ASIN 语义绑定 Marketplace；
+- Parent ASIN 与内部 parent_product_id 分离；
+- 变体聚合使用内部 `variation_family_id`；
+- Metric/Event/Goal/Decision/Task/Action/Memory 等后续对象必须能够回指 `product_id`。
+
+运行实现依赖已经进入：`临时建设任务/总工程蓝图自动施工/运行依赖待办.md`。
+
+## 五、目录约定
 
 - `schemas/`：JSON Schema Contract。
 - `规则/`：对象语义、引用、生命周期和跨模块规则。
 - `示例/`：与 Schema 一致的静态示例。
-- 后续需要时增加 `测试/`，用于静态 Contract 验收。
+- `测试/`：静态 Contract 验收。
 
-## 五、运行边界
+## 六、运行边界
 
 本阶段只建设静态 Contract，不实现数据库、API、运行时、持久化、Scheduler、Executor 或真实 Amazon 写操作。

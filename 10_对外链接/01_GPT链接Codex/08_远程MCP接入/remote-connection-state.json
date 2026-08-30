@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "component": "AMAZON_AGENT_GPT_CODEX_REMOTE_MCP",
+  "local_runtime": {
+    "state": "LOCAL_RUNTIME_VERIFIED",
+    "gateway": "VERIFIED",
+    "mcp_initialize": "VERIFIED",
+    "tools_list": "VERIFIED",
+    "codex_app_server": "VERIFIED",
+    "real_task_completion": "VERIFIED",
+    "windows_autostart": "VERIFIED"
+  },
+  "remote_runtime": {
+    "state": "REMOTE_MCP_ENGINEERING_IN_PROGRESS",
+    "chatgpt_custom_app": "PENDING",
+    "secure_mcp_tunnel": "PENDING",
+    "oauth_refresh": "PENDING",
+    "offline_access": "REQUIRED",
+    "cross_conversation_execution": "PENDING"
+  },
+  "platform_gate": {
+    "checked_at": "2026-08-30",
+    "full_mcp_write_required": true,
+    "current_official_availability": [
+      "ChatGPT Business",
+      "ChatGPT Enterprise",
+      "ChatGPT Edu"
+    ],
+    "plus_full_mcp_write": false
+  },
+  "non_dependencies": {
+    "aacc": true,
+    "github_issue_execution_bus": true
+  },
+  "target": {
+    "any_authorized_new_chat": true,
+    "persistent_authorization": true,
+    "per_task_reauthorization": false,
+    "local_gateway_public_exposure": false
+  }
+}

@@ -3,9 +3,8 @@ from __future__ import annotations
 import base64
 import json
 import os
+import subprocess
 import time
-import urllib.error
-import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,7 +18,6 @@ GATEWAY = "http://127.0.0.1:8765/mcp/"
 PROTOCOL = "2025-06-18"
 POLL_SECONDS = 30
 STATE_FILE = Path(os.environ.get("LOCALAPPDATA", ".")) / "AmazonAgent" / "GPTCodexGateway" / "bridge-state.json"
-TOKEN_ENV = "AMAZON_AGENT_BRIDGE_GITHUB_TOKEN"
 ALLOWED_DOMAIN = "sorilo-uk.com"
 
 
@@ -27,33 +25,26 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def token() -> str:
-    value = os.environ.get(TOKEN_ENV, "").strip()
-    if not value:
-        raise RuntimeError(f"Missing environment variable {TOKEN_ENV}")
-    return value
-
-
-def gh_request(method: str, path: str, body: dict[str, Any] | None = None) -> Any:
-    url = f"https://api.github.com/repos/{REPO}/{path}"
-    data = None if body is None else json.dumps(body).encode("utf-8")
-    request = urllib.request.Request(url, data=data, method=method)
-    request.add_header("Accept", "application/vnd.github+json")
-    request.add_header("Authorization", f"Bearer {token()}")
-    request.add_header("X-GitHub-Api-Version", "2022-11-28")
-    if data is not None:
-        request.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(request, timeout=30) as response:
-        raw = response.read()
-    return json.loads(raw.decode("utf-8")) if raw else None
+def gh_api(args: list[str], stdin_text: str | None = None) -> Any:
+    proc = subprocess.run(
+        ["gh", "api", *args],
+        input=stdin_text,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"GitHub CLI request failed: {proc.stderr.strip()[:500]}")
+    text = proc.stdout.strip()
+    return json.loads(text) if text else None
 
 
 def read_repo_json(path: str) -> tuple[dict[str, Any] | None, str | None]:
-    encoded = urllib.parse.quote(path, safe="/")
+    endpoint = f"repos/{REPO}/contents/{path}"
     try:
-        value = gh_request("GET", f"contents/{encoded}?ref={urllib.parse.quote(BRANCH)}")
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
+        value = gh_api([endpoint, "-f", f"ref={BRANCH}"])
+    except RuntimeError as exc:
+        if "404" in str(exc):
             return None, None
         raise
     content = base64.b64decode(value["content"]).decode("utf-8")
@@ -64,20 +55,25 @@ def read_repo_json(path: str) -> tuple[dict[str, Any] | None, str | None]:
 
 
 def write_repo_json(path: str, value: dict[str, Any], message: str) -> None:
-    current, sha = read_repo_json(path)
-    del current
+    _, sha = read_repo_json(path)
     encoded_content = base64.b64encode(
         (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     ).decode("ascii")
-    payload: dict[str, Any] = {
-        "message": message,
-        "content": encoded_content,
-        "branch": BRANCH,
-    }
+    endpoint = f"repos/{REPO}/contents/{path}"
+    args = [
+        endpoint,
+        "--method",
+        "PUT",
+        "-f",
+        f"message={message}",
+        "-f",
+        f"content={encoded_content}",
+        "-f",
+        f"branch={BRANCH}",
+    ]
     if sha:
-        payload["sha"] = sha
-    encoded = urllib.parse.quote(path, safe="/")
-    gh_request("PUT", f"contents/{encoded}", payload)
+        args += ["-f", f"sha={sha}"]
+    gh_api(args)
 
 
 def load_state() -> dict[str, Any]:
@@ -146,9 +142,8 @@ def extract_tool_payload(response: dict[str, Any]) -> dict[str, Any]:
     content = result.get("content") or []
     for item in content:
         if isinstance(item, dict) and isinstance(item.get("text"), str):
-            text = item["text"]
             try:
-                parsed = json.loads(text)
+                parsed = json.loads(item["text"])
                 if isinstance(parsed, dict):
                     return parsed
             except json.JSONDecodeError:
@@ -182,9 +177,7 @@ def run_task(task: dict[str, Any]) -> dict[str, Any]:
     latest: dict[str, Any] = {}
     while time.time() < deadline:
         time.sleep(10)
-        latest = extract_tool_payload(
-            mcp_call("codex_read_result", {"task_id": local_task_id}, 102)
-        )
+        latest = extract_tool_payload(mcp_call("codex_read_result", {"task_id": local_task_id}, 102))
         status = str(latest.get("status", "")).upper()
         if status not in {"RUNNING", "PENDING", "QUEUED"}:
             break
@@ -226,14 +219,8 @@ def process_once() -> bool:
             "summary": f"Bridge failure: {type(exc).__name__}: {exc}",
         }
 
-    safe_name = "".join(c for c in task_id if c.isalnum() or c in "-_")[:80]
-    if not safe_name:
-        safe_name = "invalid-task"
-    write_repo_json(
-        f"{RESULT_DIR}/{safe_name}.json",
-        result,
-        f"codex bridge: result {safe_name}",
-    )
+    safe_name = "".join(c for c in task_id if c.isalnum() or c in "-_")[:80] or "invalid-task"
+    write_repo_json(f"{RESULT_DIR}/{safe_name}.json", result, f"codex bridge: result {safe_name}")
     save_state(task_id)
     return True
 

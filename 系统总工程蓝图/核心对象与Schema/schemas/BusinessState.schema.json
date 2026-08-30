@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "BusinessState.schema.json",
+  "title": "BusinessState V1.0",
+  "description": "某一产品在指定时点的结构化经营状态事实与状态评估结果。状态必须可追溯到指标、事件或验证证据，不能只保存Agent自由文本总结。",
+  "type": "object",
+  "required": ["schema_version","business_state_id","product_id","as_of","overall_status","state_dimensions","evidence_refs","generated_at"],
+  "properties": {
+    "schema_version":{"type":"string","const":"1.0"},
+    "business_state_id":{"type":"string","minLength":1},
+    "product_id":{"type":"string","minLength":1},
+    "as_of":{"type":"string","format":"date-time"},
+    "overall_status":{"enum":["healthy","attention","risk","critical","unknown"]},
+    "state_dimensions":{
+      "type":"array",
+      "minItems":1,
+      "items":{
+        "type":"object",
+        "required":["dimension_code","status","evidence_refs"],
+        "properties":{
+          "dimension_code":{"type":"string","minLength":1},
+          "status":{"enum":["healthy","attention","risk","critical","unknown"]},
+          "summary":{"type":["string","null"]},
+          "metric_snapshot_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+          "event_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+          "evidence_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+          "confidence":{"enum":["high","medium","low","unknown"]}
+        },
+        "additionalProperties":false
+      }
+    },
+    "evidence_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "assessment_rule_version":{"type":["string","null"]},
+    "generated_by":{"type":"object","properties":{"actor_type":{"enum":["system","agent","human"]},"actor_id":{"type":"string"}},"required":["actor_type","actor_id"],"additionalProperties":false},
+    "generated_at":{"type":"string","format":"date-time"},
+    "supersedes_state_id":{"type":["string","null"]},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

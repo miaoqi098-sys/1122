@@ -4,15 +4,21 @@
 
 ## GPT → Codex 长期执行入口
 
-涉及“调用 Codex、让 Codex 执行、让 Codex 施工、让 Codex 修改工程、让 Codex 在本地执行”等需求时，新的 GPT 对话必须优先读取：
+涉及“调用 Codex、让 Codex 执行、让 Codex 施工、让 Codex 修改工程、让 Codex 在本地执行”等需求时，新的 GPT 对话优先读取：
 
-`10_对外链接/01_GPT链接Codex/GPT链接Codex_长期执行入口.md`
+`10_对外链接/01_GPT链接Codex/README.md`
 
-机器可读配置：
+机器发现配置：
 
-`10_对外链接/01_GPT链接Codex/gpt-codex-control.json`
+`10_对外链接/01_GPT链接Codex/02_GPT入口/connection-manifest.json`
 
-长期控制面采用：`GPT → GitHub → AACC CodexBridge / LocalOps → NODE-001 → Codex / 固定本地操作`。聊天历史不是该执行链的唯一事实来源；执行前必须 fresh-read GitHub / NODE 状态。若当前 GPT 对话没有 GitHub 写能力或 AACC Runtime 没有 fresh evidence 证明可用，不得伪造“Codex 已执行”。
+正式目标链路为：
+
+`任意已授权 GPT 对话 → ChatGPT 自定义 MCP 应用 → 长期认证/安全远程通道 → GPT-Codex Gateway → Codex App Server → Codex`。
+
+该链路**完全独立于 AACC**；GitHub 只承担源码、版本与备份职责，不承担每次执行任务的消息中转。跨对话连接状态应由长期应用授权与本地 Gateway Runtime 持有，不依赖旧聊天记录。
+
+当前目录建立的是正式架构与机器契约；只有完成 Gateway、本地 Codex App Server、MCP 应用、长期认证并通过真实跨对话执行验收后，才能宣称长期直连已运行。
 
 ## 项目定位
 

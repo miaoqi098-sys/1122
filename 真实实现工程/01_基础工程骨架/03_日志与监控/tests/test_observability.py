@@ -2,6 +2,7 @@ import json
 import logging
 
 import pytest
+from pydantic import ValidationError
 
 from observability.health import ServiceHealth
 from observability.logging import JsonFormatter, REDACTED, redact_mapping
@@ -27,7 +28,17 @@ def test_json_formatter_emits_safe_context() -> None:
     assert data["context"]["product_id"] == "prd_1"
 
 
-def test_service_health_rejects_write_capability() -> None:
-    health = ServiceHealth(status="ok", service="runtime", write_capability=True)
-    with pytest.raises(ValueError):
-        health.assert_read_only()
+def test_service_health_rejects_write_capability_at_construction() -> None:
+    with pytest.raises(ValidationError):
+        ServiceHealth(
+            status="ok",
+            service="runtime",
+            ready=True,
+            write_capability=True,
+        )
+
+
+def test_service_health_accepts_explicit_read_only_snapshot() -> None:
+    health = ServiceHealth(status="ok", service="runtime", ready=True)
+    assert health.write_capability is False
+    health.assert_read_only()

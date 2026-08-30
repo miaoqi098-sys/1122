@@ -5,6 +5,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Registering the persistent Scheduled Task can require elevation on Windows.
+# If this installer is started from a normal PowerShell window, request UAC once
+# and relaunch this same script as Administrator.
+$Identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$PrincipalCheck = New-Object Security.Principal.WindowsPrincipal($Identity)
+$IsAdministrator = $PrincipalCheck.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $IsAdministrator) {
+  $ScriptPath = $MyInvocation.MyCommand.Path
+  $Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -RepoRoot `"$RepoRoot`" -TaskName `"$TaskName`""
+  Write-Host "Administrator permission is required to install the persistent Codex bridge." -ForegroundColor Yellow
+  Write-Host "A Windows UAC prompt will open. Approve it to continue." -ForegroundColor Yellow
+  Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $Arguments
+  exit 0
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $WorkerSource = Join-Path $ScriptDir "worker.py"
 $GatewayRoot = Join-Path $env:LOCALAPPDATA "AmazonAgent\GPTCodexGateway"
@@ -22,7 +37,7 @@ if (-not (Test-Path -LiteralPath $WorkerSource)) {
 }
 
 if (-not (Test-Path -LiteralPath $WorkerSource)) {
-  throw "Worker not found under repository root. Refresh the bridge files and retry."
+  throw "Worker not found under repository root. Refresh the repository files and retry."
 }
 if (-not (Test-Path -LiteralPath $Python)) {
   throw "Gateway Python not found. Install the GPT-Codex Gateway first."
@@ -47,11 +62,10 @@ if ($LASTEXITCODE -ne 0) {
   throw "GitHub CLI is installed but not signed in. Run 'gh auth login' once on this PC, then retry this installer."
 }
 
-# Verify repository access without any non-ASCII path. This avoids Windows PowerShell 5.1
-# corrupting UTF-8 Chinese path literals before gh receives them.
+# Verify repository/dispatch-branch access without using Chinese repository paths.
 & $Gh.Source api "repos/miaoqi098-sys/-/git/ref/heads/codex-dispatch" 1>$null 2>$null
 if ($LASTEXITCODE -ne 0) {
-  throw "GitHub CLI login cannot access repository miaoqi098-sys/- or branch codex-dispatch. Re-authenticate gh for the correct GitHub account."
+  throw "GitHub CLI login cannot access the codex-dispatch branch. Re-authenticate gh for the GitHub account that owns miaoqi098-sys/-."
 }
 
 New-Item -ItemType Directory -Path $GatewayRoot -Force | Out-Null
@@ -73,3 +87,4 @@ Write-Host "LastTaskResult=$($Info.LastTaskResult)"
 Write-Host "Worker=$WorkerTarget"
 Write-Host "Gateway=ONLINE"
 Write-Host "GitHubAuth=GH_LOCAL_SESSION"
+Write-Host "Elevation=ADMINISTRATOR"

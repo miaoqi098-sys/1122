@@ -4,10 +4,10 @@ import pytest
 from pydantic import ValidationError
 
 from runtime_integration import RuntimeContainer, build_application, build_runtime
-from secrets_runtime import EnvironmentSecretProvider
+from runtime_security import SecretUseBroker
 
 
-def test_build_runtime_composes_settings_and_secret_provider() -> None:
+def test_build_runtime_composes_settings_and_secret_broker() -> None:
     runtime = build_runtime(
         {
             "APP_ENV": "test",
@@ -20,7 +20,8 @@ def test_build_runtime_composes_settings_and_secret_provider() -> None:
     assert runtime.settings.app_env == "test"
     assert runtime.settings.log_level == "WARNING"
     assert runtime.settings.read_only_mode is True
-    assert isinstance(runtime.secret_provider, EnvironmentSecretProvider)
+    assert isinstance(runtime.secret_broker, SecretUseBroker)
+    assert not hasattr(runtime, "secret_provider")
 
 
 def test_build_application_injects_single_runtime_container() -> None:

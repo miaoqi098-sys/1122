@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import time
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,8 +49,13 @@ def gh_api(args: list[str], stdin_text: str | None = None) -> Any:
     return json.loads(text) if text else None
 
 
+def encode_repo_path(path: str) -> str:
+    # GitHub Contents API path segments must be URL encoded. Keep '/' separators.
+    return urllib.parse.quote(path, safe="/")
+
+
 def read_repo_json(path: str) -> tuple[dict[str, Any] | None, str | None]:
-    endpoint = f"repos/{REPO}/contents/{path}"
+    endpoint = f"repos/{REPO}/contents/{encode_repo_path(path)}"
     try:
         # IMPORTANT: gh api switches to POST when -f is present unless GET is explicit.
         value = gh_api([endpoint, "--method", "GET", "-f", f"ref={BRANCH}"])
@@ -69,7 +75,7 @@ def write_repo_json(path: str, value: dict[str, Any], message: str) -> None:
     encoded_content = base64.b64encode(
         (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     ).decode("ascii")
-    endpoint = f"repos/{REPO}/contents/{path}"
+    endpoint = f"repos/{REPO}/contents/{encode_repo_path(path)}"
     args = [
         endpoint,
         "--method",

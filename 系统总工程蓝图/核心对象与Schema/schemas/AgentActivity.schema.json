@@ -1,0 +1,27 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"AgentActivity V1.0",
+  "type":"object",
+  "required":["schema_version","activity_id","agent_id","activity_type","occurred_at","summary","importance","visibility"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "activity_id":{"type":"string","minLength":1},
+    "agent_id":{"type":"string","minLength":1},
+    "activity_type":{"enum":["event_detected","decision_created","task_created","action_completed","validation_completed","state_updated","memory_written","other"]},
+    "occurred_at":{"type":"string","format":"date-time"},
+    "product_id":{"type":["string","null"]},
+    "summary":{"type":"string","minLength":1},
+    "business_reason":{"type":["string","null"]},
+    "source_event_id":{"type":["string","null"]},
+    "source_decision_id":{"type":["string","null"]},
+    "source_task_id":{"type":["string","null"]},
+    "source_action_id":{"type":["string","null"]},
+    "source_validation_id":{"type":["string","null"]},
+    "result_status":{"type":["string","null"]},
+    "importance":{"enum":["critical","high","medium","low"]},
+    "visibility":{"enum":["home","product","detail_only","hidden"]},
+    "evidence_refs":{"type":"array","items":{"type":"string"}},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

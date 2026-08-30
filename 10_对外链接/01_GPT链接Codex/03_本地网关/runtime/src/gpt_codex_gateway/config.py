@@ -51,7 +51,9 @@ class GatewaySettings(BaseModel):
     @classmethod
     def load(cls, path: str | Path) -> "GatewaySettings":
         config_path = Path(path).expanduser().resolve()
-        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        # Windows PowerShell 5.1 writes a UTF-8 BOM for `Set-Content -Encoding UTF8`.
+        # utf-8-sig transparently accepts both BOM and BOM-less UTF-8 JSON files.
+        payload = json.loads(config_path.read_text(encoding="utf-8-sig"))
         settings = cls.model_validate(payload)
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         return settings

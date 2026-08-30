@@ -5,7 +5,6 @@ import json
 import os
 import subprocess
 import time
-import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,9 +20,11 @@ GATEWAY_TASK_NAME = "AmazonAgent-GPT-Codex-Gateway"
 PROTOCOL = "2025-06-18"
 POLL_SECONDS = 30
 GH_TIMEOUT_SECONDS = 45
-MAX_CODEX_SECONDS = 180
+MAX_WEBSITE_CODEX_SECONDS = 180
+MAX_LOCAL_TEST_SECONDS = 60
 STATE_FILE = Path(os.environ.get("LOCALAPPDATA", ".")) / "AmazonAgent" / "GPTCodexGateway" / "bridge-state.json"
 ALLOWED_DOMAIN = "sorilo-uk.com"
+ALLOWED_TASK_TYPES = {"website_online", "local_readonly_test"}
 
 
 def now_iso() -> str:
@@ -94,21 +95,31 @@ def save_state(task_id: str) -> None:
     STATE_FILE.write_text(json.dumps({"last_task_id": task_id}, indent=2), encoding="utf-8")
 
 
-def validate_task(task: dict[str, Any]) -> tuple[str, str]:
+def validate_task(task: dict[str, Any]) -> tuple[str, str, str | None]:
     task_id = str(task.get("task_id", "")).strip()
     task_type = str(task.get("task_type", "")).strip()
-    if not task_id or task_type != "website_online":
-        raise ValueError("Only task_type=website_online is allowed")
-    forbidden = {"command", "shell", "powershell", "token", "secret", "password", "credential"}
+    if not task_id or task_type not in ALLOWED_TASK_TYPES:
+        raise ValueError(f"Only task types {sorted(ALLOWED_TASK_TYPES)} are allowed")
+
+    forbidden = {"command", "shell", "powershell", "token", "secret", "password", "credential", "instruction", "prompt"}
     if forbidden.intersection({str(k).lower() for k in task.keys()}):
         raise ValueError("Task contains a forbidden field")
+
     params = task.get("parameters") or {}
-    if not isinstance(params, dict) or set(params) - {"domain"}:
-        raise ValueError("Only the domain parameter is allowed")
+    if not isinstance(params, dict):
+        raise ValueError("parameters must be an object")
+
+    if task_type == "local_readonly_test":
+        if params:
+            raise ValueError("local_readonly_test does not accept parameters")
+        return task_id, task_type, None
+
+    if set(params) - {"domain"}:
+        raise ValueError("website_online only accepts the domain parameter")
     domain = str(params.get("domain") or ALLOWED_DOMAIN).strip().lower()
     if domain != ALLOWED_DOMAIN:
         raise ValueError(f"Domain must be {ALLOWED_DOMAIN}")
-    return task_id, domain
+    return task_id, task_type, domain
 
 
 def gateway_online() -> bool:
@@ -170,21 +181,43 @@ def website_instruction(domain: str) -> str:
     return f"""Perform ONLY the deployment/infrastructure work required to make https://{domain} publicly reachable using the existing website source under C:\\AmazonAgent. Do not redesign or rewrite business content. You may use Cloudflare/Wrangler only if a valid non-interactive local authorization already exists. CRITICAL: never launch, wait for, or depend on an interactive browser login, OAuth prompt, device-code flow, or terminal prompt. If Cloudflare is not already authorized non-interactively, stop immediately and return status AUTH_REQUIRED with the exact local authorization capability that is missing; do not keep running. Never print or return credentials. Do not alter unrelated DNS records, registrar ownership, zone ownership, or account security. If authorized, deploy the existing static site, bind {domain}, correct only required DNS, enable/verify HTTPS, and verify the homepage. Return deployment status, DNS changes, custom-domain status, HTTPS status, homepage HTTP status, and blockers."""
 
 
+def local_readonly_instruction() -> str:
+    return """This is a fixed end-to-end local execution test. Work ONLY under C:\\AmazonAgent. Perform read-only inspection only: confirm that C:\\AmazonAgent exists; list the root-level entries; determine whether any README file exists at repository root; determine whether paths related to the GPT-Codex Gateway and GitHub task bridge are present in the repository. Do not modify, create, delete, move, rename, install, update, fetch, pull, push, commit, or execute any external network operation. Do not access secrets or credentials. Finish quickly. Your final response must begin exactly with LOCAL_CODEX_EXECUTION_PASS if C:\\AmazonAgent was successfully inspected, followed by a concise summary of what was found. If the directory cannot be inspected, begin exactly with LOCAL_CODEX_EXECUTION_FAIL and explain the blocker."""
+
+
 def run_task(task: dict[str, Any]) -> dict[str, Any]:
-    task_id, domain = validate_task(task)
-    log(f"TASK_FOUND task_id={task_id} type=website_online domain={domain}")
+    task_id, task_type, domain = validate_task(task)
+    log(f"TASK_FOUND task_id={task_id} type={task_type}")
+
+    if task_type == "local_readonly_test":
+        instruction = local_readonly_instruction()
+        conversation_id = "github-bridge-local-readonly-test"
+        title = "Local Codex read-only execution test"
+        max_seconds = MAX_LOCAL_TEST_SECONDS
+    else:
+        assert domain is not None
+        instruction = website_instruction(domain)
+        conversation_id = "github-bridge-website-online"
+        title = f"Bring {domain} online"
+        max_seconds = MAX_WEBSITE_CODEX_SECONDS
+
     log("CODEX_START sending task to local Gateway")
-    start = extract_tool_payload(mcp_call("codex_start_task", {"project_id": "amazon-agent", "conversation_id": "github-bridge-website-online", "instruction": website_instruction(domain), "title": f"Bring {domain} online"}, 101))
+    start = extract_tool_payload(mcp_call("codex_start_task", {
+        "project_id": "amazon-agent",
+        "conversation_id": conversation_id,
+        "instruction": instruction,
+        "title": title,
+    }, 101))
     local_task_id = str(start.get("task_id", ""))
     if not local_task_id:
         raise RuntimeError("Gateway did not return task_id")
     log(f"CODEX_STARTED local_task_id={local_task_id}")
 
-    deadline = time.time() + MAX_CODEX_SECONDS
+    deadline = time.time() + max_seconds
     latest: dict[str, Any] = {}
     last_status = None
     while time.time() < deadline:
-        time.sleep(10)
+        time.sleep(5)
         latest = extract_tool_payload(mcp_call("codex_read_result", {"task_id": local_task_id}, 102))
         status = str(latest.get("status", "")).upper()
         if status != last_status:
@@ -193,15 +226,29 @@ def run_task(task: dict[str, Any]) -> dict[str, Any]:
         if status not in {"RUNNING", "PENDING", "QUEUED"}:
             summary = latest.get("result") or latest.get("error") or "No result text returned"
             log(f"CODEX_FINISHED status={status or 'UNKNOWN'}")
-            return {"task_id": task_id, "task_type": "website_online", "status": status or "UNKNOWN", "completed_at": now_iso(), "summary": str(summary)[:12000], "local_codex_task_id": local_task_id}
+            return {
+                "task_id": task_id,
+                "task_type": task_type,
+                "status": status or "UNKNOWN",
+                "completed_at": now_iso(),
+                "summary": str(summary)[:12000],
+                "local_codex_task_id": local_task_id,
+            }
 
-    log(f"CODEX_TIMEOUT after={MAX_CODEX_SECONDS}s cancelling local_task_id={local_task_id}")
+    log(f"CODEX_TIMEOUT after={max_seconds}s cancelling local_task_id={local_task_id}")
     try:
         mcp_call("codex_cancel_task", {"task_id": local_task_id}, 103)
         cancel_note = "Codex task was cancelled automatically."
     except Exception as exc:
         cancel_note = f"Cancellation request failed: {type(exc).__name__}: {exc}"
-    return {"task_id": task_id, "task_type": "website_online", "status": "TIMEOUT", "completed_at": now_iso(), "summary": f"Codex remained non-terminal for more than {MAX_CODEX_SECONDS} seconds. {cancel_note}", "local_codex_task_id": local_task_id}
+    return {
+        "task_id": task_id,
+        "task_type": task_type,
+        "status": "TIMEOUT",
+        "completed_at": now_iso(),
+        "summary": f"Codex remained non-terminal for more than {max_seconds} seconds. {cancel_note}",
+        "local_codex_task_id": local_task_id,
+    }
 
 
 def process_once() -> bool:
@@ -224,7 +271,13 @@ def process_once() -> bool:
         result = run_task(task)
     except Exception as exc:
         log(f"TASK_FAILED {type(exc).__name__}: {exc}")
-        result = {"task_id": task_id, "task_type": str(task.get("task_type", "unknown")), "status": "FAILED", "completed_at": now_iso(), "summary": f"Bridge failure: {type(exc).__name__}: {exc}"}
+        result = {
+            "task_id": task_id,
+            "task_type": str(task.get("task_type", "unknown")),
+            "status": "FAILED",
+            "completed_at": now_iso(),
+            "summary": f"Bridge failure: {type(exc).__name__}: {exc}",
+        }
     safe_name = "".join(c for c in task_id if c.isalnum() or c in "-_")[:80] or "invalid-task"
     log(f"WRITE_BACK {RESULT_DIR}/{safe_name}.json")
     write_repo_json(f"{RESULT_DIR}/{safe_name}.json", result, f"codex bridge: result {safe_name}")
@@ -235,7 +288,7 @@ def process_once() -> bool:
 
 def main() -> None:
     print("AmazonAgent controlled Codex task bridge ONLINE", flush=True)
-    print(f"Repository: {REPO} | branch: {BRANCH} | task: website_online | max_runtime={MAX_CODEX_SECONDS}s", flush=True)
+    print(f"Repository: {REPO} | branch: {BRANCH} | allowed_tasks={sorted(ALLOWED_TASK_TYPES)}", flush=True)
     while True:
         try:
             process_once()

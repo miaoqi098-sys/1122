@@ -42,6 +42,8 @@ class SourceTrace(BaseModel):
     observed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     correlation_id: str
     transport_request_id: str | None = None
+    rate_limit: str | None = None
+    response_status_code: int | None = None
     attempt_count: int = Field(ge=1)
     mock: bool = True
 
@@ -71,3 +73,5 @@ class TransportResponse(BaseModel):
 
     payload: Any
     request_id: str | None = None
+    rate_limit: str | None = None
+    status_code: int | None = None

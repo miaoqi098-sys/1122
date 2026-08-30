@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "snapshot_id": "ms_us_prod_001_2026-08-30T0355Z",
+  "product_id": "prod_us_001",
+  "seller_account_id": "seller_main",
+  "marketplace_id": "ATVPDKIKX0DER",
+  "business_date": "2026-08-30",
+  "marketplace_timezone": "America/Los_Angeles",
+  "window_start": "2026-08-30T00:00:00-07:00",
+  "window_end": "2026-08-30T03:55:00-07:00",
+  "snapshot_type": "intraday",
+  "metrics": [
+    {
+      "metric_code": "sales_revenue",
+      "value": 1250.5,
+      "value_type": "currency",
+      "currency": "USD",
+      "unit": null,
+      "source_ref": "spapi:sales:2026-08-30:prod_us_001",
+      "effective_at": "2026-08-30T03:50:00-07:00",
+      "quality_status": "verified",
+      "calculation_ref": null,
+      "metadata": {}
+    },
+    {
+      "metric_code": "ad_spend",
+      "value": 186.2,
+      "value_type": "currency",
+      "currency": "USD",
+      "unit": null,
+      "source_ref": "ads:spend:2026-08-30:prod_us_001",
+      "effective_at": "2026-08-30T03:20:00-07:00",
+      "quality_status": "partial",
+      "calculation_ref": null,
+      "metadata": {"known_reporting_lag": true}
+    }
+  ],
+  "profit": {
+    "amount": 402.75,
+    "currency": "USD",
+    "profit_type": "net_estimate",
+    "calculation_status": "estimated",
+    "cost_model_version": "cost-model-v1",
+    "missing_cost_components": ["final_refund_adjustments"],
+    "calculation_ref": "calc:profit:cost-model-v1:prod_us_001:2026-08-30"
+  },
+  "source_refs": [
+    "spapi:sales:2026-08-30:prod_us_001",
+    "ads:spend:2026-08-30:prod_us_001",
+    "cost-config:prod_us_001:v3"
+  ],
+  "freshness_status": "partial",
+  "quality_status": "mixed",
+  "collected_at": "2026-08-30T03:55:30-07:00",
+  "latest_effective_at": "2026-08-30T03:50:00-07:00",
+  "metadata": {"ui_profit_label": "estimated"}
+}

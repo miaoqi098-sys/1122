@@ -1,92 +1,74 @@
-# GPT 链接 Codex｜长期直连工程
+# GPT 链接 Codex｜当前真实实现
 
 ## 目标
 
-本目录建设一个**独立于 AACC、独立于 GitHub Issue 中转**的长期 GPT→Codex 执行通道。
+本目录只保留当前已经实际运行或正在实际验收的 GPT→Codex 链路，不再保留已停止的 Full MCP、远程 OAuth、旧快捷任务等方案。
 
-正式目标链路：
+## 当前真实链路
 
 ```text
-任意已授权 GPT 对话
-        ↓
-ChatGPT 自定义 MCP 应用 / 长期入口
-        ↓
-安全远程通道
-        ↓
-GPT-Codex Gateway（本地常驻）
-        ↓
-Codex App Server（主执行器）
-        ↓
+GPT
+  ↓ GitHub `codex-dispatch` 白名单任务
+本机 Controlled Codex Task Bridge
+  ↓
+GPT-Codex Gateway（127.0.0.1:8765）
+  ↓
+Codex App Server
+  ↓
 Codex
-        ↓
-本地文件 / CLI / Git / API / 工程工具
+  ↓
+本地文件 / CLI / Git / 已授权 API
+  ↓
+结果回写 GitHub
+  ↓
+GPT 读取结果继续决策
 ```
 
-GitHub仅用于源码、版本与备份，不作为每次执行任务的消息总线。
-
-## 两个硬目标
-
-1. **跨对话可用**：在同一已授权 ChatGPT 账户/工作空间中，只要该 GPT-Codex 应用处于启用状态，新开的 GPT 对话也能发现并调用执行工具，不依赖上一段聊天历史。
-2. **长期连接**：首次完成应用安装与长期认证后，正常使用依靠刷新令牌/长期会话续期，不把“每个任务重新授权”设计成常态。
-
-> 平台本身如果对某些写操作强制弹出确认，Gateway 不伪造或绕过平台确认；本工程自己的额外确认默认尽量减少。
-
-## 独立性
-
-本工程与 `miaoqi098-sys/amazon-agent-command-center`（AACC）完全独立。
-
-- 不依赖 AACC CodexBridge。
-- 不依赖 AACC LocalOps。
-- AACC 停机、删除、额度耗尽，不影响本工程设计目标。
-- 如未来需要互联，AACC 只能作为一个可选外部系统，不是本工程基础设施。
-
-## 目录
+## 当前目录
 
 ```text
 01_GPT链接Codex/
 ├── README.md
-├── 01_长期连接架构/
-│   └── 长期连接总纲.md
-├── 02_GPT入口/
-│   ├── 任意GPT对话接入规范.md
-│   └── connection-manifest.json
 ├── 03_本地网关/
-│   └── gateway-contract.json
-├── 04_Codex执行器/
-│   └── CodexAppServer适配规范.md
-├── 05_权限与授权/
-│   └── maximum-authority-policy.json
-├── 06_认证与长期会话/
-│   └── 长期认证规范.md
-└── 07_运行与恢复/
-    └── 健康检查与恢复.md
+│   ├── gateway-contract.json
+│   └── runtime/
+├── 07_运行与恢复/
+│   ├── install-gateway.ps1
+│   ├── uninstall-gateway.ps1
+│   └── 健康检查与恢复.md
+└── 09_GitHub任务桥/
+    ├── README.md
+    ├── install-bridge.ps1
+    ├── worker.py
+    └── task-schema.json
 ```
 
-## 执行器优先级
+## 职责分工
 
-1. `Codex App Server`：长期进程、双向控制、线程持续、事件流与审批交互。
-2. `Codex SDK`：未来可作为原生库适配器。
-3. `codex exec`：仅作为本工程自身的降级执行器，不作为长期主链。
+- GPT：总控、需求拆解、方案、GitHub 修改、验收、后续决策。
+- Codex：仅执行 GPT 当前无法直接完成的本机或已授权平台操作。
+- Gateway：本机常驻 MCP / Codex App Server 控制层。
+- GitHub任务桥：跨对话任务投递与结果回写通道，只接受白名单任务，不提供任意远程 Shell。
 
-## 权限原则
+## 当前状态
 
-默认采用 **HIGH_AUTHORITY / AUTO_ALLOW_REVERSIBLE**：
+- `LOCAL_RUNTIME_VERIFIED`：已完成。
+- Gateway 常驻：已完成。
+- Codex App Server：已完成真实任务验证。
+- GitHub任务桥 Worker：已启动并进入真实任务验收。
+- 当前白名单任务：`website_online`。
+- 当前首要业务目标：让 `https://sorilo-uk.com` 正常上线并启用 HTTPS。
 
-- 本机工程文件读写：自动允许。
-- 创建/修改/移动/删除工程文件：自动允许（受配置根目录约束）。
-- 运行 Shell / PowerShell / Python / Node / 测试 / 构建：自动允许。
-- Git commit / branch / push：默认允许。
-- 调用已配置的 Cloudflare、Amazon、数据库等连接器：按连接器权限直接执行。
-- Secret：允许“使用”，默认不向 GPT 明文展示。
+## 已停止并删除的旧路线
 
-仅对少数不可逆高风险动作保留硬门槛，例如：导出明文凭证、资金转账/支付、删除整个云账户或域名、关闭系统安全能力、整盘擦除等。
+以下路线不再施工，也不再作为当前工程依赖：
 
-## 当前阶段
+- ChatGPT Full MCP 远程直连方案；
+- Secure MCP Tunnel / 远程 OAuth 长期认证方案；
+- 旧 `connection-manifest`；
+- 旧“任意 GPT 对话接入规范”；
+- 已被真实 Gateway Runtime 取代的 Codex App Server 适配说明；
+- 已被真实 Runtime 权限配置取代的旧权限策略文件；
+- 已被 `09_GitHub任务桥` 取代的本地快捷任务方案。
 
-本目录当前建立的是长期连接的正式架构与机器契约。后续真实实现需完成：
-
-`Gateway Runtime → Codex App Server Adapter → MCP Tools → 长期认证 → ChatGPT App 发布/连接 → 真实跨对话验收`。
-
-## 外部产品能力边界
-
-ChatGPT 侧能否直接调用带“写入/修改”能力的自定义 MCP 工具，取决于 OpenAI 当时对账户/工作空间开放的产品能力。这个外部限制不改变本工程架构：本地 Gateway、Codex App Server 与长期认证可以先独立实现，待 ChatGPT 侧具备完整写入工具能力后完成最终跨对话接入。
+以后新增能力优先在当前真实链路上扩展，不再并行维护未使用的旧架构。

@@ -15,7 +15,16 @@ class ConnectorAuthError(ConnectorTransportError):
 
 
 class ConnectorRateLimitError(ConnectorTransportError):
-    pass
+    def __init__(
+        self,
+        message: str = "connector rate limit exceeded",
+        *,
+        retry_after_seconds: float | None = None,
+    ) -> None:
+        super().__init__(message)
+        if retry_after_seconds is not None and retry_after_seconds < 0:
+            retry_after_seconds = None
+        self.retry_after_seconds = retry_after_seconds
 
 
 class ConnectorTimeoutError(ConnectorTransportError):

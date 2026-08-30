@@ -1,0 +1,65 @@
+{
+  "schema_version": "2.0",
+  "name": "AMAZON_AGENT_GPT_CODEX_LONG_TERM_LINK",
+  "display_name": "亚马逊智能体 Codex 执行器",
+  "independent_from_aacc": true,
+  "github_is_execution_bus": false,
+  "primary_path": [
+    "ChatGPT custom MCP app",
+    "secure remote channel",
+    "GPT-Codex Gateway",
+    "Codex App Server",
+    "Codex"
+  ],
+  "fallback_executors": [
+    "Codex SDK",
+    "codex exec"
+  ],
+  "conversation_scope": "any_conversation_with_authorized_app_access",
+  "persistent_connection": {
+    "required": true,
+    "oauth_refresh_token": true,
+    "offline_access": true,
+    "reuse_across_conversations": true,
+    "per_task_reauthorization_expected": false
+  },
+  "runtime": {
+    "gateway_mode": "resident_local_service",
+    "auto_start": true,
+    "auto_reconnect": true,
+    "app_server_auto_restart": true,
+    "task_idempotency": true
+  },
+  "authority_profile": "HIGH_AUTHORITY",
+  "required_tools": [
+    "codex_status",
+    "codex_start_task",
+    "codex_continue_task",
+    "codex_get_task",
+    "codex_cancel_task",
+    "codex_list_projects",
+    "codex_read_result",
+    "codex_run_command",
+    "codex_apply_changes",
+    "codex_use_secret"
+  ],
+  "secrets": {
+    "storage": "local_protected_store",
+    "allow_use": true,
+    "allow_plaintext_return_to_gpt": false,
+    "allow_commit_to_git": false
+  },
+  "hard_confirmation_only": [
+    "export_plaintext_secret",
+    "transfer_or_spend_money",
+    "delete_entire_cloud_account",
+    "transfer_or_delete_domain",
+    "disable_host_security_controls",
+    "wipe_disk_or_destroy_backup_chain"
+  ],
+  "truth": {
+    "manifest_exists_is_not_runtime_verified": true,
+    "runtime_verified_requires_live_gateway_evidence": true,
+    "cross_conversation_verified_requires_new_chat_execution": true
+  }
+}

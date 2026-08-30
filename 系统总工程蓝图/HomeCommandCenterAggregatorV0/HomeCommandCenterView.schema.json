@@ -1,0 +1,20 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"HomeCommandCenterView V0",
+  "type":"object",
+  "required":["business_date","generated_at","view_status"],
+  "properties":{
+    "business_date":{"type":"string"},
+    "operating_snapshot":{"type":"object"},
+    "human_tasks":{"type":"array","items":{"type":"object"}},
+    "agent_activities":{"type":"array","items":{"type":"object"}},
+    "product_status_cards":{"type":"array","items":{"type":"object"}},
+    "important_events":{"type":"array","items":{"type":"object"}},
+    "section_status":{"type":"object","additionalProperties":{"enum":["fresh","lagged","partial","stale","error","unknown"]}},
+    "missing_sections":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "view_status":{"enum":["complete","degraded","unavailable"]},
+    "generated_at":{"type":"string","format":"date-time"},
+    "source_updated_at":{"type":["string","null"],"format":"date-time"}
+  },
+  "additionalProperties":false
+}

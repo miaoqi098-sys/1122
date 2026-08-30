@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"ExecutableTaskRef V0",
+  "type":"object",
+  "required":["task_id","task_type","permission_status","approval_status","ready_at"],
+  "properties":{
+    "task_id":{"type":"string","minLength":1},
+    "product_id":{"type":["string","null"]},
+    "task_type":{"type":"string"},
+    "permission_status":{"enum":["allowed","denied","unknown"]},
+    "approval_status":{"enum":["not_required","approved","pending","rejected","expired","unknown"]},
+    "required_control_refs":{"type":"array","items":{"type":"string"}},
+    "executor_ref":{"type":["string","null"]},
+    "deadline":{"type":["string","null"],"format":"date-time"},
+    "ready_at":{"type":"string","format":"date-time"},
+    "task_snapshot_ref":{"type":["string","null"]}
+  },
+  "additionalProperties":false
+}

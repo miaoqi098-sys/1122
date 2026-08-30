@@ -1,0 +1,12 @@
+{
+    "task_id":  "20260831-local-readonly-001",
+    "task_type":  "local_readonly_test",
+    "status":  "TIMEOUT",
+    "started_at":  "2026-08-30T19:32:44.3335087Z",
+    "completed_at":  "2026-08-30T19:34:45.0413309Z",
+    "summary":  "Codex task runner exceeded its hard execution limit.",
+    "changes":  [
+
+                ],
+    "blocker":  "RUNNER_TIMEOUT"
+}

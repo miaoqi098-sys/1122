@@ -22,7 +22,7 @@ if (-not (Test-Path -LiteralPath $WorkerSource)) {
 }
 
 if (-not (Test-Path -LiteralPath $WorkerSource)) {
-  throw "Worker not found under repository root. Run git pull in C:\AmazonAgent and retry."
+  throw "Worker not found under repository root. Refresh the bridge files and retry."
 }
 if (-not (Test-Path -LiteralPath $Python)) {
   throw "Gateway Python not found. Install the GPT-Codex Gateway first."
@@ -47,10 +47,11 @@ if ($LASTEXITCODE -ne 0) {
   throw "GitHub CLI is installed but not signed in. Run 'gh auth login' once on this PC, then retry this installer."
 }
 
-# Verify access to the dedicated dispatch inbox through the existing local gh login.
-& $Gh.Source api "repos/miaoqi098-sys/-/contents/10_对外链接/01_GPT链接Codex/09_GitHub任务桥/inbox/current.json" -f "ref=codex-dispatch" 1>$null 2>$null
+# Verify repository access without any non-ASCII path. This avoids Windows PowerShell 5.1
+# corrupting UTF-8 Chinese path literals before gh receives them.
+& $Gh.Source api "repos/miaoqi098-sys/-/git/ref/heads/codex-dispatch" 1>$null 2>$null
 if ($LASTEXITCODE -ne 0) {
-  throw "GitHub CLI login cannot access the codex-dispatch inbox. Re-authenticate gh for the GitHub account that owns miaoqi098-sys/-."
+  throw "GitHub CLI login cannot access repository miaoqi098-sys/- or branch codex-dispatch. Re-authenticate gh for the correct GitHub account."
 }
 
 New-Item -ItemType Directory -Path $GatewayRoot -Force | Out-Null

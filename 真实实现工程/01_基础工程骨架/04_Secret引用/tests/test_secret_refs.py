@@ -19,6 +19,8 @@ def test_missing_secret_reference_does_not_echo_value() -> None:
 
 
 def test_environment_provider_rejects_other_provider() -> None:
-    ref = SecretRef(provider="vault", key="amazon/sp-api/test", purpose="unit-test")
+    # The test is about provider rejection, so the reference itself must first
+    # satisfy the canonical SecretRef key contract.
+    ref = SecretRef(provider="vault", key="AMAZON/SP-API/TEST", purpose="unit-test")
     with pytest.raises(ValueError):
         EnvironmentSecretProvider({}).resolve(ref)

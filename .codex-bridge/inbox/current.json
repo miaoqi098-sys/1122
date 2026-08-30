@@ -1,8 +1,6 @@
 {
-  "task_id": "20260831-website-online-005",
-  "task_type": "website_online",
-  "created_at": "2026-08-31T01:46:00+08:00",
-  "parameters": {
-    "domain": "sorilo-uk.com"
-  }
+  "task_id": "20260831-local-readonly-001",
+  "task_type": "local_readonly_test",
+  "created_at": "2026-08-31T02:49:00+08:00",
+  "parameters": {}
 }

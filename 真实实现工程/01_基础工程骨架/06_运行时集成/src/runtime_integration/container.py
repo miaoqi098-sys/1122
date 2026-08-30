@@ -10,7 +10,8 @@ from configuration import RuntimeSettings, load_settings
 from observability.logging import configure_json_logging
 from runtime_config_validation import validate_runtime_settings
 from runtime_health import RuntimeHealthProvider
-from secrets_runtime import EnvironmentSecretProvider, SecretProvider
+from runtime_security import SecretUseBroker
+from secrets_runtime import EnvironmentSecretProvider
 
 
 @dataclass(frozen=True)
@@ -18,12 +19,12 @@ class RuntimeContainer:
     """Composition root for the read-only runtime.
 
     P1 components are created once here and injected into the application.
-    Business modules must not create their own global settings, health provider,
-    or secret provider.
+    Business modules receive a controlled SecretUseBroker rather than the raw
+    SecretProvider, preventing long-lived SecretValue access through app.state.
     """
 
     settings: RuntimeSettings
-    secret_provider: SecretProvider
+    secret_broker: SecretUseBroker
     health_provider: RuntimeHealthProvider
 
     def create_application(self) -> FastAPI:
@@ -35,11 +36,11 @@ class RuntimeContainer:
 
 def build_runtime(environ: Mapping[str, str] | None = None) -> RuntimeContainer:
     settings = validate_runtime_settings(load_settings(environ))
-    secret_provider = EnvironmentSecretProvider(environ)
+    secret_broker = SecretUseBroker(EnvironmentSecretProvider(environ))
     health_provider = RuntimeHealthProvider(settings)
     return RuntimeContainer(
         settings=settings,
-        secret_provider=secret_provider,
+        secret_broker=secret_broker,
         health_provider=health_provider,
     )
 

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ProductIdentity.schema.json",
+  "title": "ProductIdentity V1.0",
+  "description": "系统内部用于唯一关联一个卖家账号、站点下具体经营产品实体的稳定身份对象。跨模块引用必须优先使用 product_id，而不是直接以 ASIN/SKU 作为系统主键。",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "product_id",
+    "seller_account_id",
+    "marketplace_id",
+    "identity_status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "product_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "系统内部稳定主键。创建后不可因 ASIN/SKU/标题等外部变化而修改。"
+    },
+    "seller_account_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "系统内部卖家账号标识。"
+    },
+    "marketplace_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Amazon Marketplace 标识或系统标准化后的站点标识。"
+    },
+    "asin": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "当前 Amazon ASIN。不可作为跨模块唯一系统主键。"
+    },
+    "sku": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "当前 Seller SKU。其唯一性只在指定 seller_account_id + marketplace_id 语境内成立。"
+    },
+    "fnsku": {
+      "type": ["string", "null"]
+    },
+    "parent_asin": {
+      "type": ["string", "null"],
+      "description": "Amazon 父 ASIN，仅代表外部层级关系。"
+    },
+    "parent_product_id": {
+      "type": ["string", "null"],
+      "description": "若父体在系统内也建模，则引用父产品的内部 product_id。"
+    },
+    "variation_family_id": {
+      "type": ["string", "null"],
+      "description": "系统内部变体族标识，用于跨子体聚合。"
+    },
+    "product_name": {
+      "type": ["string", "null"],
+      "description": "便于展示的人类可读产品名称，不参与身份唯一性判断。"
+    },
+    "identity_status": {
+      "enum": ["draft", "active", "inactive", "archived", "unknown"]
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true,
+      "description": "身份来源记录、导入记录或外部对象引用。"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "anyOf": [
+        {"required": ["asin"]},
+        {"required": ["sku"]}
+      ]
+    }
+  ],
+  "additionalProperties": false
+}

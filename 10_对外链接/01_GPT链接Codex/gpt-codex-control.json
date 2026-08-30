@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "name": "GPT_TO_CODEX_LONG_TERM_CONTROL",
+  "status": "PERSISTENT_ENTRY",
+  "entry_document": "10_对外链接/01_GPT链接Codex/GPT链接Codex_长期执行入口.md",
+  "control_plane": "GitHub",
+  "main_project_repository": "miaoqi098-sys/-",
+  "execution_repository": "miaoqi098-sys/amazon-agent-command-center",
+  "node_id": "NODE-001",
+  "fresh_state_required": true,
+  "chat_history_is_not_source_of_truth": true,
+  "routes": {
+    "development": {
+      "title_prefix": "[AACC-CODEX]",
+      "runtime": "03_NodeRuntime/CodexBridge",
+      "executor": "codex exec",
+      "required_issue_fields": [
+        "TASK_ID",
+        "GOAL",
+        "ALLOWED_SCOPE",
+        "ACCEPTANCE"
+      ],
+      "terminal_review_state": "WAITING_REVIEW"
+    },
+    "local_operations": {
+      "title_prefix": "[AACC-LOCALOPS]",
+      "runtime": "03_NodeRuntime/LocalOps",
+      "request_contract": "03_NodeRuntime/LocalOps/localops-request.schema.json",
+      "arbitrary_command_allowed": false
+    }
+  },
+  "review_commands": [
+    "APPROVED",
+    "REWORK",
+    "BLOCKED"
+  ],
+  "secret_policy": {
+    "secret_in_chat": false,
+    "secret_in_git": false,
+    "secret_in_issue": false,
+    "secret_in_prompt": false,
+    "secret_storage": "NODE-001 protected local secret store",
+    "agent_default_capability": "USE_SECRET_NOT_VIEW_SECRET"
+  },
+  "prohibited": [
+    "force_push",
+    "automatic_main_merge",
+    "delete_main",
+    "repository_visibility_change",
+    "plaintext_secret_commit",
+    "captcha_or_2fa_bypass",
+    "unbounded_retry",
+    "fabricated_runtime_status"
+  ],
+  "truth_rules": [
+    "ENTRY_EXISTS != RUNTIME_VERIFIED",
+    "RUNTIME_VERIFIED != TASK_SUCCESS",
+    "SOURCE_OR_CI_PASS != NODE_DEPLOYED",
+    "CREDENTIAL_PRESENT != AUTH_VERIFIED",
+    "AUTH_VERIFIED != READ_VERIFIED",
+    "READ_VERIFIED != LIVE_DATA_VERIFIED"
+  ],
+  "future_adapters": [
+    "Codex SDK",
+    "Codex App Server"
+  ]
+}

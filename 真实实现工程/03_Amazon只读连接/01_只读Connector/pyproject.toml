@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "amazon-read-connector-runtime"
+version = "0.1.0"
+description = "Read-only Amazon SP-API and Ads API connector contract"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.9,<3.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.3,<9.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "src",
+  "../../01_基础工程骨架/04_Secret引用/src",
+]
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/amazon_read_connector"]

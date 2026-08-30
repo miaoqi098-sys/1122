@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ProductStage.schema.json",
+  "title": "ProductStage V1.0",
+  "description": "产品当前经营阶段的版本化状态对象。阶段代码由独立阶段字典/规则版本定义，本Schema不擅自固化尚未确认的业务阶段枚举。",
+  "type": "object",
+  "required": ["schema_version","product_stage_id","product_id","stage_code","stage_definition_version","entered_at","stage_status","evidence_refs","determined_by","determined_at"],
+  "properties": {
+    "schema_version":{"type":"string","const":"1.0"},
+    "product_stage_id":{"type":"string","minLength":1},
+    "product_id":{"type":"string","minLength":1},
+    "stage_code":{"type":"string","minLength":1},
+    "stage_definition_version":{"type":"string","minLength":1},
+    "stage_status":{"enum":["active","transitioning","pending_review","overridden","historical","unknown"]},
+    "entered_at":{"type":"string","format":"date-time"},
+    "expected_exit_at":{"type":["string","null"],"format":"date-time"},
+    "entry_rule_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "exit_rule_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "metric_snapshot_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "business_state_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "event_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "evidence_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "determined_by":{"type":"object","required":["actor_type","actor_id"],"properties":{"actor_type":{"enum":["system","agent","human"]},"actor_id":{"type":"string"}},"additionalProperties":false},
+    "determined_at":{"type":"string","format":"date-time"},
+    "override":{
+      "type":["object","null"],
+      "required":["overridden_by","reason","overridden_at"],
+      "properties":{
+        "overridden_by":{"type":"string","minLength":1},
+        "reason":{"type":"string","minLength":1},
+        "overridden_at":{"type":"string","format":"date-time"},
+        "expires_at":{"type":["string","null"],"format":"date-time"}
+      },
+      "additionalProperties":false
+    },
+    "previous_stage_id":{"type":["string","null"]},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

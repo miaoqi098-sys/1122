@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "product_stage_id": "stage_prod_us_001_001",
+  "product_id": "prod_us_001",
+  "stage_code": "stage_code_pending_business_definition",
+  "stage_definition_version": "product-stage-definition-v0-placeholder",
+  "stage_status": "pending_review",
+  "entered_at": "2026-08-30T04:05:00-07:00",
+  "expected_exit_at": null,
+  "entry_rule_refs": ["rule:product-stage:entry:pending-definition"],
+  "exit_rule_refs": [],
+  "metric_snapshot_refs": ["ms_us_prod_001_2026-08-30T0355Z"],
+  "business_state_refs": ["bs_prod_us_001_20260830T040000Z"],
+  "event_refs": [],
+  "evidence_refs": ["bs_prod_us_001_20260830T040000Z"],
+  "determined_by": {
+    "actor_type": "system",
+    "actor_id": "product-stage-engine"
+  },
+  "determined_at": "2026-08-30T04:05:02-07:00",
+  "override": null,
+  "previous_stage_id": null,
+  "metadata": {
+    "note": "示例故意不固化真实阶段名称；正式阶段字典待后续业务规则确认。"
+  }
+}

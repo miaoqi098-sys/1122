@@ -1,0 +1,33 @@
+{
+  "scenario": "demo advertising anomaly approval loop",
+  "warning": "Static demo only. No real ASIN, account, API call or production action.",
+  "product_id": "demo-product-001",
+  "metric_snapshot_id": "demo-metric-001",
+  "event_id": "demo-event-001",
+  "decision_item_id": "demo-decision-item-001",
+  "decision_id": "demo-decision-001",
+  "goal_id": "demo-goal-001",
+  "task_id": "demo-task-001",
+  "human_action_request_id": "demo-human-request-001",
+  "approval_id": "demo-approval-001",
+  "action_id": "demo-action-001",
+  "execution_result_id": "demo-execution-result-001",
+  "validation_id": "demo-validation-001",
+  "memory_id": "demo-memory-001",
+  "stage_summary_id": "demo-stage-summary-001",
+  "flow": [
+    {"step":1,"object":"MetricSnapshot","result":"advertising metrics available"},
+    {"step":2,"object":"Event","result":"advertising anomaly detected"},
+    {"step":3,"object":"Agent-4 response","result":"professional analysis only"},
+    {"step":4,"object":"FinalDecision","result":"Agent-1 selects controlled adjustment"},
+    {"step":5,"object":"Task","result":"pending human approval"},
+    {"step":6,"object":"HumanActionRequest","result":"visible on home human task view"},
+    {"step":7,"object":"Approval","result":"approved in demo"},
+    {"step":8,"object":"Action","result":"demo action recorded"},
+    {"step":9,"object":"ExecutionResult","result":"demo success, not business success"},
+    {"step":10,"object":"ValidationResult","result":"demo validation passed"},
+    {"step":11,"object":"Memory","result":"history recorded"},
+    {"step":12,"object":"ProductStatusCardView","result":"today action and task state updated"},
+    {"step":13,"object":"HomeCommandCenterView","result":"home sections reflect same object chain"}
+  ]
+}

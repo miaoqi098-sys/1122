@@ -42,6 +42,7 @@ jobs:
           PYTHONPATH: "真实实现工程/03_Amazon只读连接/01_只读Connector/src:真实实现工程/03_Amazon只读连接/02_SPAPI只读能力/src:真实实现工程/03_Amazon只读连接/03_AdsAPI只读能力/src:真实实现工程/01_基础工程骨架/04_Secret引用/src"
         run: |
           python -m pytest \
+            --import-mode=importlib \
             "真实实现工程/03_Amazon只读连接/01_只读Connector/tests" \
             "真实实现工程/03_Amazon只读连接/02_SPAPI只读能力/tests" \
             "真实实现工程/03_Amazon只读连接/03_AdsAPI只读能力/tests" \

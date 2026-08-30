@@ -1,0 +1,48 @@
+{
+  "schema_version": "2.0",
+  "repository": "miaoqi098-sys/-",
+  "branch": "codex-dispatch",
+  "inbox_path": ".codex-bridge/inbox/current.json",
+  "result_path_template": ".codex-bridge/results/<task_id>.json",
+  "task_required_fields": ["task_id", "task_type", "created_at", "parameters"],
+  "allowed_task_types": {
+    "local_readonly_test": {
+      "description": "Read-only machine verification: repository path, root listing, Git readability, and gh authentication.",
+      "allowed_parameters": ["repository_root"]
+    },
+    "website_online": {
+      "description": "Controlled website delivery task. Cloudflare credentials, when needed, are referenced only as local_sensitive_workbook.",
+      "allowed_parameters": ["domain"],
+      "default_domain": "sorilo-uk.com",
+      "secret_source": "local_sensitive_workbook"
+    }
+  },
+  "terminal_statuses": ["SUCCESS", "FAILED", "TIMEOUT", "CANCELLED", "AUTH_REQUIRED", "BLOCKED", "PASS"],
+  "forbidden_payload_fields": [
+    "command",
+    "shell",
+    "powershell",
+    "cmd",
+    "token",
+    "secret",
+    "password",
+    "credential",
+    "api_key",
+    "private_key"
+  ],
+  "result_required_fields": [
+    "task_id",
+    "task_type",
+    "status",
+    "started_at",
+    "completed_at",
+    "summary",
+    "changes",
+    "blocker"
+  ],
+  "security_notes": [
+    "GitHub supplies declarative, allowlisted tasks only; it never supplies executable commands or credentials.",
+    "The authoritative idempotency record is the GitHub result file, not local runner state.",
+    "secret_source is a local reference only and never carries a credential value."
+  ]
+}

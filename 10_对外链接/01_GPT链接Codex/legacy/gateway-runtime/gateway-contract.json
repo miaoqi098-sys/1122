@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "service_name": "GPT-Codex Gateway",
+  "mode": "resident_local_service",
+  "purpose": "Provide a persistent authenticated control surface from approved GPT conversations to local Codex execution.",
+  "independent_from": [
+    "AACC",
+    "AACC CodexBridge",
+    "AACC LocalOps",
+    "GitHub Issue polling"
+  ],
+  "execution_root_policy": {
+    "configured_roots_only": true,
+    "default_root": "AMAZON_AGENT_PROJECT_ROOT",
+    "multiple_roots_supported": true
+  },
+  "codex": {
+    "primary_adapter": "app_server",
+    "secondary_adapter": "sdk",
+    "fallback_adapter": "exec",
+    "persistent_threads": true,
+    "thread_mapping": "project_plus_conversation"
+  },
+  "mcp": {
+    "transport": "remote_mcp_endpoint_to_gateway",
+    "authentication": "oauth2_oidc",
+    "refresh_tokens": true,
+    "offline_access": true,
+    "tool_result_streaming": true
+  },
+  "tools": {
+    "codex_status": "read",
+    "codex_start_task": "write",
+    "codex_continue_task": "write",
+    "codex_get_task": "read",
+    "codex_cancel_task": "write",
+    "codex_list_projects": "read",
+    "codex_read_result": "read",
+    "codex_run_command": "write",
+    "codex_apply_changes": "write",
+    "codex_use_secret": "write_without_secret_disclosure"
+  },
+  "task_runtime": {
+    "idempotency_key_required": true,
+    "resume_supported": true,
+    "cancel_supported": true,
+    "structured_events": true,
+    "default_timeout_seconds": 3600,
+    "max_parallel_tasks_configurable": true
+  },
+  "availability": {
+    "auto_start_with_user_session": true,
+    "restart_on_failure": true,
+    "app_server_restart_on_failure": true,
+    "health_endpoint": true,
+    "connection_state_values": [
+      "ONLINE",
+      "DEGRADED",
+      "AUTH_REQUIRED",
+      "CODEX_UNAVAILABLE",
+      "OFFLINE"
+    ]
+  },
+  "logging": {
+    "audit_enabled": true,
+    "prompt_body_logging_default": false,
+    "secret_redaction": true,
+    "command_result_size_bounded": true
+  },
+  "security_floor": {
+    "anonymous_remote_execution": false,
+    "plaintext_secret_return": false,
+    "public_unauthenticated_shell": false
+  }
+}

@@ -1,0 +1,9 @@
+# Local Codex task-runner cache. GitHub result files remain tracked by design.
+.codex-runner/state.json
+.codex-runner/*.tmp
+.codex-runner/*.log
+
+# Local diagnostic and dependency artefacts.
+.local-tools/
+work/
+**/__pycache__/

@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "bridge_name": "AmazonAgent Controlled Codex Task Bridge",
+  "repository": "miaoqi098-sys/-",
+  "transport": "github-file-mailbox",
+  "security_model": "allowlisted-task-types-only",
+  "inbox_path": "10_对外链接/01_GPT链接Codex/09_GitHub任务桥/inbox",
+  "result_path": "10_对外链接/01_GPT链接Codex/09_GitHub任务桥/results",
+  "allowed_task_types": {
+    "website_online": {
+      "description": "Deploy the existing API qualification website and make the configured domain reachable over HTTPS.",
+      "project_id": "amazon-agent",
+      "allowed_parameters": ["domain"],
+      "default_domain": "sorilo-uk.com",
+      "may_use_local_secrets_by_reference": true,
+      "may_return_plaintext_secrets": false,
+      "may_execute_arbitrary_user_supplied_shell": false
+    }
+  },
+  "task_required_fields": ["task_id", "task_type", "created_at"],
+  "result_required_fields": ["task_id", "status", "completed_at", "summary"],
+  "forbidden_payload_fields": ["command", "shell", "powershell", "token", "secret", "password", "credential"],
+  "notes": [
+    "The worker must reject unknown task types.",
+    "The worker must reject forbidden payload fields.",
+    "Task text is generated locally from trusted templates, not accepted as arbitrary remote instructions.",
+    "Secrets may only be used locally by reference and must never be written back to GitHub."
+  ]
+}

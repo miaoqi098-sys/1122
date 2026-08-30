@@ -1,0 +1,28 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"ExecutionResult V1.0",
+  "type":"object",
+  "required":["schema_version","execution_result_id","action_id","status","recorded_at"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "execution_result_id":{"type":"string","minLength":1},
+    "action_id":{"type":"string","minLength":1},
+    "task_id":{"type":"string","minLength":1},
+    "product_id":{"type":["string","null"]},
+    "status":{"enum":["success","partial_success","failed","rejected","not_executed","unknown"]},
+    "executor_type":{"enum":["system","human","external","agent"]},
+    "executor_id":{"type":["string","null"]},
+    "external_operation_ref":{"type":["string","null"]},
+    "requested_value":{"type":["object","array","string","number","boolean","null"]},
+    "observed_value":{"type":["object","array","string","number","boolean","null"]},
+    "error_code":{"type":["string","null"]},
+    "error_message":{"type":["string","null"]},
+    "retryable":{"type":["boolean","null"]},
+    "evidence_refs":{"type":"array","items":{"type":"string"}},
+    "recorded_at":{"type":"string","format":"date-time"},
+    "validation_required":{"type":"boolean"},
+    "validation_ref":{"type":["string","null"]},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

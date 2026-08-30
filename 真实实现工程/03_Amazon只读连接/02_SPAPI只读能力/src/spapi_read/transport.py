@@ -22,6 +22,16 @@ class SpApiHttpError(ConnectorTransportError):
         self.request_id = request_id
 
 
+def _parse_retry_after(value: str | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
 class SpApiReadTransport:
     """GET-only SP-API transport. Access token exists only during one send call."""
 
@@ -73,7 +83,10 @@ class SpApiReadTransport:
         if response.status_code in {401, 403}:
             raise ConnectorAuthError(f"SP-API authorization failed with HTTP {response.status_code}")
         if response.status_code == 429:
-            raise ConnectorRateLimitError("SP-API rate limit exceeded")
+            raise ConnectorRateLimitError(
+                "SP-API rate limit exceeded",
+                retry_after_seconds=_parse_retry_after(response.headers.get("retry-after")),
+            )
         if response.status_code < 200 or response.status_code >= 300:
             raise SpApiHttpError(response.status_code, request_id=request_id)
 

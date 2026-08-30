@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "profile": "HIGH_AUTHORITY",
+  "description": "Maximum practical authority with minimal repeated confirmation for authorized GPT conversations.",
+  "default_decision": "AUTO_ALLOW_IF_REVERSIBLE_OR_PROJECT_SCOPED",
+  "auto_allow": [
+    "read_project_files",
+    "write_project_files",
+    "create_project_files",
+    "move_project_files",
+    "delete_project_files",
+    "run_shell_commands_in_authorized_roots",
+    "run_powershell",
+    "run_python",
+    "run_node",
+    "run_tests",
+    "build_projects",
+    "install_project_dependencies",
+    "git_status",
+    "git_diff",
+    "git_branch",
+    "git_commit",
+    "git_push",
+    "call_configured_cloud_apis",
+    "modify_dns_records",
+    "deploy_websites",
+    "restart_project_services",
+    "use_secret_by_reference_without_plaintext_return"
+  ],
+  "auto_approve_codex_requests_when": [
+    "operation_is_within_authorized_project_root",
+    "operation_does_not_match_hard_confirmation",
+    "operation_is_not_secret_export",
+    "operation_is_not_host_wipe_or_account_destruction"
+  ],
+  "hard_confirmation": [
+    "export_or_reveal_plaintext_secret",
+    "transfer_money_or_make_purchase",
+    "change_bank_or_credit_card_ownership_or_payout_destination",
+    "delete_entire_cloud_account",
+    "delete_or_transfer_registered_domain",
+    "disable_host_security_controls_or_endpoint_protection",
+    "wipe_disk_or_destroy_backup_chain",
+    "change_identity_provider_ownership_or_recovery_channels"
+  ],
+  "secret_policy": {
+    "use_secret": "AUTO_ALLOW",
+    "view_secret": "DENY_BY_DEFAULT",
+    "return_secret_to_gpt": "DENY",
+    "commit_secret": "DENY",
+    "log_secret": "DENY"
+  },
+  "authorization_lifetime": {
+    "per_task_authorization": false,
+    "prefer_one_time_app_authorization": true,
+    "refresh_session_automatically": true,
+    "reauthorize_only_when_refresh_or_platform_policy_requires": true
+  },
+  "remote_surface": {
+    "authenticated_app_required": true,
+    "anonymous_execution": false,
+    "public_raw_shell_endpoint": false
+  }
+}

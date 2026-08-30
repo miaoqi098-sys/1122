@@ -5,7 +5,6 @@ import json
 import os
 import subprocess
 import time
-import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,8 +12,8 @@ from typing import Any
 
 REPO = "miaoqi098-sys/-"
 BRANCH = "codex-dispatch"
-INBOX = "10_对外链接/01_GPT链接Codex/09_GitHub任务桥/inbox/current.json"
-RESULT_DIR = "10_对外链接/01_GPT链接Codex/09_GitHub任务桥/results"
+INBOX = ".codex-bridge/inbox/current.json"
+RESULT_DIR = ".codex-bridge/results"
 GATEWAY = "http://127.0.0.1:8765/mcp/"
 PROTOCOL = "2025-06-18"
 POLL_SECONDS = 30
@@ -23,12 +22,12 @@ STATE_FILE = Path(os.environ.get("LOCALAPPDATA", ".")) / "AmazonAgent" / "GPTCod
 ALLOWED_DOMAIN = "sorilo-uk.com"
 
 
-def log(message: str) -> None:
-    print(f"[{now_iso()}] {message}", flush=True)
-
-
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def log(message: str) -> None:
+    print(f"[{now_iso()}] {message}", flush=True)
 
 
 def gh_api(args: list[str], stdin_text: str | None = None) -> Any:
@@ -49,15 +48,9 @@ def gh_api(args: list[str], stdin_text: str | None = None) -> Any:
     return json.loads(text) if text else None
 
 
-def encode_repo_path(path: str) -> str:
-    # GitHub Contents API path segments must be URL encoded. Keep '/' separators.
-    return urllib.parse.quote(path, safe="/")
-
-
 def read_repo_json(path: str) -> tuple[dict[str, Any] | None, str | None]:
-    endpoint = f"repos/{REPO}/contents/{encode_repo_path(path)}"
+    endpoint = f"repos/{REPO}/contents/{path}"
     try:
-        # IMPORTANT: gh api switches to POST when -f is present unless GET is explicit.
         value = gh_api([endpoint, "--method", "GET", "-f", f"ref={BRANCH}"])
     except RuntimeError as exc:
         if "404" in str(exc):
@@ -75,7 +68,7 @@ def write_repo_json(path: str, value: dict[str, Any], message: str) -> None:
     encoded_content = base64.b64encode(
         (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     ).decode("ascii")
-    endpoint = f"repos/{REPO}/contents/{encode_repo_path(path)}"
+    endpoint = f"repos/{REPO}/contents/{path}"
     args = [
         endpoint,
         "--method",
@@ -112,11 +105,9 @@ def validate_task(task: dict[str, Any]) -> tuple[str, str]:
     task_type = str(task.get("task_type", "")).strip()
     if not task_id or task_type != "website_online":
         raise ValueError("Only task_type=website_online is allowed")
-
     forbidden = {"command", "shell", "powershell", "token", "secret", "password", "credential"}
     if forbidden.intersection({str(k).lower() for k in task.keys()}):
         raise ValueError("Task contains a forbidden field")
-
     params = task.get("parameters") or {}
     if not isinstance(params, dict):
         raise ValueError("parameters must be an object")
@@ -191,7 +182,6 @@ def run_task(task: dict[str, Any]) -> dict[str, Any]:
     if not local_task_id:
         raise RuntimeError("Gateway did not return task_id")
     log(f"CODEX_STARTED local_task_id={local_task_id}")
-
     deadline = time.time() + 1800
     latest: dict[str, Any] = {}
     last_status = None
@@ -204,7 +194,6 @@ def run_task(task: dict[str, Any]) -> dict[str, Any]:
             last_status = status
         if status not in {"RUNNING", "PENDING", "QUEUED"}:
             break
-
     status = str(latest.get("status", "UNKNOWN"))
     summary = latest.get("result") or latest.get("error") or "No result text returned"
     log(f"CODEX_FINISHED status={status}")
@@ -236,7 +225,6 @@ def process_once() -> bool:
     if load_state().get("last_task_id") == task_id:
         log(f"POLL task already processed task_id={task_id}")
         return False
-
     try:
         result = run_task(task)
     except Exception as exc:
@@ -248,9 +236,8 @@ def process_once() -> bool:
             "completed_at": now_iso(),
             "summary": f"Bridge failure: {type(exc).__name__}: {exc}",
         }
-
     safe_name = "".join(c for c in task_id if c.isalnum() or c in "-_")[:80] or "invalid-task"
-    log(f"WRITE_BACK results/{safe_name}.json")
+    log(f"WRITE_BACK {RESULT_DIR}/{safe_name}.json")
     write_repo_json(f"{RESULT_DIR}/{safe_name}.json", result, f"codex bridge: result {safe_name}")
     save_state(task_id)
     log(f"TASK_DONE task_id={task_id}")

@@ -86,3 +86,7 @@ GitHub仅用于源码、版本与备份，不作为每次执行任务的消息�
 本目录当前建立的是长期连接的正式架构与机器契约。后续真实实现需完成：
 
 `Gateway Runtime → Codex App Server Adapter → MCP Tools → 长期认证 → ChatGPT App 发布/连接 → 真实跨对话验收`。
+
+## 外部产品能力边界
+
+ChatGPT 侧能否直接调用带“写入/修改”能力的自定义 MCP 工具，取决于 OpenAI 当时对账户/工作空间开放的产品能力。这个外部限制不改变本工程架构：本地 Gateway、Codex App Server 与长期认证可以先独立实现，待 ChatGPT 侧具备完整写入工具能力后完成最终跨对话接入。

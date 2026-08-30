@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent-1 ProcessedEvent V1.0",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_status",
+    "processing_disposition",
+    "scope",
+    "severity",
+    "first_seen_at",
+    "last_seen_at"
+  ],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "canonical_event_id": {"type": ["string", "null"]},
+    "event_status": {
+      "enum": ["open", "monitoring", "resolved", "closed"]
+    },
+    "processing_disposition": {
+      "enum": [
+        "new_event",
+        "exact_duplicate",
+        "near_duplicate",
+        "update_existing",
+        "merged",
+        "related_not_duplicate"
+      ]
+    },
+    "transition_type": {
+      "enum": ["create", "update", "resolve", "close", "reopen", "none"]
+    },
+    "duplicate_of": {"type": ["string", "null"]},
+    "merged_into": {"type": ["string", "null"]},
+    "merged_event_ids": {"type": "array", "items": {"type": "string"}},
+    "related_event_ids": {"type": "array", "items": {"type": "string"}},
+    "parent_event_id": {"type": ["string", "null"]},
+    "scope": {"type": "object"},
+    "event_type": {"type": ["string", "null"]},
+    "subject": {"type": ["string", "null"]},
+    "severity": {"enum": ["P0", "P1", "P2", "P3", "unknown"]},
+    "previous_severity": {"enum": ["P0", "P1", "P2", "P3", "unknown", "none"]},
+    "severity_change_reason": {"type": ["string", "null"]},
+    "event_fingerprint": {"type": ["string", "null"]},
+    "fingerprint_version": {"type": ["string", "null"]},
+    "source_refs": {"type": "array", "items": {"type": "string"}},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "preserved_differences": {"type": "array"},
+    "relation_records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_event_id", "target_event_id", "relation_type", "direction", "reason"],
+        "properties": {
+          "source_event_id": {"type": "string"},
+          "target_event_id": {"type": "string"},
+          "relation_type": {"type": "string"},
+          "direction": {"enum": ["directed", "symmetric"]},
+          "inverse_relation": {"type": ["string", "null"]},
+          "relation_status": {"enum": ["candidate", "confirmed", "rejected", "unknown"]},
+          "reason": {"type": "string"},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": ["string", "number", "null"]},
+          "created_at": {"type": ["string", "null"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "escalation_reason": {"type": ["string", "null"]},
+    "first_seen_at": {"type": "string"},
+    "last_seen_at": {"type": "string"},
+    "resolved_at": {"type": ["string", "null"]},
+    "closed_at": {"type": ["string", "null"]},
+    "reopened_at": {"type": ["string", "null"]},
+    "reopen_reason": {"type": ["string", "null"]},
+    "resolution_basis": {
+      "enum": [
+        "action_effect_verified",
+        "natural_recovery",
+        "disproved",
+        "canonical_event_takeover",
+        "window_expired",
+        "other",
+        "not_resolved"
+      ]
+    },
+    "resolution_evidence_refs": {"type": "array", "items": {"type": "string"}},
+    "validation_refs": {"type": "array", "items": {"type": "string"}},
+    "resolution_source": {"type": ["string", "null"]},
+    "resolution_confidence": {"enum": ["high", "medium", "low", "unknown"]},
+    "decision_item_refs": {"type": "array", "items": {"type": "string"}},
+    "strategy_chain_refs": {"type": "array", "items": {"type": "string"}},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": true
+}

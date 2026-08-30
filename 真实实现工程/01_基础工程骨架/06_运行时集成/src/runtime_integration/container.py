@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from app.main import create_app
 from configuration import RuntimeSettings, load_settings
 from observability.logging import configure_json_logging
+from runtime_config_validation import validate_runtime_settings
 from runtime_health import RuntimeHealthProvider
 from secrets_runtime import EnvironmentSecretProvider, SecretProvider
 
@@ -33,7 +34,7 @@ class RuntimeContainer:
 
 
 def build_runtime(environ: Mapping[str, str] | None = None) -> RuntimeContainer:
-    settings = load_settings(environ)
+    settings = validate_runtime_settings(load_settings(environ))
     secret_provider = EnvironmentSecretProvider(environ)
     health_provider = RuntimeHealthProvider(settings)
     return RuntimeContainer(

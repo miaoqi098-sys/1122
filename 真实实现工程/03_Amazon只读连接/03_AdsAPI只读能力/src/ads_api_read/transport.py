@@ -23,6 +23,16 @@ class AdsApiHttpError(ConnectorTransportError):
         self.request_id = request_id
 
 
+def _parse_retry_after(value: str | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
 class AdsApiReadTransport:
     """Semantic read-only Amazon Ads transport.
 
@@ -94,7 +104,10 @@ class AdsApiReadTransport:
                 f"Amazon Ads API authorization failed with HTTP {response.status_code}"
             )
         if response.status_code == 429:
-            raise ConnectorRateLimitError("Amazon Ads API rate limit exceeded")
+            raise ConnectorRateLimitError(
+                "Amazon Ads API rate limit exceeded",
+                retry_after_seconds=_parse_retry_after(response.headers.get("retry-after")),
+            )
         if response.status_code < 200 or response.status_code >= 300:
             raise AdsApiHttpError(response.status_code, request_id=request_id)
 

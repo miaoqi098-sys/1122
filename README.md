@@ -2,6 +2,18 @@
 
 本仓库作为亚马逊运营智能体系统的主工程仓库。
 
+## GPT → Codex 长期执行入口
+
+涉及“调用 Codex、让 Codex 执行、让 Codex 施工、让 Codex 修改工程、让 Codex 在本地执行”等需求时，新的 GPT 对话必须优先读取：
+
+`10_对外链接/01_GPT链接Codex/GPT链接Codex_长期执行入口.md`
+
+机器可读配置：
+
+`10_对外链接/01_GPT链接Codex/gpt-codex-control.json`
+
+长期控制面采用：`GPT → GitHub → AACC CodexBridge / LocalOps → NODE-001 → Codex / 固定本地操作`。聊天历史不是该执行链的唯一事实来源；执行前必须 fresh-read GitHub / NODE 状态。若当前 GPT 对话没有 GitHub 写能力或 AACC Runtime 没有 fresh evidence 证明可用，不得伪造“Codex 已执行”。
+
 ## 项目定位
 
 以 Agent-1_运营总控智能体为运营组唯一总控决策中枢，Agent-2 至 Agent-13 负责各专业领域分析；所有 Agent 共用统一的大模型运行、工具、数据接口、长期记忆、调度、执行与公共基础设施。

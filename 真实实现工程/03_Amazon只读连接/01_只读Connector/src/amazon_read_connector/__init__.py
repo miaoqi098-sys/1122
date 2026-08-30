@@ -1,4 +1,4 @@
-from .connector import AmazonReadConnector, RetryPolicy
+from .connector import AmazonReadConnector, RetryDelayPolicy, RetryPolicy, Sleeper
 from .models import (
     AmazonApiFamily,
     ConnectorRequest,
@@ -31,7 +31,9 @@ __all__ = [
     "FakeTransport",
     "READ_ALLOWLIST",
     "ReadOperation",
+    "RetryDelayPolicy",
     "RetryPolicy",
+    "Sleeper",
     "SourceTrace",
     "TransportRequest",
     "TransportResponse",

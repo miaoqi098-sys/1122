@@ -5,15 +5,27 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$WorkerSource = Join-Path $RepoRoot "10_对外链接\01_GPT链接Codex\09_GitHub任务桥\worker.py"
+# Windows PowerShell 5.1 can misread UTF-8 Chinese path literals. Resolve worker.py
+# relative to this script instead of hard-coding the Chinese repository path.
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$WorkerSource = Join-Path $ScriptDir "worker.py"
 $GatewayRoot = Join-Path $env:LOCALAPPDATA "AmazonAgent\GPTCodexGateway"
 $WorkerTarget = Join-Path $GatewayRoot "controlled_bridge_worker.py"
 $Python = Join-Path $GatewayRoot ".venv\Scripts\python.exe"
 
-if (-not (Test-Path $WorkerSource)) {
-  throw "Worker not found: $WorkerSource. Pull the implementation branch/main first."
+if (-not (Test-Path -LiteralPath $WorkerSource)) {
+  $FoundWorker = Get-ChildItem -LiteralPath $RepoRoot -Filter "worker.py" -File -Recurse -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -like "*01_GPT*Codex*" } |
+    Select-Object -First 1
+  if ($FoundWorker) {
+    $WorkerSource = $FoundWorker.FullName
+  }
 }
-if (-not (Test-Path $Python)) {
+
+if (-not (Test-Path -LiteralPath $WorkerSource)) {
+  throw "Worker not found under repository root. Run git pull in C:\AmazonAgent and retry."
+}
+if (-not (Test-Path -LiteralPath $Python)) {
   throw "Gateway Python not found: $Python. Install the GPT-Codex Gateway first."
 }
 

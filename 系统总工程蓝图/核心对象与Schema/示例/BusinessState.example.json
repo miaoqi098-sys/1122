@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "business_state_id": "bs_prod_us_001_20260830T040000Z",
+  "product_id": "prod_us_001",
+  "as_of": "2026-08-30T04:00:00-07:00",
+  "overall_status": "attention",
+  "state_dimensions": [
+    {
+      "dimension_code": "profitability",
+      "status": "attention",
+      "summary": "利润数据可用但仍含估算成本项",
+      "metric_snapshot_refs": ["ms_us_prod_001_2026-08-30T0355Z"],
+      "event_refs": [],
+      "evidence_refs": ["calc:profit:cost-model-v1:prod_us_001:2026-08-30"],
+      "confidence": "medium"
+    },
+    {
+      "dimension_code": "traffic",
+      "status": "healthy",
+      "summary": "当前未发现显著流量风险",
+      "metric_snapshot_refs": ["ms_us_prod_001_2026-08-30T0355Z"],
+      "event_refs": [],
+      "evidence_refs": ["metric:traffic:prod_us_001:2026-08-30"],
+      "confidence": "medium"
+    }
+  ],
+  "evidence_refs": [
+    "ms_us_prod_001_2026-08-30T0355Z",
+    "calc:profit:cost-model-v1:prod_us_001:2026-08-30"
+  ],
+  "assessment_rule_version": "business-state-rules-v1",
+  "generated_by": {
+    "actor_type": "system",
+    "actor_id": "business-state-engine"
+  },
+  "generated_at": "2026-08-30T04:00:05-07:00",
+  "supersedes_state_id": null,
+  "metadata": {}
+}

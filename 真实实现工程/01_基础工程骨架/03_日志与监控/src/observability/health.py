@@ -10,7 +10,7 @@ DependencyStatus = Literal["ok", "degraded", "unavailable", "unknown"]
 
 
 class DependencyHealth(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(min_length=1)
     status: DependencyStatus
@@ -19,14 +19,16 @@ class DependencyHealth(BaseModel):
 
 
 class ServiceHealth(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     status: DependencyStatus
     service: str = Field(min_length=1)
     checked_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    dependencies: list[DependencyHealth] = Field(default_factory=list)
-    write_capability: bool = False
+    ready: bool
+    dependencies: tuple[DependencyHealth, ...] = ()
+    write_capability: Literal[False] = False
 
     def assert_read_only(self) -> None:
-        if self.write_capability:
+        """Backward-compatible assertion; construction already forbids write capability."""
+        if self.write_capability is not False:
             raise ValueError("first implementation batch must remain read-only")

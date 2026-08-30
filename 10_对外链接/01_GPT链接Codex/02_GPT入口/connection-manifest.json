@@ -1,12 +1,12 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "name": "AMAZON_AGENT_GPT_CODEX_LONG_TERM_LINK",
   "display_name": "亚马逊智能体 Codex 执行器",
   "independent_from_aacc": true,
   "github_is_execution_bus": false,
   "primary_path": [
     "ChatGPT custom MCP app",
-    "secure remote channel",
+    "OpenAI Secure MCP Tunnel or supported remote MCP channel",
     "GPT-Codex Gateway",
     "Codex App Server",
     "Codex"
@@ -29,6 +29,21 @@
     "auto_reconnect": true,
     "app_server_auto_restart": true,
     "task_idempotency": true
+  },
+  "verification": {
+    "local_runtime": "LOCAL_RUNTIME_VERIFIED",
+    "remote_mcp": "REMOTE_MCP_ENGINEERING_IN_PROGRESS",
+    "cross_conversation": "PENDING"
+  },
+  "platform_gate": {
+    "checked_at": "2026-08-30",
+    "full_mcp_write_required": true,
+    "official_full_mcp_write_plans": [
+      "ChatGPT Business",
+      "ChatGPT Enterprise",
+      "ChatGPT Edu"
+    ],
+    "plus_full_mcp_write_available": false
   },
   "authority_profile": "HIGH_AUTHORITY",
   "required_tools": [

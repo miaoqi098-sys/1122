@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - implementation/real-v1
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '真实实现工程/01_基础工程骨架/**'
+      - '.github/workflows/real-v1-p1-ci.yml'
   workflow_dispatch:
 
 permissions:

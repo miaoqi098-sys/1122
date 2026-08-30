@@ -1,0 +1,28 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Memory V1.0",
+  "type":"object",
+  "required":["schema_version","memory_id","memory_type","recorded_at","content_summary"],
+  "properties":{
+    "schema_version":{"const":"1.0"},
+    "memory_id":{"type":"string","minLength":1},
+    "product_id":{"type":["string","null"]},
+    "memory_type":{"enum":["fact_history","decision_history","task_history","action_history","validation_learning","stage_summary_ref","strategy_experience","other"]},
+    "content_summary":{"type":"string","minLength":1},
+    "fact_refs":{"type":"array","items":{"type":"string"}},
+    "event_refs":{"type":"array","items":{"type":"string"}},
+    "decision_refs":{"type":"array","items":{"type":"string"}},
+    "task_refs":{"type":"array","items":{"type":"string"}},
+    "action_refs":{"type":"array","items":{"type":"string"}},
+    "validation_refs":{"type":"array","items":{"type":"string"}},
+    "learning_refs":{"type":"array","items":{"type":"string"}},
+    "source_refs":{"type":"array","items":{"type":"string"}},
+    "confidence":{"type":["number","null"],"minimum":0,"maximum":1},
+    "valid_from":{"type":["string","null"],"format":"date-time"},
+    "valid_until":{"type":["string","null"],"format":"date-time"},
+    "recorded_at":{"type":"string","format":"date-time"},
+    "supersedes_memory_id":{"type":["string","null"]},
+    "metadata":{"type":"object"}
+  },
+  "additionalProperties":false
+}

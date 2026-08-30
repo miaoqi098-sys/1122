@@ -21,7 +21,7 @@ Canonical 来源：
 
 ## 当前实现边界
 
-### 已纳入 REAL-P2-01
+### 已实现
 - Pydantic ProductIdentity Model；
 - InMemoryProductIdentityStore；
 - product_id / SKU / ASIN 索引；
@@ -62,8 +62,20 @@ Canonical 来源：
 └── L1验收.md
 ```
 
+## 机器验收
+
+- workflow：`real-v1-p2-ci`
+- run：`33302190845`
+- job：`p2-product-identity-tests`
+- implementation head：`b94fa82a943099fab0a5d3a66203585fa6897e81`
+- 结果：`16 passed in 0.11s`
+- conclusion：`success`
+- 同一 implementation head 的 P1 回归：`success`
+
 ## 成熟度
 
-当前：`IMPLEMENTATION_IN_PROGRESS`
+当前：`MACHINE_VERIFIED`
 
-只有 GitHub Actions 对 exact head 的 P2 测试全部 PASS 后，本文件夹才可晋级为 `MACHINE_VERIFIED`。
+L1记录：`L1验收.md`
+
+下一阶段允许进入 P3 Amazon 只读 Connector，但 P2 的机器通过不代表已取得真实 Amazon 授权、真实读取或持久化数据库能力。

@@ -1,0 +1,24 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"HumanTaskView V0",
+  "type":"object",
+  "required":["task_id","status","priority","summary","why_human_required","created_at"],
+  "properties":{
+    "task_id":{"type":"string"},
+    "product_id":{"type":["string","null"]},
+    "approval_id":{"type":["string","null"]},
+    "human_action_request_id":{"type":["string","null"]},
+    "status":{"type":"string"},
+    "priority":{"enum":["P0","P1","P2","P3","unknown"]},
+    "summary":{"type":"string"},
+    "why_human_required":{"type":"string"},
+    "agent_recommendation":{"type":["string","null"]},
+    "risk_summary":{"type":["string","null"]},
+    "deadline":{"type":["string","null"],"format":"date-time"},
+    "evidence_refs":{"type":"array","items":{"type":"string"}},
+    "available_actions":{"type":"array","items":{"enum":["approve","reject","provide_information","mark_done","open_detail"]}},
+    "created_at":{"type":"string","format":"date-time"},
+    "updated_at":{"type":["string","null"],"format":"date-time"}
+  },
+  "additionalProperties":false
+}

@@ -67,12 +67,13 @@ class AmazonReadConnector:
                         marketplace_id=request.marketplace_id,
                         correlation_id=request.correlation_id,
                         transport_request_id=result.request_id,
+                        rate_limit=result.rate_limit,
+                        response_status_code=result.status_code,
                         attempt_count=attempt,
                         mock=self._mock_transport,
                     ),
                 )
             except ConnectorAuthError:
-                # Authentication failures are not transient and must fail closed.
                 raise
             except (ConnectorRateLimitError, ConnectorTimeoutError):
                 if attempt >= self._retry_policy.max_attempts:

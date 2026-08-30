@@ -206,7 +206,11 @@ def process_once() -> bool:
     if not task:
         return False
     task_id = str(task.get("task_id", "")).strip()
+    task_type = str(task.get("task_type", "")).strip()
     if not task_id:
+        return False
+    if task_type == "none":
+        save_state(task_id)
         return False
     if load_state().get("last_task_id") == task_id:
         return False

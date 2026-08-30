@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,8 @@ BRANCH = "codex-dispatch"
 INBOX = ".codex-bridge/inbox/current.json"
 RESULT_DIR = ".codex-bridge/results"
 GATEWAY = "http://127.0.0.1:8765/mcp/"
+GATEWAY_HEALTH = "http://127.0.0.1:8765/health"
+GATEWAY_TASK_NAME = "AmazonAgent-GPT-Codex-Gateway"
 PROTOCOL = "2025-06-18"
 POLL_SECONDS = 30
 GH_TIMEOUT_SECONDS = 45
@@ -119,7 +122,39 @@ def validate_task(task: dict[str, Any]) -> tuple[str, str]:
     return task_id, domain
 
 
+def gateway_online() -> bool:
+    try:
+        with urllib.request.urlopen(GATEWAY_HEALTH, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        return str(payload.get("gateway", "")).upper() == "ONLINE"
+    except Exception:
+        return False
+
+
+def ensure_gateway_online() -> None:
+    if gateway_online():
+        return
+    log("GATEWAY_OFFLINE attempting scheduled-task recovery")
+    proc = subprocess.run(
+        ["schtasks", "/Run", "/TN", GATEWAY_TASK_NAME],
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=20,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"Unable to start Gateway scheduled task: {proc.stderr.strip()[:500]}")
+    deadline = time.time() + 45
+    while time.time() < deadline:
+        if gateway_online():
+            log("GATEWAY_RECOVERED ONLINE")
+            return
+        time.sleep(2)
+    raise RuntimeError("Gateway did not become ONLINE within 45 seconds")
+
+
 def mcp_call(name: str, arguments: dict[str, Any], request_id: int) -> dict[str, Any]:
+    ensure_gateway_online()
     payload = {
         "jsonrpc": "2.0",
         "id": request_id,
@@ -134,8 +169,14 @@ def mcp_call(name: str, arguments: dict[str, Any], request_id: int) -> dict[str,
     request.add_header("Content-Type", "application/json")
     request.add_header("Accept", "application/json, text/event-stream")
     request.add_header("MCP-Protocol-Version", PROTOCOL)
-    with urllib.request.urlopen(request, timeout=120) as response:
-        raw = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            raw = json.loads(response.read().decode("utf-8"))
+    except urllib.error.URLError:
+        log("GATEWAY_CALL_FAILED retrying after recovery")
+        ensure_gateway_online()
+        with urllib.request.urlopen(request, timeout=120) as response:
+            raw = json.loads(response.read().decode("utf-8"))
     if "error" in raw:
         raise RuntimeError(f"Gateway MCP error: {raw['error']}")
     return raw

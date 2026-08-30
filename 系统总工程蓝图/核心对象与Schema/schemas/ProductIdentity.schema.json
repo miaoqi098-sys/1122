@@ -35,12 +35,10 @@
     },
     "asin": {
       "type": ["string", "null"],
-      "minLength": 1,
       "description": "当前 Amazon ASIN。不可作为跨模块唯一系统主键。"
     },
     "sku": {
       "type": ["string", "null"],
-      "minLength": 1,
       "description": "当前 Seller SKU。其唯一性只在指定 seller_account_id + marketplace_id 语境内成立。"
     },
     "fnsku": {
@@ -83,12 +81,18 @@
       "type": "object"
     }
   },
-  "allOf": [
+  "anyOf": [
     {
-      "anyOf": [
-        {"required": ["asin"]},
-        {"required": ["sku"]}
-      ]
+      "required": ["asin"],
+      "properties": {
+        "asin": {"type": "string", "minLength": 1}
+      }
+    },
+    {
+      "required": ["sku"],
+      "properties": {
+        "sku": {"type": "string", "minLength": 1}
+      }
     }
   ],
   "additionalProperties": false

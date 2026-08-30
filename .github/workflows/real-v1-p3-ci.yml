@@ -1,0 +1,42 @@
+name: real-v1-p3-ci
+
+on:
+  push:
+    branches:
+      - implementation/real-v1
+    paths:
+      - '真实实现工程/03_Amazon只读连接/**'
+      - '.github/workflows/real-v1-p3-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '真实实现工程/03_Amazon只读连接/**'
+      - '真实实现工程/01_基础工程骨架/04_Secret引用/**'
+      - '.github/workflows/real-v1-p3-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p3-amazon-read-connector-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install P3 test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "pydantic>=2.9,<3.0" "pytest>=8.3,<9.0"
+
+      - name: Run Amazon read connector tests
+        working-directory: 真实实现工程/03_Amazon只读连接/01_只读Connector
+        run: python -m pytest -q

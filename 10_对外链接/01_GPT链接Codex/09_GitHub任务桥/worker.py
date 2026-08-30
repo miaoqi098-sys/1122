@@ -21,6 +21,7 @@ GATEWAY_TASK_NAME = "AmazonAgent-GPT-Codex-Gateway"
 PROTOCOL = "2025-06-18"
 POLL_SECONDS = 30
 GH_TIMEOUT_SECONDS = 45
+MAX_CODEX_SECONDS = 180
 STATE_FILE = Path(os.environ.get("LOCALAPPDATA", ".")) / "AmazonAgent" / "GPTCodexGateway" / "bridge-state.json"
 ALLOWED_DOMAIN = "sorilo-uk.com"
 
@@ -72,17 +73,7 @@ def write_repo_json(path: str, value: dict[str, Any], message: str) -> None:
         (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     ).decode("ascii")
     endpoint = f"repos/{REPO}/contents/{path}"
-    args = [
-        endpoint,
-        "--method",
-        "PUT",
-        "-f",
-        f"message={message}",
-        "-f",
-        f"content={encoded_content}",
-        "-f",
-        f"branch={BRANCH}",
-    ]
+    args = [endpoint, "--method", "PUT", "-f", f"message={message}", "-f", f"content={encoded_content}", "-f", f"branch={BRANCH}"]
     if sha:
         args += ["-f", f"sha={sha}"]
     gh_api(args)
@@ -112,9 +103,7 @@ def validate_task(task: dict[str, Any]) -> tuple[str, str]:
     if forbidden.intersection({str(k).lower() for k in task.keys()}):
         raise ValueError("Task contains a forbidden field")
     params = task.get("parameters") or {}
-    if not isinstance(params, dict):
-        raise ValueError("parameters must be an object")
-    if set(params) - {"domain"}:
+    if not isinstance(params, dict) or set(params) - {"domain"}:
         raise ValueError("Only the domain parameter is allowed")
     domain = str(params.get("domain") or ALLOWED_DOMAIN).strip().lower()
     if domain != ALLOWED_DOMAIN:
@@ -135,13 +124,7 @@ def ensure_gateway_online() -> None:
     if gateway_online():
         return
     log("GATEWAY_OFFLINE attempting scheduled-task recovery")
-    proc = subprocess.run(
-        ["schtasks", "/Run", "/TN", GATEWAY_TASK_NAME],
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=20,
-    )
+    proc = subprocess.run(["schtasks", "/Run", "/TN", GATEWAY_TASK_NAME], text=True, capture_output=True, check=False, timeout=20)
     if proc.returncode != 0:
         raise RuntimeError(f"Unable to start Gateway scheduled task: {proc.stderr.strip()[:500]}")
     deadline = time.time() + 45
@@ -155,28 +138,13 @@ def ensure_gateway_online() -> None:
 
 def mcp_call(name: str, arguments: dict[str, Any], request_id: int) -> dict[str, Any]:
     ensure_gateway_online()
-    payload = {
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "method": "tools/call",
-        "params": {"name": name, "arguments": arguments},
-    }
-    request = urllib.request.Request(
-        GATEWAY,
-        data=json.dumps(payload).encode("utf-8"),
-        method="POST",
-    )
+    payload = {"jsonrpc": "2.0", "id": request_id, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+    request = urllib.request.Request(GATEWAY, data=json.dumps(payload).encode("utf-8"), method="POST")
     request.add_header("Content-Type", "application/json")
     request.add_header("Accept", "application/json, text/event-stream")
     request.add_header("MCP-Protocol-Version", PROTOCOL)
-    try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            raw = json.loads(response.read().decode("utf-8"))
-    except urllib.error.URLError:
-        log("GATEWAY_CALL_FAILED retrying after recovery")
-        ensure_gateway_online()
-        with urllib.request.urlopen(request, timeout=120) as response:
-            raw = json.loads(response.read().decode("utf-8"))
+    with urllib.request.urlopen(request, timeout=120) as response:
+        raw = json.loads(response.read().decode("utf-8"))
     if "error" in raw:
         raise RuntimeError(f"Gateway MCP error: {raw['error']}")
     return raw
@@ -187,43 +155,32 @@ def extract_tool_payload(response: dict[str, Any]) -> dict[str, Any]:
     structured = result.get("structuredContent")
     if isinstance(structured, dict):
         return structured
-    content = result.get("content") or []
-    for item in content:
+    for item in result.get("content") or []:
         if isinstance(item, dict) and isinstance(item.get("text"), str):
             try:
                 parsed = json.loads(item["text"])
                 if isinstance(parsed, dict):
                     return parsed
             except json.JSONDecodeError:
-                continue
+                pass
     raise RuntimeError("Unable to decode Gateway tool response")
 
 
 def website_instruction(domain: str) -> str:
-    return f"""You are the local execution hand for the Amazon Agent project. Perform ONLY the deployment/infrastructure work needed to make https://{domain} publicly reachable. Do not redesign or rewrite website business content. Work from C:\\AmazonAgent and use the existing website source under the API qualification website project. Inspect the current Git state and deployment state first. Then, using only already-authorized local Cloudflare credentials or locally configured tooling, deploy the existing static site to Cloudflare Pages (or repair the existing Pages deployment), attach the custom domain {domain}, create or correct the necessary DNS records, ensure HTTPS/TLS becomes active, and verify the public homepage responds successfully over HTTPS. Never print, copy, commit, or return any token, password, API secret, refresh token, or credential. Do not alter unrelated DNS records. Do not transfer the domain, change registrar ownership, delete the zone, or disable account security. Return a concise report containing: deployment project/status, DNS records changed (record type/name/target only), custom-domain status, HTTPS status, homepage HTTP status, and any remaining blocker."""
+    return f"""Perform ONLY the deployment/infrastructure work required to make https://{domain} publicly reachable using the existing website source under C:\\AmazonAgent. Do not redesign or rewrite business content. You may use Cloudflare/Wrangler only if a valid non-interactive local authorization already exists. CRITICAL: never launch, wait for, or depend on an interactive browser login, OAuth prompt, device-code flow, or terminal prompt. If Cloudflare is not already authorized non-interactively, stop immediately and return status AUTH_REQUIRED with the exact local authorization capability that is missing; do not keep running. Never print or return credentials. Do not alter unrelated DNS records, registrar ownership, zone ownership, or account security. If authorized, deploy the existing static site, bind {domain}, correct only required DNS, enable/verify HTTPS, and verify the homepage. Return deployment status, DNS changes, custom-domain status, HTTPS status, homepage HTTP status, and blockers."""
 
 
 def run_task(task: dict[str, Any]) -> dict[str, Any]:
     task_id, domain = validate_task(task)
     log(f"TASK_FOUND task_id={task_id} type=website_online domain={domain}")
     log("CODEX_START sending task to local Gateway")
-    start = extract_tool_payload(
-        mcp_call(
-            "codex_start_task",
-            {
-                "project_id": "amazon-agent",
-                "conversation_id": "github-bridge-website-online",
-                "instruction": website_instruction(domain),
-                "title": f"Bring {domain} online",
-            },
-            101,
-        )
-    )
+    start = extract_tool_payload(mcp_call("codex_start_task", {"project_id": "amazon-agent", "conversation_id": "github-bridge-website-online", "instruction": website_instruction(domain), "title": f"Bring {domain} online"}, 101))
     local_task_id = str(start.get("task_id", ""))
     if not local_task_id:
         raise RuntimeError("Gateway did not return task_id")
     log(f"CODEX_STARTED local_task_id={local_task_id}")
-    deadline = time.time() + 1800
+
+    deadline = time.time() + MAX_CODEX_SECONDS
     latest: dict[str, Any] = {}
     last_status = None
     while time.time() < deadline:
@@ -234,18 +191,17 @@ def run_task(task: dict[str, Any]) -> dict[str, Any]:
             log(f"CODEX_STATUS {status or 'UNKNOWN'}")
             last_status = status
         if status not in {"RUNNING", "PENDING", "QUEUED"}:
-            break
-    status = str(latest.get("status", "UNKNOWN"))
-    summary = latest.get("result") or latest.get("error") or "No result text returned"
-    log(f"CODEX_FINISHED status={status}")
-    return {
-        "task_id": task_id,
-        "task_type": "website_online",
-        "status": status,
-        "completed_at": now_iso(),
-        "summary": str(summary)[:12000],
-        "local_codex_task_id": local_task_id,
-    }
+            summary = latest.get("result") or latest.get("error") or "No result text returned"
+            log(f"CODEX_FINISHED status={status or 'UNKNOWN'}")
+            return {"task_id": task_id, "task_type": "website_online", "status": status or "UNKNOWN", "completed_at": now_iso(), "summary": str(summary)[:12000], "local_codex_task_id": local_task_id}
+
+    log(f"CODEX_TIMEOUT after={MAX_CODEX_SECONDS}s cancelling local_task_id={local_task_id}")
+    try:
+        mcp_call("codex_cancel_task", {"task_id": local_task_id}, 103)
+        cancel_note = "Codex task was cancelled automatically."
+    except Exception as exc:
+        cancel_note = f"Cancellation request failed: {type(exc).__name__}: {exc}"
+    return {"task_id": task_id, "task_type": "website_online", "status": "TIMEOUT", "completed_at": now_iso(), "summary": f"Codex remained non-terminal for more than {MAX_CODEX_SECONDS} seconds. {cancel_note}", "local_codex_task_id": local_task_id}
 
 
 def process_once() -> bool:
@@ -257,11 +213,9 @@ def process_once() -> bool:
     task_id = str(task.get("task_id", "")).strip()
     task_type = str(task.get("task_type", "")).strip()
     if not task_id:
-        log("POLL inbox task has no task_id")
         return False
     if task_type == "none":
         save_state(task_id)
-        log(f"POLL ignored bootstrap task {task_id}")
         return False
     if load_state().get("last_task_id") == task_id:
         log(f"POLL task already processed task_id={task_id}")
@@ -270,13 +224,7 @@ def process_once() -> bool:
         result = run_task(task)
     except Exception as exc:
         log(f"TASK_FAILED {type(exc).__name__}: {exc}")
-        result = {
-            "task_id": task_id,
-            "task_type": str(task.get("task_type", "unknown")),
-            "status": "FAILED",
-            "completed_at": now_iso(),
-            "summary": f"Bridge failure: {type(exc).__name__}: {exc}",
-        }
+        result = {"task_id": task_id, "task_type": str(task.get("task_type", "unknown")), "status": "FAILED", "completed_at": now_iso(), "summary": f"Bridge failure: {type(exc).__name__}: {exc}"}
     safe_name = "".join(c for c in task_id if c.isalnum() or c in "-_")[:80] or "invalid-task"
     log(f"WRITE_BACK {RESULT_DIR}/{safe_name}.json")
     write_repo_json(f"{RESULT_DIR}/{safe_name}.json", result, f"codex bridge: result {safe_name}")
@@ -287,7 +235,7 @@ def process_once() -> bool:
 
 def main() -> None:
     print("AmazonAgent controlled Codex task bridge ONLINE", flush=True)
-    print(f"Repository: {REPO} | branch: {BRANCH} | task: website_online", flush=True)
+    print(f"Repository: {REPO} | branch: {BRANCH} | task: website_online | max_runtime={MAX_CODEX_SECONDS}s", flush=True)
     while True:
         try:
             process_once()

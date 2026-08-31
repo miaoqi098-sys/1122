@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Amazon SP-API 连接中心 · 1122</title>
+<style>
+:root{--bg:#f6f7fb;--panel:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--dark:#111827;--ok:#ecfdf5;--warn:#fff7ed;--bad:#fef2f2;--blue:#eff6ff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}button,input,select{font:inherit}.main{max-width:1180px;margin:auto;padding:28px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}.title h1{margin:0;font-size:28px}.title p{margin:7px 0 0;color:var(--muted);line-height:1.6}.btn{border:0;border-radius:10px;padding:10px 13px;background:var(--dark);color:white;cursor:pointer}.btn.secondary{background:white;color:var(--dark);border:1px solid var(--line)}.btn:disabled{opacity:.45;cursor:not-allowed}.banner{background:var(--blue);border:1px solid #dbeafe;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.7}.banner.warn{background:var(--warn);border-color:#fed7aa}.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 2px 10px rgba(15,23,42,.04)}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.section-title h2{font-size:18px;margin:0}.pill{display:inline-flex;font-size:12px;padding:5px 9px;border-radius:999px;background:var(--warn)}.pill.ok{background:var(--ok)}.pill.bad{background:var(--bad)}.form{display:grid;gap:15px}.field{display:flex;flex-direction:column;gap:7px}.field label{font-size:13px;font-weight:700}.field small,.meta{font-size:12px;color:var(--muted);line-height:1.55}.field-row{display:flex;gap:8px}.input{width:100%;border:1px solid #d1d5db;border-radius:10px;padding:11px 12px;outline:none;background:#fff}.input:focus{border-color:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,.12)}.reveal{border:1px solid var(--line);background:#fff;border-radius:10px;padding:0 12px;cursor:pointer}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.result{margin-top:14px;border-radius:12px;padding:13px 14px;font-size:13px;line-height:1.6;background:#f9fafb;border:1px solid var(--line)}.result.ok{background:var(--ok);border-color:#a7f3d0}.result.bad{background:var(--bad);border-color:#fecaca}.item{border-top:1px solid var(--line);padding:13px 0}.item:first-of-type{border-top:0}.item strong{display:block;margin-bottom:5px}.check{display:inline-flex;align-items:center;gap:8px}.dot{width:8px;height:8px;border-radius:50%;background:#f59e0b}.dot.ok{background:#10b981}.security{margin-top:16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:12px;padding:14px;font-size:12px;color:var(--muted);line-height:1.65}@media(max-width:850px){.grid{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.main{padding:16px}}
+</style>
+</head>
+<body>
+<main class="main">
+<div class="topbar"><div class="title"><h1>Amazon SP-API 连接中心</h1><p>1122 私有开发者连接入口 · LWA（Login with Amazon）认证</p></div><button class="btn secondary" onclick="location.href='index.html'">← 返回 1122</button></div>
+<div class="banner"><strong>当前状态：</strong>Private Developer（私有开发者）资料已审核通过，LWA Client（客户端）已创建。下一关键步骤是 Self-Authorization（自授权）并取得 Refresh Token（刷新令牌）。</div>
+<div class="banner warn"><strong>重要：</strong>仅有 Client Secret（客户端密钥）不能连接 SP-API。普通卖家授权型 SP-API 调用需要 LWA Client ID + LWA Client Secret + LWA Refresh Token。此页面当前不把任何凭据写入 GitHub、localStorage（浏览器本地存储）或页面日志。</div>
+<div class="grid">
+<section class="card">
+<div class="section-title"><h2>LWA 凭据</h2><span class="pill" id="credentialStatus">待补齐 Refresh Token</span></div>
+<div class="form" autocomplete="off">
+<div class="field"><label for="clientId">1. LWA Client ID（客户端 ID）</label><input class="input" id="clientId" type="text" autocomplete="off" spellcheck="false" placeholder="amzn1.application-oa2-client..."><small>来自刚创建的 App Client（应用客户端）。</small></div>
+<div class="field"><label for="clientSecret">2. LWA Client Secret（客户端密钥）</label><div class="field-row"><input class="input" id="clientSecret" type="password" autocomplete="new-password" spellcheck="false" placeholder="粘贴 Client Secret"><button class="reveal" type="button" onclick="toggleSecret('clientSecret',this)">显示</button></div><small>高敏感凭据，不要发送到聊天、公开仓库或截图。</small></div>
+<div class="field"><label for="refreshToken">3. LWA Refresh Token（刷新令牌）</label><div class="field-row"><input class="input" id="refreshToken" type="password" autocomplete="new-password" spellcheck="false" placeholder="完成 Self-Authorization 后粘贴 Refresh Token"><button class="reveal" type="button" onclick="toggleSecret('refreshToken',this)">显示</button></div><small>这是长期代表 SORILO Seller Central 账户授权 1122 调用 SP-API 的核心凭据。</small></div>
+<div class="field"><label for="region">4. SP-API Region（区域）</label><select class="input" id="region"><option value="na" selected>North America（北美）</option><option value="eu">Europe（欧洲）</option><option value="fe">Far East（远东）</option></select><small>美国站使用 North America（北美）端点。</small></div>
+</div>
+<div class="actions"><button class="btn" onclick="checkCredentials()">检查连接资料</button><button class="btn secondary" onclick="clearCredentials()">清空输入</button></div>
+<div class="result" id="result">尚未执行检查。</div>
+<div class="security"><strong>长期接入方式：</strong>三项 LWA 凭据齐全并验证成功后，应迁移到 Backend Secret（后端加密密钥）中。1122 前端只显示“已连接/未连接”和授权范围，不长期保存真实密钥。</div>
+</section>
+<section class="card">
+<div class="section-title"><h2>接入进度</h2><span class="pill">SP-API</span></div>
+<div class="item"><strong class="check"><span class="dot ok"></span>Private Developer（私有开发者）</strong><div class="meta">开发者资料审核完成。</div></div>
+<div class="item"><strong class="check"><span class="dot ok"></span>LWA Client（应用客户端）</strong><div class="meta">Client ID / Client Secret 已可获取。</div></div>
+<div class="item"><strong class="check"><span class="dot"></span>Self-Authorization（自授权）</strong><div class="meta">下一步在 Amazon Developer Center 对私有应用执行自授权。</div></div>
+<div class="item"><strong class="check"><span class="dot"></span>Refresh Token（刷新令牌）</strong><div class="meta">取得后与 Client ID / Secret 一起换取约 1 小时有效的 LWA Access Token。</div></div>
+<div class="item"><strong class="check"><span class="dot"></span>真实 SP-API 测试</strong><div class="meta">第一条建议使用只读接口验证身份、区域和授权角色；成功后再开放 Listing / Pricing 等写操作。</div></div>
+<div class="item"><strong>目标能力</strong><div class="meta">商品 Listing、标题/五点/描述、价格、库存、FBA、财务与运营数据。高影响写操作后续进入任务中心审批。</div></div>
+</section>
+</div>
+</main>
+<script>
+function toggleSecret(id,btn){const el=document.getElementById(id);el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'显示':'隐藏'}
+function setResult(msg,type=''){const r=document.getElementById('result');r.textContent=msg;r.className='result'+(type?' '+type:'')}
+function checkCredentials(){const id=document.getElementById('clientId').value.trim();const secret=document.getElementById('clientSecret').value.trim();const refresh=document.getElementById('refreshToken').value.trim();const status=document.getElementById('credentialStatus');if(!id||!secret||!refresh){const missing=[];if(!id)missing.push('Client ID');if(!secret)missing.push('Client Secret');if(!refresh)missing.push('Refresh Token');status.textContent='资料未完整';status.className='pill bad';setResult('还不能连接 SP-API，缺少：'+missing.join('、')+'。','bad');return}if(!id.startsWith('amzn1.application-oa2-client.')){status.textContent='Client ID 待核对';status.className='pill bad';setResult('Client ID 格式看起来不正确，请重新核对 Amazon LWA Client ID。','bad');return}status.textContent='三项凭据已齐全';status.className='pill ok';setResult('三项 LWA 凭据已齐全。下一步由安全后端使用 Refresh Token + Client ID + Client Secret 向 https://api.amazon.com/auth/o2/token 换取 Access Token，再执行第一条 SP-API 只读测试。当前页面不会持久化这些值。','ok')}
+function clearCredentials(){['clientId','clientSecret','refreshToken'].forEach(id=>document.getElementById(id).value='');const status=document.getElementById('credentialStatus');status.textContent='待补齐 Refresh Token';status.className='pill';setResult('输入已清空。')}
+</script>
+</body>
+</html>

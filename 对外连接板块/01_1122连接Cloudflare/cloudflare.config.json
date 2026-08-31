@@ -1,0 +1,8 @@
+{
+  "account_id": "bc7efad100a5eb6c7bf5c5b4363dce37",
+  "zone_name": "sorilo-uk.com",
+  "pages_project": "sorilo-uk",
+  "production_branch": "production",
+  "site_directory": "运营板块/站外推广板块/01_品牌官网与独立站/01_API资质官网/site",
+  "worker_bridge_url": "https://1122-cloudflare-bridge.zhangshuaibing01.workers.dev"
+}

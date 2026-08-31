@@ -1,12 +1,7 @@
 {
-    "task_id":  "20260831-local-readonly-001",
-    "task_type":  "local_readonly_test",
-    "status":  "TIMEOUT",
-    "started_at":  "2026-08-30T19:32:44.3335087Z",
-    "completed_at":  "2026-08-30T19:34:45.0413309Z",
-    "summary":  "Codex task runner exceeded its hard execution limit.",
-    "changes":  [
-
-                ],
-    "blocker":  "RUNNER_TIMEOUT"
+  "task_id": "20260831-local-readonly-001",
+  "task_type": "local_readonly_test",
+  "status": "FAILED",
+  "completed_at": "2026-08-31T13:08:27.703078+00:00",
+  "summary": "Bridge failure: ValueError: Only task_type=website_online is allowed"
 }

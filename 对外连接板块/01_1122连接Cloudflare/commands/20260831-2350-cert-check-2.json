@@ -1,0 +1,8 @@
+{
+  "command_id": "20260831-2350-cert-check-2",
+  "action": "pages.read_custom_domain",
+  "confirm": false,
+  "params": {
+    "domain": "sorilo-uk.com"
+  }
+}

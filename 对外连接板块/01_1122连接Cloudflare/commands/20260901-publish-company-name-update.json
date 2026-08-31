@@ -1,0 +1,6 @@
+{
+  "command_id": "20260901-publish-company-name-update",
+  "action": "website.publish",
+  "confirm": true,
+  "params": {}
+}

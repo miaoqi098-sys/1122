@@ -1,0 +1,6 @@
+{
+  "command_id": "20260831-2340-status-after-publish",
+  "action": "status.read",
+  "confirm": false,
+  "params": {}
+}

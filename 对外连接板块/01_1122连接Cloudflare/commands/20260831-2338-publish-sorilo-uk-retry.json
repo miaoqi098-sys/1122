@@ -1,0 +1,6 @@
+{
+  "command_id": "20260831-2338-publish-sorilo-uk-retry",
+  "action": "website.publish",
+  "confirm": true,
+  "params": {}
+}

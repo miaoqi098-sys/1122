@@ -26,16 +26,19 @@ function json(data, status = 200, origin = "") {
   });
 }
 
-function validateCredentialShape(clientId, clientSecret, refreshToken, region) {
+function getServerCredentials(env) {
+  const clientId = String(env.AMAZON_LWA_CLIENT_ID || "").trim();
+  const clientSecret = String(env.AMAZON_LWA_CLIENT_SECRET || "").trim();
+  const refreshToken = String(env.AMAZON_LWA_REFRESH_TOKEN || "").trim();
+
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("LWA Client ID、Client Secret、Refresh Token 必须全部填写");
+    throw new Error("Worker Secret 未完整配置 Amazon LWA 三项凭据");
   }
   if (!clientId.startsWith("amzn1.application-oa2-client.")) {
-    throw new Error("LWA Client ID 格式不正确");
+    throw new Error("Worker Secret 中的 LWA Client ID 格式不正确");
   }
-  if (!REGION_ENDPOINTS[region]) {
-    throw new Error("SP-API Region 不受支持");
-  }
+
+  return { clientId, clientSecret, refreshToken };
 }
 
 async function exchangeAccessToken(clientId, clientSecret, refreshToken) {
@@ -81,7 +84,7 @@ async function getMarketplaceParticipations(endpoint, accessToken) {
       "Accept": "application/json",
       "x-amz-access-token": accessToken,
       "x-amz-date": new Date().toISOString().replace(/[:-]|\.\d{3}/g, ""),
-      "user-agent": "1122AmazonBridge/1.0 (Language=JavaScript; Platform=CloudflareWorkers)",
+      "user-agent": "1122AmazonBridge/2.0 (Language=JavaScript; Platform=CloudflareWorkers)",
     },
   });
 
@@ -101,8 +104,39 @@ async function getMarketplaceParticipations(endpoint, accessToken) {
   return Array.isArray(data.payload) ? data.payload : [];
 }
 
+async function buildConnectionStatus(env) {
+  const { clientId, clientSecret, refreshToken } = getServerCredentials(env);
+  const region = "na";
+  const endpoint = REGION_ENDPOINTS[region];
+  const lwa = await exchangeAccessToken(clientId, clientSecret, refreshToken);
+  const participations = await getMarketplaceParticipations(endpoint, lwa.accessToken);
+
+  const marketplaces = participations.map((entry) => ({
+    countryCode: entry?.marketplace?.countryCode || null,
+    domainName: entry?.marketplace?.domainName || null,
+    isParticipating: entry?.participation?.isParticipating ?? null,
+  }));
+
+  return {
+    success: true,
+    message: "1122 已成功连接 Amazon SP-API",
+    connection: "connected",
+    authentication: {
+      lwaAccessTokenIssued: true,
+      expiresIn: lwa.expiresIn,
+    },
+    spApi: {
+      region,
+      testOperation: "getMarketplaceParticipations",
+      marketplaceCount: marketplaces.length,
+      marketplaces,
+    },
+    credentialMode: "worker-secrets",
+  };
+}
+
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
 
@@ -115,8 +149,8 @@ export default {
         ok: true,
         service: "1122-amazon-sp-api-bridge",
         status: "online",
-        version: "1.0.0",
-        persistence: "none",
+        version: "2.0.0",
+        credentialMode: "worker-secrets",
       }, 200, origin);
     }
 
@@ -124,54 +158,25 @@ export default {
       return json({ success: false, message: "Origin not allowed" }, 403, origin);
     }
 
-    if (request.method === "POST" && url.pathname === "/test-connection") {
+    if (request.method === "GET" && url.pathname === "/connection-status") {
       try {
-        const body = await request.json();
-        const clientId = String(body.clientId || "").trim();
-        const clientSecret = String(body.clientSecret || "").trim();
-        const refreshToken = String(body.refreshToken || "").trim();
-        const region = String(body.region || "na").trim();
-
-        validateCredentialShape(clientId, clientSecret, refreshToken, region);
-
-        const lwa = await exchangeAccessToken(clientId, clientSecret, refreshToken);
-        const endpoint = REGION_ENDPOINTS[region];
-        const participations = await getMarketplaceParticipations(endpoint, lwa.accessToken);
-
-        const marketplaces = participations.map((entry) => ({
-          id: entry?.marketplace?.id || null,
-          name: entry?.marketplace?.name || null,
-          countryCode: entry?.marketplace?.countryCode || null,
-          domainName: entry?.marketplace?.domainName || null,
-          defaultCurrencyCode: entry?.marketplace?.defaultCurrencyCode || null,
-          isParticipating: entry?.participation?.isParticipating ?? null,
-          hasSuspendedListings: entry?.participation?.hasSuspendedListings ?? null,
-        }));
-
-        return json({
-          success: true,
-          message: "1122 已成功连接 Amazon SP-API",
-          authentication: {
-            lwaAccessTokenIssued: true,
-            expiresIn: lwa.expiresIn,
-            tokenType: lwa.tokenType,
-          },
-          spApi: {
-            region,
-            endpoint,
-            testOperation: "getMarketplaceParticipations",
-            marketplaceCount: marketplaces.length,
-            marketplaces,
-          },
-          credentialsPersisted: false,
-        }, 200, origin);
+        const status = await buildConnectionStatus(env);
+        return json(status, 200, origin);
       } catch (error) {
         return json({
           success: false,
-          message: "Amazon SP-API 连接测试失败",
+          message: "Amazon SP-API 后端连接检查失败",
           error: error.message,
+          credentialMode: "worker-secrets",
         }, 400, origin);
       }
+    }
+
+    if (request.method === "POST" && url.pathname === "/test-connection") {
+      return json({
+        success: false,
+        message: "已切换为 Worker Secret（后端密钥）模式。请刷新 1122，使用连接状态检查。",
+      }, 410, origin);
     }
 
     return json({ success: false, message: "Endpoint（接口地址）不存在" }, 404, origin);

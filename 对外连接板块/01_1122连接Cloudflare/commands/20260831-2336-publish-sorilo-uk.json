@@ -1,0 +1,6 @@
+{
+  "command_id": "20260831-2336-publish-sorilo-uk",
+  "action": "website.publish",
+  "confirm": true,
+  "params": {}
+}

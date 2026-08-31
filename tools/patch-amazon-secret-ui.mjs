@@ -3,65 +3,54 @@ import fs from 'node:fs';
 const path = 'index.html';
 let html = fs.readFileSync(path, 'utf8');
 
-function replaceIfPresent(search, replacement) {
-  if (html.includes(search)) html = html.replace(search, replacement);
+function replaceOnce(search, replacement, label) {
+  if (!html.includes(search)) throw new Error(`Missing target: ${label}`);
+  html = html.replace(search, replacement);
 }
 
-replaceIfPresent(
-  '<strong>Amazon SP-API：执行真实连接测试</strong><div class="meta">Self-Authorization 已完成，Refresh Token 已取得，正在验证生产 SP-API。</div>',
-  '<strong>Amazon SP-API：已连接</strong><div class="meta">Self-Authorization 已完成，LWA 凭据已迁移至 Worker Secret，真实只读 API 已验证。</div>'
-);
+const amazonCard = '<div class="conn"><h3>Amazon API</h3><span class="tag ok"><span class="dot"></span>已连接</span><p>Private Developer、自授权与真实 SP-API 测试已完成；LWA 凭据已迁移至 Worker Secret。</p><div class="actions"><button class="btn" onclick="openAmazon()">配置 Amazon API</button><button class="btn secondary" onclick="openWebsiteCenter()">查看资质官网</button></div></div>';
+const emailCard = '<div class="conn"><h3>邮箱</h3><span class="tag warn" id="emailCardStatus"><span class="dot"></span>待配置</span><p>163 邮箱 IMAP 后端桥。用于 Amazon 审核邮件、运营通知和后续任务自动化。</p><div class="actions"><button class="btn" onclick="openEmail()">查看邮箱连接</button></div></div>';
+if (!html.includes(emailCard)) {
+  replaceOnce(amazonCard, `${amazonCard}\n${emailCard}`, 'email connection card');
+}
 
-replaceIfPresent(
-  '<div class="item"><strong>Amazon API</strong><div class="meta">Private Developer 与 Self-Authorization 已完成，正在验证真实 SP-API。</div></div>',
-  '<div class="item"><strong>Amazon API</strong><div class="meta">Private Developer、自授权、LWA 与 Sellers API 已连通。</div></div>'
-);
-
-replaceIfPresent(
-  '<span class="tag warn"><span class="dot"></span>待连接验证</span>',
-  '<span class="tag ok"><span class="dot"></span>已连接</span>'
-);
-
-replaceIfPresent(
-  '<p>Private Developer 与 Self-Authorization 已完成；当前进行生产 SP-API 真实连通测试。</p>',
-  '<p>Private Developer、自授权与真实 SP-API 测试已完成；LWA 凭据已迁移至 Worker Secret。</p>'
-);
-
-const amazonSection = `<section id="amazon" class="view">
-<div class="crumb">对外连接 / Amazon API / SP-API</div>
-<div class="topbar"><div class="title"><h1>Amazon SP-API 连接</h1><p>Private Developer（私有开发者）· Worker Secret（后端加密密钥）模式 · SORILO 内部应用。</p></div><button class="btn secondary" onclick="openView('connections',nav.querySelectorAll('a')[7])">← 返回对外连接</button></div>
-<div class="banner"><strong>当前状态：</strong>Self-Authorization（自授权）已完成，LWA Client ID / Client Secret / Refresh Token 已保存到 Amazon Secure Bridge 的 Worker Secret 中。1122 前端不再接触长期密钥。</div>
+const emailSection = `<section id="email" class="view">
+<div class="crumb">对外连接 / 邮箱 / 163 IMAP</div>
+<div class="topbar"><div class="title"><h1>邮箱连接</h1><p>Email Bridge（邮箱桥）· IMAP over TLS（加密收信）· 只读第一阶段。</p></div><button class="btn secondary" onclick="openView('connections',nav.querySelectorAll('a')[7])">← 返回对外连接</button></div>
+<div class="banner"><strong>建设目标：</strong>让 1122 自动识别 Amazon Ads API 审核、SP-API、账户绩效和其他重要运营邮件，并在后续转成任务中心事件。</div>
 <div class="grid two">
-<div class="card"><div class="section-title"><h2>实时连接状态</h2><span class="pill ok" id="amzCredentialStatus">后端密钥已配置</span></div>
-<div class="item"><strong>Amazon Secure Bridge（亚马逊安全桥）</strong><div class="meta">1122-amazon-sp-api-bridge · Cloudflare Workers</div></div>
-<div class="item"><strong>LWA（Login with Amazon）</strong><div class="meta">由后端使用 Refresh Token 自动换取短期 Access Token，长期密钥不进入浏览器。</div></div>
-<div class="item"><strong>SP-API Region（区域）</strong><div class="meta">North America（北美）· 美国站主区域</div></div>
-<div class="actions" style="margin-top:16px"><button class="btn" id="amzConnectBtn" onclick="checkAmazonConnection()">检查 Amazon 连接</button></div>
-<div id="amzConnectionResult" class="connection-result">正在等待后端连接检查。</div>
+<div class="card"><div class="section-title"><h2>实时连接状态</h2><span class="pill warn" id="emailCredentialStatus">等待邮箱 Secret</span></div>
+<div class="item"><strong>Email Bridge（邮箱桥）</strong><div class="meta">1122-email-bridge · Cloudflare Workers</div></div>
+<div class="item"><strong>Provider（邮箱服务商）</strong><div class="meta">163 Mail · IMAP over TLS · imap.163.com:993</div></div>
+<div class="item"><strong>当前能力</strong><div class="meta">后端登录验证；公开 1122 页面不读取或展示邮件正文。</div></div>
+<div class="actions" style="margin-top:16px"><button class="btn" id="emailConnectBtn" onclick="checkEmailConnection()">检查邮箱连接</button></div>
+<div id="emailConnectionResult" class="connection-result">等待在 Worker Secret 中配置邮箱账号与客户端授权码。</div>
 </div>
-<div class="card"><div class="section-title"><h2>接入进度</h2><span class="pill ok">第一阶段完成</span></div>
-<div class="item"><strong>✓ Private Developer（私有开发者）</strong><div class="meta">开发者资料审核完成。</div></div>
-<div class="item"><strong>✓ Self-Authorization（自授权）</strong><div class="meta">SORILO 北美账户授权完成。</div></div>
-<div class="item"><strong>✓ Worker Secret（后端密钥）</strong><div class="meta">Client ID、Client Secret、Refresh Token 已后端化。</div></div>
-<div class="item"><strong>✓ Sellers API</strong><div class="meta">getMarketplaceParticipations 已通过真实连接测试。</div></div>
-<div class="item"><strong>下一阶段：真实运营数据</strong><div class="meta">商品 Listing → 价格 → 库存/FBA → 财务/销售。写操作继续保持关闭，直到任务中心审批与身份保护完成。</div></div>
-<div class="credential-note"><div class="security-mark">锁</div><div><strong>安全边界</strong><br>当前公开页面只允许读取粗粒度连接状态。改价、改标题、删除 Listing 等写操作不会通过公开未认证接口开放。</div></div></div>
+<div class="card"><div class="section-title"><h2>接入阶段</h2><span class="pill">Email</span></div>
+<div class="item"><strong>✓ Email Bridge 工程</strong><div class="meta">163 IMAP/TLS 后端桥已建立。</div></div>
+<div class="item"><strong>○ Worker Secret（后端密钥）</strong><div class="meta">需要 MAILBOX_EMAIL 与 MAILBOX_AUTH_CODE。</div></div>
+<div class="item"><strong>○ Amazon 审核邮件监控</strong><div class="meta">邮箱连通后建设 Amazon Ads API 审核邮件识别。</div></div>
+<div class="item"><strong>○ 邮件 → 任务中心</strong><div class="meta">重要邮件经过分类后生成待办、提醒或 Agent 事件。</div></div>
+<div class="credential-note"><div class="security-mark">锁</div><div><strong>安全边界</strong><br>邮箱密码/授权码不得写入 GitHub 或公开网页。第一阶段只验证后端连接；邮件正文读取要等 1122 身份认证完成后再开放。</div></div></div>
 </div>
 </section>`;
 
-const sectionRegex = /<section id="amazon" class="view">[\s\S]*?<\/section>\n<section id="product"/;
-if (!sectionRegex.test(html)) throw new Error('Missing target: amazon section');
-html = html.replace(sectionRegex, `${amazonSection}\n<section id="product"`);
+if (!html.includes('<section id="email" class="view">')) {
+  const marker = '<section id="product" class="view">';
+  replaceOnce(marker, `${emailSection}\n${marker}`, 'email section');
+}
 
-const openAmazonOld = "function openAmazon(){hideAll();document.getElementById('amazon').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'})}";
-const openAmazonNew = "function openAmazon(){hideAll();document.getElementById('amazon').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'});setTimeout(checkAmazonConnection,120)}";
-replaceIfPresent(openAmazonOld, openAmazonNew);
+const openAmazon = "function openAmazon(){hideAll();document.getElementById('amazon').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'});setTimeout(checkAmazonConnection,120)}";
+const openEmail = "function openEmail(){hideAll();document.getElementById('email').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'});setTimeout(checkEmailConnection,120)}";
+if (!html.includes(openEmail)) {
+  replaceOnce(openAmazon, `${openAmazon}\n${openEmail}`, 'openEmail function');
+}
 
-const functionRegex = /function setAmazonResult[\s\S]*?function clearAmazonCredentials\(\)\{[\s\S]*?\}\n/;
-if (!functionRegex.test(html)) throw new Error('Missing target: Amazon credential functions');
-html = html.replace(functionRegex, `function setAmazonResult(message,type){const r=document.getElementById('amzConnectionResult');if(!r)return;r.textContent=message;r.className='connection-result'+(type?' '+type:'')}
-async function checkAmazonConnection(){const status=document.getElementById('amzCredentialStatus');const btn=document.getElementById('amzConnectBtn');if(!status||!btn)return;btn.disabled=true;btn.textContent='正在检查…';setAmazonResult('正在通过 Amazon Secure Bridge 检查 LWA 与 Sellers API…');try{const res=await fetch('https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/connection-status',{method:'GET',headers:{'Accept':'application/json'}});const data=await res.json();if(!res.ok||data.success!==true)throw new Error(data.error||data.message||'连接失败');const markets=(data.spApi?.marketplaces||[]).map(x=>[x.domainName,x.countryCode].filter(Boolean).join(' / ')).join('、');status.textContent='SP-API 已连接';status.className='pill ok';setAmazonResult('连接成功：Amazon LWA 已签发 Access Token，Sellers API getMarketplaceParticipations 调用成功。已识别 '+(data.spApi?.marketplaceCount||0)+' 个 Marketplace'+(markets?'：'+markets:'')+'。长期凭据保存在 Worker Secret 中。','ok')}catch(e){status.textContent='连接检查失败';status.className='pill bad';setAmazonResult('连接失败：'+e.message,'bad')}finally{btn.disabled=false;btn.textContent='检查 Amazon 连接'}}
-`);
+if (!html.includes('async function checkEmailConnection()')) {
+  const scriptMarker = '</script>';
+  const fn = `async function checkEmailConnection(){const status=document.getElementById('emailCredentialStatus');const card=document.getElementById('emailCardStatus');const btn=document.getElementById('emailConnectBtn');const result=document.getElementById('emailConnectionResult');if(!status||!btn||!result)return;btn.disabled=true;btn.textContent='正在检查…';result.textContent='正在通过 Email Bridge 连接 163 IMAP…';result.className='connection-result';try{const res=await fetch('https://1122-email-bridge.zhangshuaibing01.workers.dev/connection-status',{headers:{'Accept':'application/json'}});const data=await res.json();if(!res.ok||data.success!==true)throw new Error(data.error||data.message||'邮箱连接失败');status.textContent='邮箱已连接';status.className='pill ok';if(card){card.innerHTML='<span class="dot"></span>已连接';card.className='tag ok'}result.textContent='连接成功：163 Mail IMAP/TLS 后端认证通过。长期邮箱凭据只保存在 Worker Secret 中，公开页面未暴露邮件内容。';result.className='connection-result ok'}catch(e){status.textContent='等待配置/检查失败';status.className='pill warn';result.textContent='尚未连通：'+e.message;result.className='connection-result bad'}finally{btn.disabled=false;btn.textContent='检查邮箱连接'}}\n`;
+  replaceOnce(scriptMarker, `${fn}${scriptMarker}`, 'email connection function');
+}
 
 fs.writeFileSync(path, html);
-console.log('Amazon Secret-mode UI patch complete');
+console.log('Email connection UI patch complete');

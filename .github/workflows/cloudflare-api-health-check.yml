@@ -1,0 +1,121 @@
+name: Cloudflare API Health Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cloudflare-health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required secret
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Missing GitHub Actions secret: CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
+
+      - name: Verify API token
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          response=$(curl -fsS "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          status=$(echo "$response" | jq -r '.result.status // "unknown"')
+          success=$(echo "$response" | jq -r '.success')
+          echo "Token API response success: $success"
+          echo "Token status: $status"
+          test "$success" = "true"
+          test "$status" = "active"
+
+      - name: Resolve sorilo-uk.com zone and account
+        id: zone
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          response=$(curl -fsS "https://api.cloudflare.com/client/v4/zones?name=sorilo-uk.com" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          success=$(echo "$response" | jq -r '.success')
+          test "$success" = "true"
+          zone_id=$(echo "$response" | jq -r '.result[0].id // empty')
+          account_id=$(echo "$response" | jq -r '.result[0].account.id // empty')
+          zone_status=$(echo "$response" | jq -r '.result[0].status // "unknown"')
+          if [ -z "$zone_id" ] || [ -z "$account_id" ]; then
+            echo "::error::Could not resolve Cloudflare zone/account for sorilo-uk.com. Token may lack Zone Read permission or the zone may be unavailable to this token."
+            exit 1
+          fi
+          echo "zone_id=$zone_id" >> "$GITHUB_OUTPUT"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+          echo "Cloudflare zone found: sorilo-uk.com"
+          echo "Zone status: $zone_status"
+
+      - name: Check Pages project
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ steps.zone.outputs.account_id }}
+        run: |
+          set -euo pipefail
+          response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/sorilo-uk" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          success=$(echo "$response" | jq -r '.success')
+          test "$success" = "true"
+          project_name=$(echo "$response" | jq -r '.result.name // empty')
+          subdomain=$(echo "$response" | jq -r '.result.subdomain // empty')
+          production_branch=$(echo "$response" | jq -r '.result.production_branch // "not-set"')
+          echo "Pages project: $project_name"
+          echo "Pages subdomain: $subdomain"
+          echo "Production branch: $production_branch"
+
+      - name: Check Pages custom domains
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ steps.zone.outputs.account_id }}
+        run: |
+          set -euo pipefail
+          response=$(curl -fsS "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/sorilo-uk/domains" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          success=$(echo "$response" | jq -r '.success')
+          test "$success" = "true"
+          echo "Pages custom domains:"
+          echo "$response" | jq -r '.result[]? | "- \(.name): \(.status)"'
+
+      - name: Check apex DNS records
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ZONE_ID: ${{ steps.zone.outputs.zone_id }}
+        run: |
+          set -euo pipefail
+          response=$(curl -fsS "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?name=sorilo-uk.com" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json")
+          success=$(echo "$response" | jq -r '.success')
+          if [ "$success" != "true" ]; then
+            echo "::warning::DNS record check failed. Add DNS Read/Edit permission if DNS management is required."
+            echo "$response" | jq -c '.errors'
+            exit 0
+          fi
+          count=$(echo "$response" | jq '.result | length')
+          echo "Apex DNS record count: $count"
+          echo "$response" | jq -r '.result[]? | "- \(.type) \(.name) -> \(.content), proxied=\(.proxied)"'
+
+      - name: Connection summary
+        run: |
+          echo "Cloudflare API connection check completed."
+          echo "Domain: sorilo-uk.com"
+          echo "Pages project: sorilo-uk"

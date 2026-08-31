@@ -1,0 +1,6 @@
+{
+  "command_id": "cf-20260831-status-bridge-test",
+  "action": "status.read",
+  "params": {},
+  "confirm": false
+}

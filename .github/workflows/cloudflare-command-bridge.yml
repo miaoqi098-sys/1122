@@ -47,6 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config core.quotepath false
           BASE_SHA="${{ github.event.before }}"
           HEAD_SHA="${{ github.sha }}"
 

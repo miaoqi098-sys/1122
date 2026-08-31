@@ -1,4 +1,4 @@
 name = "1122-amazon-sp-api-bridge"
 main = "worker.js"
-compatibility_date = "2026-09-01"
+compatibility_date = "2026-08-31"
 workers_dev = true

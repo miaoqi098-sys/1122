@@ -1,0 +1,74 @@
+name: Cloudflare Command Bridge
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '对外连接板块/01_1122连接Cloudflare/commands/*.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-command-bridge
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Wrangler
+        run: npm install --global wrangler@4
+
+      - name: Verify connector secret
+        shell: bash
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo 'CLOUDFLARE_API_TOKEN is not configured in GitHub Actions Secrets.' >&2
+            exit 3
+          fi
+
+      - name: Execute changed Cloudflare commands
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.before }}"
+          HEAD_SHA="${{ github.sha }}"
+
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            FILES=$(git show --pretty='' --name-only "$HEAD_SHA")
+          else
+            FILES=$(git diff --name-only --diff-filter=AM "$BASE_SHA" "$HEAD_SHA")
+          fi
+
+          FOUND=0
+          while IFS= read -r file; do
+            case "$file" in
+              对外连接板块/01_1122连接Cloudflare/commands/*.json)
+                FOUND=1
+                echo "::group::Cloudflare command: $file"
+                python3 对外连接板块/01_1122连接Cloudflare/scripts/cloudflare_connector.py "$file"
+                echo "::endgroup::"
+                ;;
+            esac
+          done <<< "$FILES"
+
+          if [ "$FOUND" -ne 1 ]; then
+            echo 'No changed Cloudflare command file found.' >&2
+            exit 4
+          fi

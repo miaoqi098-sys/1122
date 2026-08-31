@@ -3,33 +3,28 @@ import fs from 'node:fs';
 const path = 'index.html';
 let html = fs.readFileSync(path, 'utf8');
 
-function replaceOnce(search, replacement, label) {
-  if (!html.includes(search)) throw new Error(`Missing target: ${label}`);
-  html = html.replace(search, replacement);
+function replaceIfPresent(search, replacement) {
+  if (html.includes(search)) html = html.replace(search, replacement);
 }
 
-replaceOnce(
-  '<strong>Amazon SP-API：等待 Self-Authorization</strong><div class="meta">开发者审核已通过，LWA Client 已创建，下一步取得 Refresh Token。</div>',
-  '<strong>Amazon SP-API：已连接</strong><div class="meta">Self-Authorization 已完成，LWA 凭据已迁移至 Worker Secret，真实只读 API 已验证。</div>',
-  'home amazon status'
+replaceIfPresent(
+  '<strong>Amazon SP-API：执行真实连接测试</strong><div class="meta">Self-Authorization 已完成，Refresh Token 已取得，正在验证生产 SP-API。</div>',
+  '<strong>Amazon SP-API：已连接</strong><div class="meta">Self-Authorization 已完成，LWA 凭据已迁移至 Worker Secret，真实只读 API 已验证。</div>'
 );
 
-replaceOnce(
-  '<div class="item"><strong>Amazon API</strong><div class="meta">Private Developer 已审核通过，正在完成授权链路。</div></div>',
-  '<div class="item"><strong>Amazon API</strong><div class="meta">Private Developer、自授权、LWA 与 Sellers API 已连通。</div></div>',
-  'home agent status'
+replaceIfPresent(
+  '<div class="item"><strong>Amazon API</strong><div class="meta">Private Developer 与 Self-Authorization 已完成，正在验证真实 SP-API。</div></div>',
+  '<div class="item"><strong>Amazon API</strong><div class="meta">Private Developer、自授权、LWA 与 Sellers API 已连通。</div></div>'
 );
 
-replaceOnce(
-  '<span class="tag warn"><span class="dot"></span>待完成授权</span>',
-  '<span class="tag ok"><span class="dot"></span>已连接</span>',
-  'connection card status'
+replaceIfPresent(
+  '<span class="tag warn"><span class="dot"></span>待连接验证</span>',
+  '<span class="tag ok"><span class="dot"></span>已连接</span>'
 );
 
-replaceOnce(
-  '<p>Private Developer 已通过审核，LWA Client 已建立；当前等待 Self-Authorization 与 Refresh Token。</p>',
-  '<p>Private Developer、自授权与真实 SP-API 测试已完成；LWA 凭据已迁移至 Worker Secret。</p>',
-  'connection card description'
+replaceIfPresent(
+  '<p>Private Developer 与 Self-Authorization 已完成；当前进行生产 SP-API 真实连通测试。</p>',
+  '<p>Private Developer、自授权与真实 SP-API 测试已完成；LWA 凭据已迁移至 Worker Secret。</p>'
 );
 
 const amazonSection = `<section id="amazon" class="view">
@@ -58,14 +53,12 @@ const sectionRegex = /<section id="amazon" class="view">[\s\S]*?<\/section>\n<se
 if (!sectionRegex.test(html)) throw new Error('Missing target: amazon section');
 html = html.replace(sectionRegex, `${amazonSection}\n<section id="product"`);
 
-replaceOnce(
-  "function openAmazon(){hideAll();document.getElementById('amazon').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'})}",
-  "function openAmazon(){hideAll();document.getElementById('amazon').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'});setTimeout(checkAmazonConnection,120)}",
-  'openAmazon function'
-);
+const openAmazonOld = "function openAmazon(){hideAll();document.getElementById('amazon').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'})}";
+const openAmazonNew = "function openAmazon(){hideAll();document.getElementById('amazon').classList.add('show');activate(nav.querySelectorAll('a')[7]);window.scrollTo({top:0,behavior:'smooth'});setTimeout(checkAmazonConnection,120)}";
+replaceIfPresent(openAmazonOld, openAmazonNew);
 
 const functionRegex = /function setAmazonResult[\s\S]*?function clearAmazonCredentials\(\)\{[\s\S]*?\}\n/;
-if (!functionRegex.test(html)) throw new Error('Missing target: old Amazon credential functions');
+if (!functionRegex.test(html)) throw new Error('Missing target: Amazon credential functions');
 html = html.replace(functionRegex, `function setAmazonResult(message,type){const r=document.getElementById('amzConnectionResult');if(!r)return;r.textContent=message;r.className='connection-result'+(type?' '+type:'')}
 async function checkAmazonConnection(){const status=document.getElementById('amzCredentialStatus');const btn=document.getElementById('amzConnectBtn');if(!status||!btn)return;btn.disabled=true;btn.textContent='正在检查…';setAmazonResult('正在通过 Amazon Secure Bridge 检查 LWA 与 Sellers API…');try{const res=await fetch('https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/connection-status',{method:'GET',headers:{'Accept':'application/json'}});const data=await res.json();if(!res.ok||data.success!==true)throw new Error(data.error||data.message||'连接失败');const markets=(data.spApi?.marketplaces||[]).map(x=>[x.domainName,x.countryCode].filter(Boolean).join(' / ')).join('、');status.textContent='SP-API 已连接';status.className='pill ok';setAmazonResult('连接成功：Amazon LWA 已签发 Access Token，Sellers API getMarketplaceParticipations 调用成功。已识别 '+(data.spApi?.marketplaceCount||0)+' 个 Marketplace'+(markets?'：'+markets:'')+'。长期凭据保存在 Worker Secret 中。','ok')}catch(e){status.textContent='连接检查失败';status.className='pill bad';setAmazonResult('连接失败：'+e.message,'bad')}finally{btn.disabled=false;btn.textContent='检查 Amazon 连接'}}
 `);

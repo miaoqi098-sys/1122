@@ -1,10 +1,11 @@
-name: Deploy Amazon SP-API Bridge
+name: Deploy 1122 API Bridges
 
 on:
   push:
     branches: ["main"]
     paths:
       - "对外连接板块/02_1122连接亚马逊API/worker/**"
+      - "对外连接板块/06_1122连接邮箱/worker/**"
       - ".github/workflows/deploy-amazon-sp-api-bridge.yml"
   workflow_dispatch:
 
@@ -12,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  deploy-amazon:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,7 +34,33 @@ jobs:
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Deploy Worker
+      - name: Deploy Amazon Worker
+        run: npx --yes wrangler@4 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  deploy-email:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 对外连接板块/06_1122连接邮箱/worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify Cloudflare token
+        shell: bash
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "CLOUDFLARE_API_TOKEN is missing" >&2
+            exit 2
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Deploy Email Worker
         run: npx --yes wrangler@4 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,0 +1,12 @@
+{
+  "command_id": "20260831-2344-create-apex-cname",
+  "action": "dns.upsert_record",
+  "confirm": true,
+  "params": {
+    "type": "CNAME",
+    "name": "@",
+    "content": "sorilo-uk.pages.dev",
+    "proxied": true,
+    "ttl": 1
+  }
+}

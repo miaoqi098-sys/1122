@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1122 智能体经营指挥中心</title>
+  <style>
+    :root{--bg:#f6f7fb;--panel:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--accent:#111827;--soft:#eef2ff;--warn:#fff7ed;--ok:#ecfdf5}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+    .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}.sidebar{background:#111827;color:#fff;padding:22px 16px;position:sticky;top:0;height:100vh}.brand{font-size:22px;font-weight:800;margin-bottom:6px}.sub{font-size:12px;color:#9ca3af;margin-bottom:24px}.nav a{display:block;color:#d1d5db;text-decoration:none;padding:11px 12px;border-radius:10px;margin:4px 0}.nav a:hover,.nav a.active{background:#1f2937;color:#fff}.main{padding:28px;max-width:1500px;width:100%;margin:auto}.topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:22px}.title h1{margin:0;font-size:28px}.title p{margin:6px 0 0;color:var(--muted)}.status{padding:8px 12px;border-radius:999px;background:var(--ok);font-size:13px}.grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 2px 10px rgba(15,23,42,.04)}.kpi-label{font-size:13px;color:var(--muted)}.kpi-value{font-size:28px;font-weight:800;margin-top:8px}.two{grid-template-columns:1.15fr .85fr;margin-bottom:16px}.section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.section-title h2{font-size:17px;margin:0}.pill{font-size:12px;padding:5px 9px;border-radius:999px;background:var(--soft)}.item{border-top:1px solid var(--line);padding:13px 0}.item:first-of-type{border-top:0}.item strong{display:block;margin-bottom:5px}.meta{font-size:12px;color:var(--muted)}.products{overflow:auto}.products table{width:100%;border-collapse:collapse;min-width:760px}.products th,.products td{text-align:left;padding:13px 10px;border-top:1px solid var(--line);font-size:14px}.products th{font-size:12px;color:var(--muted);font-weight:600}.product-link{color:#111827;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted}.tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px}.tag.ok{background:var(--ok)}.tag.attn{background:var(--warn)}.full{margin-bottom:16px}.detail{display:none}.detail.show{display:block}.back{border:0;background:#111827;color:#fff;border-radius:10px;padding:9px 12px;cursor:pointer}.timeline{border-left:2px solid var(--line);margin-left:8px;padding-left:18px}.timeline .event{position:relative;margin:0 0 18px}.timeline .event:before{content:"";position:absolute;left:-25px;top:5px;width:10px;height:10px;border-radius:50%;background:#111827}.muted{color:var(--muted)}
+    @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{height:auto;position:relative}.nav{display:flex;gap:6px;overflow:auto}.nav a{white-space:nowrap}.kpis,.two{grid-template-columns:1fr}.main{padding:18px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">1122 智能体</div>
+    <div class="sub">网页模式 · V1 Prototype</div>
+    <nav class="nav">
+      <a class="active" href="#">经营指挥中心</a><a href="#">选品</a><a href="#">运营</a><a href="#">沙盘演练</a><a href="#">政策边界</a><a href="#">Agent</a><a href="#">技能</a><a href="#">对外连接</a><a href="#">任务中心</a><a href="#">知识</a><a href="#">记忆</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <section id="home">
+      <div class="topbar"><div class="title"><h1>经营指挥中心</h1><p>看结果、看任务、看 Agent 动作、看产品状态。</p></div><div class="status">系统在线 · V1</div></div>
+      <div class="grid kpis">
+        <div class="card"><div class="kpi-label">今日销售额</div><div class="kpi-value">$12,860</div><div class="meta">示例数据</div></div>
+        <div class="card"><div class="kpi-label">今日广告花费</div><div class="kpi-value">$2,340</div><div class="meta">示例数据</div></div>
+        <div class="card"><div class="kpi-label">今日利润</div><div class="kpi-value">$3,190</div><div class="meta">示例数据</div></div>
+      </div>
+      <div class="grid two">
+        <div class="card"><div class="section-title"><h2>今日需要我处理</h2><span class="pill">3 项</span></div>
+          <div class="item"><strong>麻将产品：广告预算调整待审批</strong><div class="meta">Agent 建议上调高转化精准词预算；需要人工确认。</div></div>
+          <div class="item"><strong>补货计划：预计 9 天后进入风险区</strong><div class="meta">需要确认是否提前下单。</div></div>
+          <div class="item"><strong>促销价格：下周活动价格冲突</strong><div class="meta">需要选择保价或活动优先策略。</div></div>
+        </div>
+        <div class="card"><div class="section-title"><h2>Agent 今日动态</h2><span class="pill">实时摘要</span></div>
+          <div class="item"><strong>广告 Agent</strong><div class="meta">已筛选 18 个搜索词，其中 4 个建议拉 Exact。</div></div>
+          <div class="item"><strong>价格 Agent</strong><div class="meta">发现 2 个 ASIN 参考价变化风险。</div></div>
+          <div class="item"><strong>竞品 Agent</strong><div class="meta">捕捉到 3 个主要竞品价格变化。</div></div>
+        </div>
+      </div>
+      <div class="card full products"><div class="section-title"><h2>产品经营状态与今日操作</h2><span class="pill">点击产品进入状态卡</span></div>
+        <table><thead><tr><th>产品</th><th>当前阶段</th><th>今日/当前目标</th><th>今日操作</th><th>当前状态</th></tr></thead>
+        <tbody>
+          <tr><td><span class="product-link" onclick="openProduct('American Mah Jongg Set')">American Mah Jongg Set</span></td><td>放量优化期</td><td>稳定核心词排名</td><td>5 项</td><td><span class="tag ok">正常</span></td></tr>
+          <tr><td><span class="product-link" onclick="openProduct('Mahjong Racks with Pushers')">Mahjong Racks with Pushers</span></td><td>起量期</td><td>提升广告转化</td><td>3 项</td><td><span class="tag attn">关注</span></td></tr>
+          <tr><td><span class="product-link" onclick="openProduct('Light Up Crochet Hook Set')">Light Up Crochet Hook Set</span></td><td>关键词验证期</td><td>筛出高价值 Broad</td><td>4 项</td><td><span class="tag ok">正常</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="card"><div class="section-title"><h2>重点异常与机会</h2><span class="pill">观察中</span></div>
+        <div class="item"><strong>机会：麻将 Game Night 场景流量持续增长</strong><div class="meta">建议继续观察场景词流量与站外内容表现。</div></div>
+        <div class="item"><strong>异常：部分 Broad 搜索词点击累积但未转化</strong><div class="meta">已进入广告 Agent 观察队列。</div></div>
+      </div>
+    </section>
+
+    <section id="detail" class="detail">
+      <div class="topbar"><div class="title"><h1 id="productName">产品状态卡</h1><p>回答：现在怎么样、目标是什么、今天做了什么、接下来做什么。</p></div><button class="back" onclick="backHome()">← 返回经营指挥中心</button></div>
+      <div class="grid kpis">
+        <div class="card"><div class="kpi-label">今日销售</div><div class="kpi-value">128 单</div><div class="meta">示例数据</div></div>
+        <div class="card"><div class="kpi-label">当前阶段</div><div class="kpi-value" style="font-size:22px">放量优化期</div><div class="meta">阶段判定后续接真实 Agent</div></div>
+        <div class="card"><div class="kpi-label">核心目标</div><div class="kpi-value" style="font-size:22px">提高自然单占比</div><div class="meta">目标将与任务、动作联动</div></div>
+      </div>
+      <div class="grid two">
+        <div class="card"><div class="section-title"><h2>今日已执行操作</h2><span class="pill">时间轴</span></div><div class="timeline">
+          <div class="event"><strong>09:20 · 广告 Agent</strong><div class="meta">降低 2 个高点击低转化词竞价 12%。</div></div>
+          <div class="event"><strong>11:45 · 价格 Agent</strong><div class="meta">校验当前售价与参考价风险，无需处理。</div></div>
+          <div class="event"><strong>15:10 · 竞品 Agent</strong><div class="meta">记录主要竞品降价，创建观察任务。</div></div>
+        </div></div>
+        <div class="card"><div class="section-title"><h2>当前进行中的任务</h2><span class="pill">4 项</span></div>
+          <div class="item"><strong>观察 Broad 搜索词</strong><div class="meta">等待下一批点击与转化数据。</div></div>
+          <div class="item"><strong>验证自然排名变化</strong><div class="meta">48 小时后复核核心词。</div></div>
+          <div class="item"><strong>检查补货节点</strong><div class="meta">等待库存 Agent 更新预测。</div></div>
+        </div>
+      </div>
+      <div class="card"><div class="section-title"><h2>最近阶段总结</h2><span class="pill">记忆入口</span></div><p class="muted">当前版本先展示 UI 结构。后续这里将接入 1122 的真实产品记忆、任务、Agent 事件与经营历史。</p></div>
+    </section>
+  </main>
+</div>
+<script>
+function openProduct(name){document.getElementById('home').style.display='none';document.getElementById('detail').classList.add('show');document.getElementById('productName').textContent=name+' · 产品状态卡';window.scrollTo({top:0,behavior:'smooth'});}function backHome(){document.getElementById('detail').classList.remove('show');document.getElementById('home').style.display='block';window.scrollTo({top:0,behavior:'smooth'});}
+</script>
+</body>
+</html>

@@ -1,312 +1,87 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>1122 智能体经营指挥中心</title>
-  <style>
-    :root{
-      --bg:#f6f7fb;--panel:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;
-      --accent:#111827;--soft:#eef2ff;--warn:#fff7ed;--ok:#ecfdf5;--danger:#fef2f2;
-      --blue:#eff6ff;--purple:#f5f3ff;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
-    button{font:inherit}
-    .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-    .sidebar{background:#111827;color:#fff;padding:22px 16px;position:sticky;top:0;height:100vh;overflow:auto}
-    .brand{font-size:22px;font-weight:800;margin-bottom:6px}.sub{font-size:12px;color:#9ca3af;margin-bottom:24px}
-    .nav a{display:block;color:#d1d5db;text-decoration:none;padding:11px 12px;border-radius:10px;margin:4px 0;cursor:pointer;transition:.15s}
-    .nav a:hover,.nav a.active{background:#1f2937;color:#fff}.nav .divider{height:1px;background:#374151;margin:12px 0}
-    .main{padding:28px;max-width:1500px;width:100%;margin:auto}
-    .view{display:none}.view.show{display:block}
-    .topbar{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:22px}
-    .title h1{margin:0;font-size:28px}.title p{margin:6px 0 0;color:var(--muted);line-height:1.6}
-    .status{padding:8px 12px;border-radius:999px;background:var(--ok);font-size:13px;white-space:nowrap}
-    .grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:16px}
-    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 2px 10px rgba(15,23,42,.04)}
-    .kpi-label{font-size:13px;color:var(--muted)}.kpi-value{font-size:28px;font-weight:800;margin-top:8px}
-    .two{grid-template-columns:1.15fr .85fr;margin-bottom:16px}.section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.section-title h2{font-size:17px;margin:0}
-    .pill{font-size:12px;padding:5px 9px;border-radius:999px;background:var(--soft);white-space:nowrap}.pill.ok{background:var(--ok)}.pill.warn{background:var(--warn)}.pill.danger{background:var(--danger)}
-    .item{border-top:1px solid var(--line);padding:13px 0}.item:first-of-type{border-top:0}.item strong{display:block;margin-bottom:5px}.meta{font-size:12px;color:var(--muted);line-height:1.6}
-    .products{overflow:auto}.products table{width:100%;border-collapse:collapse;min-width:760px}.products th,.products td{text-align:left;padding:13px 10px;border-top:1px solid var(--line);font-size:14px}.products th{font-size:12px;color:var(--muted);font-weight:600}
-    .product-link,.text-link{color:#111827;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted}
-    .tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px}.tag.ok{background:var(--ok)}.tag.attn{background:var(--warn)}.tag.off{background:#f3f4f6}.tag.danger{background:var(--danger)}
-    .dot{width:7px;height:7px;border-radius:50%;display:inline-block;background:#9ca3af}.tag.ok .dot{background:#10b981}.tag.attn .dot{background:#f59e0b}.tag.danger .dot{background:#ef4444}
-    .full{margin-bottom:16px}.back{border:0;background:#111827;color:#fff;border-radius:10px;padding:9px 12px;cursor:pointer}.ghost{border:1px solid var(--line);background:#fff;color:#111827;border-radius:10px;padding:9px 12px;cursor:pointer}.ghost:hover{background:#f9fafb}
-    .timeline{border-left:2px solid var(--line);margin-left:8px;padding-left:18px}.timeline .event{position:relative;margin:0 0 18px}.timeline .event:before{content:"";position:absolute;left:-25px;top:5px;width:10px;height:10px;border-radius:50%;background:#111827}.muted{color:var(--muted)}
-
-    /* 外部连接中心 */
-    .connection-summary{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}
-    .summary-number{font-size:26px;font-weight:800;margin-top:6px}.summary-hint{font-size:12px;color:var(--muted);margin-top:4px}
-    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-    .filters{display:flex;gap:8px;flex-wrap:wrap}.filter-btn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;cursor:pointer;color:#374151}.filter-btn.active{background:#111827;color:#fff;border-color:#111827}
-    .connection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
-    .connection-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;cursor:pointer;transition:.18s;position:relative;overflow:hidden}
-    .connection-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.08);border-color:#cbd5e1}
-    .connection-card.hidden{display:none}.connection-card::after{content:"";position:absolute;width:120px;height:120px;border-radius:50%;right:-50px;top:-50px;background:#f8fafc}
-    .conn-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;position:relative;z-index:1}.conn-icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:#f3f4f6;color:#111827}
-    .conn-name{font-size:18px;font-weight:800;margin-top:14px;position:relative;z-index:1}.conn-desc{font-size:13px;color:var(--muted);margin-top:7px;line-height:1.6;min-height:42px;position:relative;z-index:1}
-    .conn-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px;position:relative;z-index:1}.mini{background:#f9fafb;border-radius:10px;padding:10px}.mini-label{font-size:11px;color:var(--muted)}.mini-value{font-size:13px;font-weight:700;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .conn-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;position:relative;z-index:1}.enter{font-size:13px;font-weight:700}
-    .info-banner{padding:14px 16px;border-radius:14px;background:var(--blue);border:1px solid #dbeafe;margin-bottom:16px;font-size:13px;line-height:1.7}
-    .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}.detail-list{margin:0;padding:0;list-style:none}.detail-list li{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid var(--line);font-size:14px}.detail-list li:first-child{border-top:0}.detail-list span:first-child{color:var(--muted)}.detail-list strong{text-align:right}
-    .capabilities{display:flex;gap:8px;flex-wrap:wrap}.cap{padding:7px 10px;border-radius:10px;background:#f3f4f6;font-size:12px}.cap.ready{background:var(--ok)}.cap.planned{background:var(--warn)}
-    .action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.action{border:0;border-radius:10px;padding:10px 13px;cursor:pointer;background:#111827;color:#fff}.action.secondary{background:#fff;color:#111827;border:1px solid var(--line)}.action:disabled{opacity:.5;cursor:not-allowed}
-    .empty-note{background:#f9fafb;border:1px dashed #d1d5db;border-radius:14px;padding:20px;color:var(--muted);font-size:13px;line-height:1.7}
-    .toast{position:fixed;right:24px;bottom:24px;background:#111827;color:#fff;padding:12px 16px;border-radius:12px;font-size:13px;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s;z-index:99}.toast.show{opacity:1;transform:translateY(0)}
-
-    @media(max-width:1050px){.connection-summary{grid-template-columns:repeat(2,1fr)}.connection-grid,.detail-grid{grid-template-columns:1fr}}
-    @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{height:auto;position:relative}.nav{display:flex;gap:6px;overflow:auto}.nav a{white-space:nowrap}.nav .divider{display:none}.kpis,.two{grid-template-columns:1fr}.main{padding:18px}}
-    @media(max-width:600px){.connection-summary{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.conn-meta{grid-template-columns:1fr}.main{padding:14px}.connection-card{padding:16px}}
-  </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>1122 智能体经营系统</title>
+<style>
+:root{--bg:#f6f7fb;--panel:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--dark:#111827;--ok:#ecfdf5;--warn:#fff7ed;--bad:#fef2f2;--blue:#eff6ff;--soft:#f3f4f6}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}button{font:inherit}.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}.sidebar{background:var(--dark);color:white;padding:22px 16px;position:sticky;top:0;height:100vh;overflow:auto}.brand{font-size:22px;font-weight:800}.sub{font-size:12px;color:#9ca3af;margin:6px 0 24px}.nav a{display:block;color:#d1d5db;padding:11px 12px;border-radius:10px;margin:4px 0;cursor:pointer}.nav a:hover,.nav a.active{background:#1f2937;color:white}.main{padding:28px;max-width:1500px;width:100%;margin:auto}.view{display:none}.view.show{display:block}.topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px}.title h1{margin:0;font-size:28px}.title p{margin:6px 0 0;color:var(--muted);line-height:1.6}.status{padding:8px 12px;border-radius:999px;background:var(--ok);font-size:13px;white-space:nowrap}.grid{display:grid;gap:16px}.kpis{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:16px}.four{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:16px}.two{grid-template-columns:1.15fr .85fr;margin-bottom:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 2px 10px rgba(15,23,42,.04)}.card.clickable{cursor:pointer;transition:.16s}.card.clickable:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.08)}.kpi-label,.meta{font-size:12px;color:var(--muted);line-height:1.6}.kpi-value{font-size:27px;font-weight:800;margin-top:7px}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{font-size:17px;margin:0}.pill,.tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 9px;border-radius:999px;background:var(--soft)}.pill.ok,.tag.ok{background:var(--ok)}.pill.warn,.tag.warn{background:var(--warn)}.pill.bad,.tag.bad{background:var(--bad)}.dot{width:7px;height:7px;border-radius:50%;background:#9ca3af}.tag.ok .dot{background:#10b981}.tag.warn .dot{background:#f59e0b}.tag.bad .dot{background:#ef4444}.item{border-top:1px solid var(--line);padding:13px 0}.item:first-of-type{border-top:0}.item strong{display:block;margin-bottom:5px}.btn{border:0;border-radius:10px;padding:9px 12px;background:var(--dark);color:white;cursor:pointer}.btn.secondary{background:white;color:var(--dark);border:1px solid var(--line)}.btn:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;gap:8px;flex-wrap:wrap}.module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}.module-card{background:white;border:1px solid var(--line);border-radius:18px;padding:20px;cursor:pointer;transition:.16s}.module-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(15,23,42,.08)}.module-icon{width:44px;height:44px;border-radius:12px;background:#f3f4f6;display:grid;place-items:center;font-weight:800}.module-name{font-size:18px;font-weight:800;margin:14px 0 6px}.module-desc{color:var(--muted);font-size:13px;line-height:1.6;min-height:42px}.crumb{font-size:12px;color:var(--muted);margin-bottom:14px}.banner{background:var(--blue);border:1px solid #dbeafe;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.7}.progress{height:9px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:10px}.progress span{display:block;height:100%;background:#111827;border-radius:999px}.checklist{list-style:none;margin:0;padding:0}.checklist li{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-top:1px solid var(--line);font-size:14px}.checklist li:first-child{border-top:0}.check{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;flex:0 0 20px;font-size:12px;background:#f3f4f6}.check.done{background:var(--ok);color:#047857}.check.wait{background:var(--warn);color:#b45309}.site-pages{width:100%;border-collapse:collapse}.site-pages th,.site-pages td{text-align:left;padding:12px 10px;border-top:1px solid var(--line);font-size:13px}.site-pages th{font-size:12px;color:var(--muted)}.timeline{border-left:2px solid var(--line);padding-left:18px;margin-left:8px}.event{position:relative;margin:0 0 17px}.event:before{content:"";position:absolute;width:10px;height:10px;border-radius:50%;background:#111827;left:-24px;top:5px}.products{overflow:auto}.products table{width:100%;min-width:720px;border-collapse:collapse}.products th,.products td{text-align:left;padding:12px 10px;border-top:1px solid var(--line);font-size:13px}.products th{font-size:12px;color:var(--muted)}.link{font-weight:700;text-decoration:underline dotted;cursor:pointer}.connection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.conn{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}.conn h3{margin:0 0 8px}.conn p{font-size:13px;color:var(--muted);line-height:1.6}.toast{position:fixed;right:24px;bottom:24px;background:#111827;color:#fff;padding:12px 16px;border-radius:12px;font-size:13px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:none}
+@media(max-width:1050px){.four{grid-template-columns:repeat(2,1fr)}.module-grid,.connection-grid{grid-template-columns:1fr}}@media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{height:auto;position:relative}.nav{display:flex;gap:6px;overflow:auto}.nav a{white-space:nowrap}.main{padding:18px}.kpis,.two{grid-template-columns:1fr}}@media(max-width:600px){.four{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.main{padding:14px}}
+</style>
 </head>
 <body>
 <div class="app">
-  <aside class="sidebar">
-    <div class="brand">1122 智能体</div>
-    <div class="sub">网页模式 · V1 Prototype</div>
-    <nav class="nav" id="mainNav">
-      <a class="active" data-view="home" onclick="openView('home',this)">经营指挥中心</a>
-      <a data-view="placeholder" onclick="openPlaceholder('选品',this)">选品</a>
-      <a data-view="placeholder" onclick="openPlaceholder('运营',this)">运营</a>
-      <a data-view="placeholder" onclick="openPlaceholder('沙盘演练',this)">沙盘演练</a>
-      <a data-view="placeholder" onclick="openPlaceholder('政策边界',this)">政策边界</a>
-      <a data-view="placeholder" onclick="openPlaceholder('Agent',this)">Agent</a>
-      <a data-view="placeholder" onclick="openPlaceholder('技能',this)">技能</a>
-      <a data-view="connections" onclick="openView('connections',this)">对外连接</a>
-      <a data-view="placeholder" onclick="openPlaceholder('任务中心',this)">任务中心</a>
-      <a data-view="placeholder" onclick="openPlaceholder('知识',this)">知识</a>
-      <a data-view="placeholder" onclick="openPlaceholder('记忆',this)">记忆</a>
-    </nav>
-  </aside>
+<aside class="sidebar">
+<div class="brand">1122 智能体</div><div class="sub">网页模式 · V1</div>
+<nav class="nav" id="nav">
+<a class="active" onclick="openView('home',this)">经营指挥中心</a>
+<a onclick="placeholder('选品',this)">选品</a>
+<a onclick="openView('operations',this)">运营</a>
+<a onclick="placeholder('沙盘演练',this)">沙盘演练</a>
+<a onclick="placeholder('政策边界',this)">政策边界</a>
+<a onclick="placeholder('Agent',this)">Agent</a>
+<a onclick="placeholder('技能',this)">技能</a>
+<a onclick="openView('connections',this)">对外连接</a>
+<a onclick="placeholder('任务中心',this)">任务中心</a>
+<a onclick="placeholder('知识',this)">知识</a>
+<a onclick="placeholder('记忆',this)">记忆</a>
+</nav>
+</aside>
+<main class="main">
+<section id="home" class="view show">
+<div class="topbar"><div class="title"><h1>经营指挥中心</h1><p>看结果、看任务、看 Agent 动作、看产品状态。</p></div><div class="status">系统在线 · V1</div></div>
+<div class="grid kpis"><div class="card"><div class="kpi-label">今日销售额</div><div class="kpi-value">$12,860</div><div class="meta">示例数据</div></div><div class="card"><div class="kpi-label">今日广告花费</div><div class="kpi-value">$2,340</div><div class="meta">示例数据</div></div><div class="card"><div class="kpi-label">今日利润</div><div class="kpi-value">$3,190</div><div class="meta">示例数据</div></div></div>
+<div class="grid two"><div class="card"><div class="section-title"><h2>今日需要我处理</h2><span class="pill">3 项</span></div><div class="item"><strong>Amazon API：资质官网信息待补齐</strong><div class="meta">公司法定名称、公开邮箱、地址/地区是当前官网上线门禁。</div></div><div class="item"><strong>麻将产品：广告预算调整待审批</strong><div class="meta">高转化精准词预算建议上调。</div></div><div class="item"><strong>补货计划：预计进入风险区</strong><div class="meta">需要确认是否提前下单。</div></div></div><div class="card"><div class="section-title"><h2>Agent 今日动态</h2><span class="pill">摘要</span></div><div class="item"><strong>站外推广模块</strong><div class="meta">API资质官网已建立工程骨架，等待公开主体信息与正式部署。</div></div><div class="item"><strong>广告 Agent</strong><div class="meta">已筛选高价值搜索词。</div></div><div class="item"><strong>价格 Agent</strong><div class="meta">正在观察参考价风险。</div></div></div></div>
+<div class="card products"><div class="section-title"><h2>产品经营状态与今日操作</h2><span class="pill">点击产品</span></div><table><thead><tr><th>产品</th><th>当前阶段</th><th>目标</th><th>今日操作</th><th>状态</th></tr></thead><tbody><tr><td><span class="link" onclick="openProduct('American Mah Jongg Set')">American Mah Jongg Set</span></td><td>放量优化期</td><td>稳定核心词排名</td><td>5 项</td><td><span class="tag ok"><span class="dot"></span>正常</span></td></tr><tr><td><span class="link" onclick="openProduct('Mahjong Racks with Pushers')">Mahjong Racks with Pushers</span></td><td>起量期</td><td>提升广告转化</td><td>3 项</td><td><span class="tag warn"><span class="dot"></span>关注</span></td></tr></tbody></table></div>
+</section>
 
-  <main class="main">
-    <!-- 首页 -->
-    <section id="home" class="view show">
-      <div class="topbar"><div class="title"><h1>经营指挥中心</h1><p>看结果、看任务、看 Agent 动作、看产品状态。</p></div><div class="status">系统在线 · V1</div></div>
-      <div class="grid kpis">
-        <div class="card"><div class="kpi-label">今日销售额</div><div class="kpi-value">$12,860</div><div class="meta">示例数据</div></div>
-        <div class="card"><div class="kpi-label">今日广告花费</div><div class="kpi-value">$2,340</div><div class="meta">示例数据</div></div>
-        <div class="card"><div class="kpi-label">今日利润</div><div class="kpi-value">$3,190</div><div class="meta">示例数据</div></div>
-      </div>
-      <div class="grid two">
-        <div class="card"><div class="section-title"><h2>今日需要我处理</h2><span class="pill">3 项</span></div>
-          <div class="item"><strong>麻将产品：广告预算调整待审批</strong><div class="meta">Agent 建议上调高转化精准词预算；需要人工确认。</div></div>
-          <div class="item"><strong>补货计划：预计 9 天后进入风险区</strong><div class="meta">需要确认是否提前下单。</div></div>
-          <div class="item"><strong>促销价格：下周活动价格冲突</strong><div class="meta">需要选择保价或活动优先策略。</div></div>
-        </div>
-        <div class="card"><div class="section-title"><h2>Agent 今日动态</h2><span class="pill">实时摘要</span></div>
-          <div class="item"><strong>广告 Agent</strong><div class="meta">已筛选 18 个搜索词，其中 4 个建议拉 Exact。</div></div>
-          <div class="item"><strong>价格 Agent</strong><div class="meta">发现 2 个 ASIN 参考价变化风险。</div></div>
-          <div class="item"><strong>竞品 Agent</strong><div class="meta">捕捉到 3 个主要竞品价格变化。</div></div>
-        </div>
-      </div>
-      <div class="card full products"><div class="section-title"><h2>产品经营状态与今日操作</h2><span class="pill">点击产品进入状态卡</span></div>
-        <table><thead><tr><th>产品</th><th>当前阶段</th><th>今日/当前目标</th><th>今日操作</th><th>当前状态</th></tr></thead>
-        <tbody>
-          <tr><td><span class="product-link" onclick="openProduct('American Mah Jongg Set')">American Mah Jongg Set</span></td><td>放量优化期</td><td>稳定核心词排名</td><td>5 项</td><td><span class="tag ok"><span class="dot"></span>正常</span></td></tr>
-          <tr><td><span class="product-link" onclick="openProduct('Mahjong Racks with Pushers')">Mahjong Racks with Pushers</span></td><td>起量期</td><td>提升广告转化</td><td>3 项</td><td><span class="tag attn"><span class="dot"></span>关注</span></td></tr>
-          <tr><td><span class="product-link" onclick="openProduct('Light Up Crochet Hook Set')">Light Up Crochet Hook Set</span></td><td>关键词验证期</td><td>筛出高价值 Broad</td><td>4 项</td><td><span class="tag ok"><span class="dot"></span>正常</span></td></tr>
-        </tbody></table>
-      </div>
-      <div class="card"><div class="section-title"><h2>重点异常与机会</h2><span class="pill">观察中</span></div>
-        <div class="item"><strong>机会：麻将 Game Night 场景流量持续增长</strong><div class="meta">建议继续观察场景词流量与站外内容表现。</div></div>
-        <div class="item"><strong>异常：部分 Broad 搜索词点击累积但未转化</strong><div class="meta">已进入广告 Agent 观察队列。</div></div>
-      </div>
-    </section>
-
-    <!-- 产品状态卡 -->
-    <section id="productDetail" class="view">
-      <div class="topbar"><div class="title"><h1 id="productName">产品状态卡</h1><p>回答：现在怎么样、目标是什么、今天做了什么、接下来做什么。</p></div><button class="back" onclick="openView('home')">← 返回经营指挥中心</button></div>
-      <div class="grid kpis">
-        <div class="card"><div class="kpi-label">今日销售</div><div class="kpi-value">128 单</div><div class="meta">示例数据</div></div>
-        <div class="card"><div class="kpi-label">当前阶段</div><div class="kpi-value" style="font-size:22px">放量优化期</div><div class="meta">阶段判定后续接真实 Agent</div></div>
-        <div class="card"><div class="kpi-label">核心目标</div><div class="kpi-value" style="font-size:22px">提高自然单占比</div><div class="meta">目标将与任务、动作联动</div></div>
-      </div>
-      <div class="grid two">
-        <div class="card"><div class="section-title"><h2>今日已执行操作</h2><span class="pill">时间轴</span></div><div class="timeline">
-          <div class="event"><strong>09:20 · 广告 Agent</strong><div class="meta">降低 2 个高点击低转化词竞价 12%。</div></div>
-          <div class="event"><strong>11:45 · 价格 Agent</strong><div class="meta">校验当前售价与参考价风险，无需处理。</div></div>
-          <div class="event"><strong>15:10 · 竞品 Agent</strong><div class="meta">记录主要竞品降价，创建观察任务。</div></div>
-        </div></div>
-        <div class="card"><div class="section-title"><h2>当前进行中的任务</h2><span class="pill">4 项</span></div>
-          <div class="item"><strong>观察 Broad 搜索词</strong><div class="meta">等待下一批点击与转化数据。</div></div>
-          <div class="item"><strong>验证自然排名变化</strong><div class="meta">48 小时后复核核心词。</div></div>
-          <div class="item"><strong>检查补货节点</strong><div class="meta">等待库存 Agent 更新预测。</div></div>
-        </div>
-      </div>
-      <div class="card"><div class="section-title"><h2>最近阶段总结</h2><span class="pill">记忆入口</span></div><p class="muted">当前版本先展示 UI 结构。后续这里将接入 1122 的真实产品记忆、任务、Agent 事件与经营历史。</p></div>
-    </section>
-
-    <!-- 外部连接中心 -->
-    <section id="connections" class="view">
-      <div class="topbar">
-        <div class="title"><h1>外部连接中心</h1><p>统一查看 1122 连接了什么、哪些真正可用、哪些还需要授权或建设，以及出现问题时去哪里处理。</p></div>
-        <div class="status">连接总控 · V1</div>
-      </div>
-
-      <div class="grid connection-summary">
-        <div class="card"><div class="kpi-label">连接总数</div><div class="summary-number">5</div><div class="summary-hint">当前纳入管理的外部连接</div></div>
-        <div class="card"><div class="kpi-label">已有工程</div><div class="summary-number">5</div><div class="summary-hint">均已建立仓库入口</div></div>
-        <div class="card"><div class="kpi-label">已具备历史工程</div><div class="summary-number">1</div><div class="summary-hint">GPT ↔ Codex</div></div>
-        <div class="card"><div class="kpi-label">待真实接入/验收</div><div class="summary-number">4</div><div class="summary-hint">Cloudflare / Amazon / Sif / 卖家精灵</div></div>
-      </div>
-
-      <div class="info-banner"><strong>状态口径：</strong>“已建立工程入口”只表示仓库结构已经建立，不代表真实外部连接已经完成或验收通过。页面会严格区分“工程已存在”和“真实连接可用”。</div>
-
-      <div class="toolbar">
-        <div class="filters">
-          <button class="filter-btn active" onclick="filterConnections('all',this)">全部 5</button>
-          <button class="filter-btn" onclick="filterConnections('history',this)">已有历史工程 1</button>
-          <button class="filter-btn" onclick="filterConnections('building',this)">建设中 4</button>
-        </div>
-        <button class="ghost" onclick="showToast('连接状态刷新将在真实后端接入后启用')">↻ 刷新状态</button>
-      </div>
-
-      <div class="connection-grid" id="connectionGrid">
-        <article class="connection-card" data-group="building" onclick="openConnection('cloudflare')">
-          <div class="conn-head"><div class="conn-icon">CF</div><span class="tag attn"><span class="dot"></span>工程入口已建立</span></div>
-          <div class="conn-name">Cloudflare</div><div class="conn-desc">承载域名、DNS、HTTPS 与后续网页部署基础设施连接。</div>
-          <div class="conn-meta"><div class="mini"><div class="mini-label">已确认域名</div><div class="mini-value">sorilo-uk.com</div></div><div class="mini"><div class="mini-label">真实状态</div><div class="mini-value">待核实 DNS / HTTPS / 部署</div></div></div>
-          <div class="conn-foot"><span class="meta">基础设施连接</span><span class="enter">查看详情 →</span></div>
-        </article>
-
-        <article class="connection-card" data-group="building" onclick="openConnection('amazon')">
-          <div class="conn-head"><div class="conn-icon">AMZ</div><span class="tag attn"><span class="dot"></span>待授权</span></div>
-          <div class="conn-name">Amazon API</div><div class="conn-desc">用于接入 Seller Partner API、Advertising API，成为运营数据与执行能力的重要来源。</div>
-          <div class="conn-meta"><div class="mini"><div class="mini-label">SP-API</div><div class="mini-value">待真实授权</div></div><div class="mini"><div class="mini-label">Ads API</div><div class="mini-value">待真实授权</div></div></div>
-          <div class="conn-foot"><span class="meta">数据源 + 执行接口</span><span class="enter">查看详情 →</span></div>
-        </article>
-
-        <article class="connection-card" data-group="building" onclick="openConnection('sif')">
-          <div class="conn-head"><div class="conn-icon">SIF</div><span class="tag attn"><span class="dot"></span>方式待核实</span></div>
-          <div class="conn-name">Sif</div><div class="conn-desc">计划接入关键词、市场与竞品相关数据，具体授权/API/导出方式仍需确认。</div>
-          <div class="conn-meta"><div class="mini"><div class="mini-label">授权方式</div><div class="mini-value">待核实</div></div><div class="mini"><div class="mini-label">字段映射</div><div class="mini-value">待定义</div></div></div>
-          <div class="conn-foot"><span class="meta">外部数据源</span><span class="enter">查看详情 →</span></div>
-        </article>
-
-        <article class="connection-card" data-group="building" onclick="openConnection('sellerSprite')">
-          <div class="conn-head"><div class="conn-icon">SS</div><span class="tag attn"><span class="dot"></span>方式待核实</span></div>
-          <div class="conn-name">卖家精灵</div><div class="conn-desc">计划接入关键词、竞品和市场数据，当前仍在确认可用授权与数据通道。</div>
-          <div class="conn-meta"><div class="mini"><div class="mini-label">API / 导出</div><div class="mini-value">待核实</div></div><div class="mini"><div class="mini-label">同步状态</div><div class="mini-value">未启用</div></div></div>
-          <div class="conn-foot"><span class="meta">外部数据源</span><span class="enter">查看详情 →</span></div>
-        </article>
-
-        <article class="connection-card" data-group="history" onclick="openConnection('codex')">
-          <div class="conn-head"><div class="conn-icon">CX</div><span class="tag ok"><span class="dot"></span>已有历史工程</span></div>
-          <div class="conn-name">GPT ↔ Codex</div><div class="conn-desc">开发执行通道，仓库已存在本地 Gateway、运行恢复、测试和 GitHub 任务桥等工程。</div>
-          <div class="conn-meta"><div class="mini"><div class="mini-label">本地 Gateway</div><div class="mini-value">已有工程</div></div><div class="mini"><div class="mini-label">GitHub 任务桥</div><div class="mini-value">已有工程</div></div></div>
-          <div class="conn-foot"><span class="meta">开发执行通道</span><span class="enter">查看详情 →</span></div>
-        </article>
-      </div>
-
-      <div class="card"><div class="section-title"><h2>连接建设原则</h2><span class="pill">安全优先</span></div>
-        <div class="item"><strong>凭据不进入网页前端</strong><div class="meta">Token、Secret、Cookie、密钥等不能写入公开 GitHub Pages 或浏览器 JavaScript。</div></div>
-        <div class="item"><strong>状态由后端连接层提供</strong><div class="meta">网页只展示经过后端整理的状态、数据和可执行动作，不直接携带敏感凭据访问第三方平台。</div></div>
-        <div class="item"><strong>统一连接状态模型</strong><div class="meta">后续所有连接统一使用：未配置 / 待授权 / 建设中 / 已连接 / 异常 / 停用。</div></div>
-      </div>
-    </section>
-
-    <!-- 连接详情 -->
-    <section id="connectionDetail" class="view">
-      <div class="topbar">
-        <div class="title"><h1 id="connDetailTitle">连接详情</h1><p id="connDetailSubtitle">查看当前状态、能力、运行信息和下一步动作。</p></div>
-        <button class="back" onclick="openView('connections')">← 返回外部连接中心</button>
-      </div>
-      <div id="connDetailBody"></div>
-    </section>
-
-    <!-- 占位页 -->
-    <section id="placeholder" class="view">
-      <div class="topbar"><div class="title"><h1 id="placeholderTitle">板块</h1><p>该板块 UI 尚未进入当前 V1 制作范围。</p></div><button class="back" onclick="openView('home')">← 返回经营指挥中心</button></div>
-      <div class="empty-note">当前先完成经营指挥中心、产品状态卡和外部连接中心。后续可以继续逐个把左侧业务板块做成真实可点击页面。</div>
-    </section>
-  </main>
+<section id="operations" class="view">
+<div class="topbar"><div class="title"><h1>运营</h1><p>全局管理产品、库存物流、站外推广、竞品与广告。</p></div><div class="status">5 个二级板块</div></div>
+<div class="module-grid">
+<div class="module-card" onclick="toast('产品板块后续继续建设')"><div class="module-icon">产</div><div class="module-name">产品</div><div class="module-desc">管理全部产品经营状态，并进入单品完整经营视角。</div><span class="tag warn"><span class="dot"></span>建设中</span></div>
+<div class="module-card" onclick="toast('库存物流板块后续继续建设')"><div class="module-icon">库</div><div class="module-name">库存物流</div><div class="module-desc">库存、补货、在途、仓储与物流风险的全局管理入口。</div><span class="tag warn"><span class="dot"></span>建设中</span></div>
+<div class="module-card" onclick="openWebsiteCenter()"><div class="module-icon">站</div><div class="module-name">站外推广</div><div class="module-desc">官网独立站、红人、内容、站外流量与推广项目的运营入口。</div><span class="tag ok"><span class="dot"></span>官网模块已启动</span></div>
+<div class="module-card" onclick="toast('竞品板块后续继续建设')"><div class="module-icon">竞</div><div class="module-name">竞品</div><div class="module-desc">竞品池、价格、流量、广告、评价与变化信号。</div><span class="tag warn"><span class="dot"></span>建设中</span></div>
+<div class="module-card" onclick="toast('广告板块后续继续建设')"><div class="module-icon">广</div><div class="module-name">广告</div><div class="module-desc">全店广告结构、搜索词、竞价、预算与真实转化管理。</div><span class="tag warn"><span class="dot"></span>建设中</span></div>
 </div>
-<div class="toast" id="toast"></div>
+</section>
 
+<section id="website" class="view">
+<div class="crumb">运营 / 站外推广 / 品牌官网与独立站 / API资质官网</div>
+<div class="topbar"><div class="title"><h1>官网独立站管理中心</h1><p>当前第一优先级：完成 API 资质官网，为 Amazon Ads API / SP-API 开发者资质申请提供可审核的企业官网。</p></div><button class="btn secondary" onclick="openView('operations',nav.querySelectorAll('a')[2])">← 返回运营</button></div>
+<div class="banner"><strong>当前策略：</strong>先完成可公开访问、HTTPS、主体信息一致、隐私与数据使用说明完整的资质官网；通过 API 审核后，再继续扩展品牌内容、SEO、落地页和独立站交易能力。</div>
+<div class="grid four">
+<div class="card"><div class="kpi-label">正式域名目标</div><div class="kpi-value" style="font-size:21px">sorilo-uk.com</div><div class="meta">Cloudflare Pages 作为推荐托管</div></div>
+<div class="card"><div class="kpi-label">页面工程</div><div class="kpi-value">5</div><div class="meta">首页 / About / Privacy / Data Use / Contact</div></div>
+<div class="card"><div class="kpi-label">当前阶段</div><div class="kpi-value" style="font-size:21px">上线准备</div><div class="meta">工程骨架已具备，主体信息与部署待完成</div></div>
+<div class="card"><div class="kpi-label">Amazon 申请状态</div><div class="kpi-value" style="font-size:21px">未提交</div><div class="meta">官网验收通过后再提交</div></div>
+</div>
+<div class="grid two">
+<div class="card"><div class="section-title"><h2>API资质官网准备度</h2><span class="pill warn">关键门禁未完成</span></div><div class="kpi-value" style="font-size:22px">约 55%</div><div class="progress"><span style="width:55%"></span></div><ul class="checklist"><li><span class="check done">✓</span><div><strong>基础页面工程</strong><div class="meta">首页、About、Privacy、Data Use、Contact 已建立。</div></div></li><li><span class="check done">✓</span><div><strong>基础安全配置</strong><div class="meta">安全响应头、robots.txt、sitemap.xml 已加入工程。</div></div></li><li><span class="check wait">!</span><div><strong>公司法定主体信息</strong><div class="meta">需要替换站点中的公司法定名称等占位符。</div></div></li><li><span class="check wait">!</span><div><strong>公开联系信息</strong><div class="meta">需要确认长期可用的公开邮箱与地址/地区信息。</div></div></li><li><span class="check wait">!</span><div><strong>Cloudflare 正式部署</strong><div class="meta">需要让 https://sorilo-uk.com 真正返回官网首页。</div></div></li></ul></div>
+<div class="card"><div class="section-title"><h2>当前需要你提供</h2><span class="pill bad">4 项</span></div><div class="item"><strong>1. 公司法定中文全称</strong><div class="meta">必须与 Amazon API 申请主体一致。</div></div><div class="item"><strong>2. 公司正式英文名称</strong><div class="meta">如果对外使用英文主体名称，请提供正式版本。</div></div><div class="item"><strong>3. 公开联系邮箱</strong><div class="meta">用于官网展示和审核联系，不应使用一次性邮箱。</div></div><div class="item"><strong>4. 公司地址或地区信息</strong><div class="meta">用于 About / Contact / 页脚主体展示。</div></div></div>
+</div>
+<div class="grid two">
+<div class="card"><div class="section-title"><h2>官网页面清单</h2><span class="pill ok">工程已建立</span></div><table class="site-pages"><thead><tr><th>页面</th><th>作用</th><th>状态</th></tr></thead><tbody><tr><td>Home</td><td>企业官网入口</td><td><span class="tag warn">待替换主体信息</span></td></tr><tr><td>About</td><td>公司介绍与业务定位</td><td><span class="tag warn">待替换主体信息</span></td></tr><tr><td>Privacy Policy</td><td>隐私与数据保护说明</td><td><span class="tag warn">待最终核对</span></td></tr><tr><td>Data Use</td><td>Amazon 数据用途与处理说明</td><td><span class="tag warn">待真实数据流核对</span></td></tr><tr><td>Contact</td><td>公开联系方式</td><td><span class="tag warn">待公开邮箱</span></td></tr></tbody></table></div>
+<div class="card"><div class="section-title"><h2>部署与验收</h2><span class="pill warn">未正式上线</span></div><div class="timeline"><div class="event"><strong>域名已确定</strong><div class="meta">正式目标：sorilo-uk.com</div></div><div class="event"><strong>静态站工程已建立</strong><div class="meta">可使用 Cloudflare Pages 无框架部署。</div></div><div class="event"><strong>下一步：补齐公开主体信息</strong><div class="meta">清零所有上线占位符。</div></div><div class="event"><strong>随后：绑定域名与 HTTPS</strong><div class="meta">验证根域名、HTTPS、跳转、所有页面可访问。</div></div><div class="event"><strong>最后：Amazon API 提交</strong><div class="meta">官网验收通过后再进入 API 申请。</div></div></div><div class="actions"><button class="btn" onclick="window.open('https://sorilo-uk.com','_blank')">打开正式域名</button><button class="btn secondary" onclick="toast('当前正式官网仍处于上线准备阶段')">检查上线状态</button></div></div>
+</div>
+</section>
+
+<section id="connections" class="view"><div class="topbar"><div class="title"><h1>外部连接中心</h1><p>查看系统连接了什么、哪些真正可用、哪些仍在建设。</p></div><div class="status">连接总控</div></div><div class="connection-grid"><div class="conn"><h3>Cloudflare</h3><span class="tag warn"><span class="dot"></span>工程入口</span><p>域名、DNS、HTTPS 与官网部署基础设施。</p><button class="btn secondary" onclick="openWebsiteCenter()">进入官网部署管理</button></div><div class="conn"><h3>Amazon API</h3><span class="tag warn"><span class="dot"></span>待授权</span><p>SP-API / Ads API。当前前置任务是先完成企业资质官网。</p><button class="btn secondary" onclick="openWebsiteCenter()">查看前置官网任务</button></div><div class="conn"><h3>Sif</h3><span class="tag warn"><span class="dot"></span>待核实</span><p>授权方式、API/导出通道与字段尚待确认。</p></div><div class="conn"><h3>卖家精灵</h3><span class="tag warn"><span class="dot"></span>待核实</span><p>授权方式、API/导出通道与字段尚待确认。</p></div><div class="conn"><h3>GPT ↔ Codex</h3><span class="tag ok"><span class="dot"></span>已有历史工程</span><p>本地网关、MCP、Ledger、GitHub 任务桥等开发执行通道。</p></div></div></section>
+
+<section id="product" class="view"><div class="topbar"><div class="title"><h1 id="productName">产品状态卡</h1><p>现在怎么样、目标是什么、今天做了什么、接下来做什么。</p></div><button class="btn secondary" onclick="openView('home',nav.querySelectorAll('a')[0])">← 返回首页</button></div><div class="grid kpis"><div class="card"><div class="kpi-label">今日销售</div><div class="kpi-value">128 单</div><div class="meta">示例数据</div></div><div class="card"><div class="kpi-label">当前阶段</div><div class="kpi-value" style="font-size:21px">放量优化期</div></div><div class="card"><div class="kpi-label">核心目标</div><div class="kpi-value" style="font-size:21px">提高自然单占比</div></div></div><div class="grid two"><div class="card"><div class="section-title"><h2>今日已执行操作</h2><span class="pill">时间轴</span></div><div class="timeline"><div class="event"><strong>09:20 · 广告 Agent</strong><div class="meta">降低高点击低转化词竞价。</div></div><div class="event"><strong>11:45 · 价格 Agent</strong><div class="meta">校验售价与参考价风险。</div></div></div></div><div class="card"><div class="section-title"><h2>当前任务</h2><span class="pill">进行中</span></div><div class="item"><strong>观察 Broad 搜索词</strong></div><div class="item"><strong>验证自然排名变化</strong></div></div></div></section>
+
+<section id="placeholder" class="view"><div class="topbar"><div class="title"><h1 id="placeholderTitle">模块</h1><p>这一板块已经进入 1122 的一级架构，具体 UI 将按建设顺序逐步接入。</p></div><div class="status">待建设</div></div><div class="card"><div class="meta">当前优先建设：运营 → 站外推广 → 品牌官网与独立站 → API资质官网。</div></div></section>
+</main>
+</div>
+<div id="toast" class="toast"></div>
 <script>
-const connectionData={
-  cloudflare:{
-    title:'Cloudflare',subtitle:'域名、DNS、HTTPS 与网页部署基础设施连接。',status:'工程入口已建立',statusClass:'attn',kind:'基础设施连接',
-    rows:[['已确认域名','sorilo-uk.com'],['仓库状态','已建立工程入口'],['DNS 状态','待继续核实'],['HTTPS 状态','待继续核实'],['网页部署状态','待继续核实']],
-    caps:[['域名管理','planned'],['DNS 管理','planned'],['HTTPS','planned'],['Pages / 部署','planned']],
-    activity:[['当前','仓库已经建立 Cloudflare 工程入口。'],['下一步','核实真实 DNS、HTTPS 和网页部署状态，再决定是否接入可写操作接口。']],
-    actions:['测试连接','查看域名状态']
-  },
-  amazon:{
-    title:'Amazon API',subtitle:'Amazon Seller Partner API 与 Advertising API 连接。',status:'待真实授权',statusClass:'attn',kind:'数据源 + 执行接口',
-    rows:[['SP-API','待真实授权'],['Advertising API','待真实授权'],['Seller / Marketplace','待授权后识别'],['最近同步','尚未启用'],['凭据状态','网页端不存储']],
-    caps:[['订单','planned'],['库存','planned'],['商品','planned'],['价格','planned'],['广告报表','planned'],['广告执行','planned']],
-    activity:[['当前','仓库已建立 Amazon API 工程入口。'],['下一步','完成 SP-API / Ads API 的真实授权、权限边界和字段映射。']],
-    actions:['开始授权规划','查看字段规划']
-  },
-  sif:{
-    title:'Sif',subtitle:'关键词、市场与竞品数据连接。',status:'授权方式待核实',statusClass:'attn',kind:'外部数据源',
-    rows:[['授权方式','待核实'],['API 可用性','待核实'],['导出通道','待核实'],['字段映射','待定义'],['最近同步','未启用']],
-    caps:[['关键词数据','planned'],['竞品数据','planned'],['市场数据','planned']],
-    activity:[['当前','已建立工程入口，但尚未确认稳定可用的数据接入方式。'],['下一步','核实官方授权/API/导出能力，再建立字段映射和同步任务。']],
-    actions:['核实接入方式','查看建设说明']
-  },
-  sellerSprite:{
-    title:'卖家精灵',subtitle:'关键词、竞品和市场数据连接。',status:'授权方式待核实',statusClass:'attn',kind:'外部数据源',
-    rows:[['授权方式','待核实'],['API / 导出','待核实'],['字段映射','待定义'],['同步状态','未启用'],['凭据状态','未接入']],
-    caps:[['关键词数据','planned'],['竞品数据','planned'],['市场趋势','planned']],
-    activity:[['当前','已建立工程入口，尚未完成真实数据通道验证。'],['下一步','确认可用授权方式和合法稳定的数据获取路径。']],
-    actions:['核实接入方式','查看建设说明']
-  },
-  codex:{
-    title:'GPT ↔ Codex',subtitle:'1122 的开发执行通道与任务桥。',status:'已有历史工程',statusClass:'ok',kind:'开发执行通道',
-    rows:[['本地 Gateway','已有工程'],['MCP Server','已有工程'],['权限控制','已有工程'],['运行 Ledger','已有工程'],['GitHub 任务桥','已有工程'],['健康检查与恢复','已有工程']],
-    caps:[['本地网关','ready'],['权限逻辑','ready'],['任务账本','ready'],['MCP Server','ready'],['测试','ready'],['GitHub 任务桥','ready']],
-    activity:[['已有','runtime/src/gpt_codex_gateway 包含 app_server、gateway、authority、ledger、mcp_server 等模块。'],['已有','运行与恢复目录包含安装、卸载和健康检查说明。'],['已有','GitHub 任务桥包含 worker、task schema 和安装脚本。']],
-    actions:['健康检查','查看任务桥']
-  }
-};
-
-function setActiveNav(view,clicked){
-  document.querySelectorAll('#mainNav a').forEach(a=>a.classList.remove('active'));
-  if(clicked){clicked.classList.add('active');return;}
-  const target=document.querySelector(`#mainNav a[data-view="${view}"]`);if(target)target.classList.add('active');
-}
-function openView(id,clicked){
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('show'));
-  document.getElementById(id).classList.add('show');
-  if(id==='productDetail') setActiveNav('home'); else if(id==='connectionDetail') setActiveNav('connections'); else setActiveNav(id,clicked);
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-function openPlaceholder(name,clicked){document.getElementById('placeholderTitle').textContent=name;openView('placeholder',clicked);}
-function openProduct(name){document.getElementById('productName').textContent=name+' · 产品状态卡';openView('productDetail');}
-function filterConnections(group,btn){
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  document.querySelectorAll('.connection-card').forEach(c=>{c.classList.toggle('hidden',group!=='all'&&c.dataset.group!==group);});
-}
-function openConnection(key){
-  const d=connectionData[key];if(!d)return;
-  document.getElementById('connDetailTitle').textContent=d.title;
-  document.getElementById('connDetailSubtitle').textContent=d.subtitle;
-  const rowHtml=d.rows.map(r=>`<li><span>${r[0]}</span><strong>${r[1]}</strong></li>`).join('');
-  const capHtml=d.caps.map(c=>`<span class="cap ${c[1]}">${c[0]}</span>`).join('');
-  const activityHtml=d.activity.map(a=>`<div class="event"><strong>${a[0]}</strong><div class="meta">${a[1]}</div></div>`).join('');
-  const actionHtml=d.actions.map(a=>`<button class="action secondary" onclick="showToast('${a}：当前 V1 先展示入口，真实操作需后端连接能力')">${a}</button>`).join('');
-  document.getElementById('connDetailBody').innerHTML=`
-    <div class="grid kpis">
-      <div class="card"><div class="kpi-label">当前状态</div><div style="margin-top:10px"><span class="tag ${d.statusClass}"><span class="dot"></span>${d.status}</span></div><div class="meta" style="margin-top:8px">状态来自当前仓库建设记录</div></div>
-      <div class="card"><div class="kpi-label">连接类型</div><div class="kpi-value" style="font-size:20px">${d.kind}</div><div class="meta">统一纳入外部连接中心管理</div></div>
-      <div class="card"><div class="kpi-label">敏感凭据</div><div class="kpi-value" style="font-size:20px">不进入前端</div><div class="meta">真实密钥必须由安全后端管理</div></div>
-    </div>
-    <div class="detail-grid">
-      <div class="card"><div class="section-title"><h2>连接状态</h2><span class="pill">实时状态待后端接入</span></div><ul class="detail-list">${rowHtml}</ul></div>
-      <div class="card"><div class="section-title"><h2>能力范围</h2><span class="pill">能力地图</span></div><div class="capabilities">${capHtml}</div><div class="empty-note" style="margin-top:16px">绿色表示仓库已有对应工程能力；黄色表示规划/待接入能力。是否“真实可用”仍需经过实际连接测试和验收。</div></div>
-    </div>
-    <div class="detail-grid">
-      <div class="card"><div class="section-title"><h2>建设 / 运行记录</h2><span class="pill">可追溯</span></div><div class="timeline">${activityHtml}</div></div>
-      <div class="card"><div class="section-title"><h2>操作区</h2><span class="pill">V1</span></div><p class="muted">当前页面先提供操作入口设计。真实“测试连接、授权、同步、重启”等动作必须通过后端连接层执行。</p><div class="action-row">${actionHtml}</div></div>
-    </div>`;
-  openView('connectionDetail');
-}
-function showToast(text){const t=document.getElementById('toast');t.textContent=text;t.classList.add('show');clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>t.classList.remove('show'),2600);}
+const nav=document.getElementById('nav');
+function hideAll(){document.querySelectorAll('.view').forEach(v=>v.classList.remove('show'))}
+function activate(a){document.querySelectorAll('.nav a').forEach(x=>x.classList.remove('active'));if(a)a.classList.add('active')}
+function openView(id,a){hideAll();document.getElementById(id).classList.add('show');activate(a);window.scrollTo({top:0,behavior:'smooth'})}
+function placeholder(name,a){document.getElementById('placeholderTitle').textContent=name;openView('placeholder',a)}
+function openProduct(name){document.getElementById('productName').textContent=name+' · 产品状态卡';hideAll();document.getElementById('product').classList.add('show');window.scrollTo({top:0,behavior:'smooth'})}
+function openWebsiteCenter(){hideAll();document.getElementById('website').classList.add('show');activate(nav.querySelectorAll('a')[2]);window.scrollTo({top:0,behavior:'smooth'})}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 </script>
-</body>
-</html>
+</body></html>

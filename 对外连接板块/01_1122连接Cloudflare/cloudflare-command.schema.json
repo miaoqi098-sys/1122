@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "1122 Cloudflare Command",
+  "type": "object",
+  "required": ["command_id", "action"],
+  "properties": {
+    "command_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{6,80}$"
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "status.read",
+        "pages.bind_custom_domain",
+        "pages.read_custom_domain",
+        "dns.list",
+        "dns.upsert_record",
+        "website.publish"
+      ]
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "confirm": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": false
+}

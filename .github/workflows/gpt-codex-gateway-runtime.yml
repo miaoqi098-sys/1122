@@ -20,8 +20,8 @@ jobs:
       run:
         working-directory: '10_对外链接/01_GPT链接Codex/03_本地网关/runtime'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install

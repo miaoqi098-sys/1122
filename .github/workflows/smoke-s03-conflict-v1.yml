@@ -186,18 +186,18 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@4 d1 execute 1122-core --remote \
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-            --command "DELETE FROM a1_conflict_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_context_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_event_intake_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM events WHERE source='s03_conflict_smoke'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, last_success_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), last_attempt_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'FRESH' ELSE 'PENDING_CONTEXT' END, parser_version='S03-runtime-v1.2.0', updated_at=datetime('now') WHERE source_key='a1_conflict_detector';" >/dev/null
+            --command "DELETE FROM a1_decision_items WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_decision_item_builder_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_conflict_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_context_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_event_intake_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM events WHERE source='s03_conflict_smoke'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, last_success_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), last_attempt_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'FRESH' ELSE 'PENDING_CONTEXT' END, parser_version='S03-runtime-v1.2.0', updated_at=datetime('now') WHERE source_key='a1_conflict_detector';" >/dev/null
           npx --yes wrangler@4 d1 execute 1122-core --remote --json \
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-            --command "SELECT (SELECT COUNT(*) FROM events WHERE source='s03_conflict_smoke') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs i JOIN events e ON e.event_id=i.event_id WHERE e.source='s03_conflict_smoke') AS smoke_intakes, (SELECT COUNT(*) FROM a1_context_runs c JOIN events e ON e.event_id=c.event_id WHERE e.source='s03_conflict_smoke') AS smoke_contexts, (SELECT COUNT(*) FROM a1_conflict_runs r JOIN events e ON e.event_id=r.event_id WHERE e.source='s03_conflict_smoke') AS smoke_conflicts;" > /tmp/s03-cleanup.json
+            --command "SELECT (SELECT COUNT(*) FROM events WHERE source='s03_conflict_smoke') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs i JOIN events e ON e.event_id=i.event_id WHERE e.source='s03_conflict_smoke') AS smoke_intakes, (SELECT COUNT(*) FROM a1_context_runs c JOIN events e ON e.event_id=c.event_id WHERE e.source='s03_conflict_smoke') AS smoke_contexts, (SELECT COUNT(*) FROM a1_conflict_runs r JOIN events e ON e.event_id=r.event_id WHERE e.source='s03_conflict_smoke') AS smoke_conflicts, (SELECT COUNT(*) FROM a1_decision_item_builder_runs b JOIN events e ON e.event_id=b.event_id WHERE e.source='s03_conflict_smoke') AS smoke_builders, (SELECT COUNT(*) FROM a1_decision_items d JOIN events e ON e.event_id=d.event_id WHERE e.source='s03_conflict_smoke') AS smoke_decision_items;" > /tmp/s03-cleanup.json
           node - <<'NODE'
           const fs = require('fs');
           const x = JSON.parse(fs.readFileSync('/tmp/s03-cleanup.json','utf8'));
           const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
-          for (const k of ['smoke_events','smoke_intakes','smoke_contexts','smoke_conflicts']) {
+          for (const k of ['smoke_events','smoke_intakes','smoke_contexts','smoke_conflicts','smoke_builders','smoke_decision_items']) {
             if (Number(r?.[k] || 0) !== 0) throw new Error(`S03 cleanup failed: ${k}=${r?.[k]}`);
           }
-          console.log('Synthetic S03 smoke data cleaned.');
+          console.log('Synthetic S03/DecisionItemBuilder smoke data cleaned.');
           NODE
 
       - name: Rotate Data Layer internal authorization

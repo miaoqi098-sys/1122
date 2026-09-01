@@ -77,6 +77,6 @@ S03不裁决观察窗口内是否应该提前反转。
 - 直接覆盖旧策略。
 
 ## 当前版本
-- 业务规则：V1.1；
+- 业务规则：V1.2；
 - 接口：V1.2，已统一ContextPackage并正式接DecisionItemBuilder；
-- Runtime（运行时）：V1.2工程实现中，采用确定性规则优先、证据不足显式保留的原则。
+- Runtime（运行时）：`S03-runtime-v1.2.0`，正在接入Data Layer运行桥与D1 Ledger（账本）。

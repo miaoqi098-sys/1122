@@ -1,0 +1,40 @@
+name: Patch V1.3 UI And Private Governance
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "tools/patch-v13-ui-private-governance.mjs"
+      - ".github/workflows/patch-v13-ui-private-governance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch V1.3 UI and governance
+        run: node tools/patch-v13-ui-private-governance.mjs
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html '系统冲突问题库/政策边界板块/系统公共层/冲突-政策边界板块-系统公共层-GitHub公开仓与经营敏感数据隔离-001.md' '政策边界板块/系统公共层/仓库可见性与敏感数据安全边界.md' '运营板块/产品板块/V1_产品运营中心.md'
+          git commit -m "feat: finalize InventorySnapshot V1.3 and private governance"
+          git push

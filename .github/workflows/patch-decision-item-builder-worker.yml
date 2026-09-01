@@ -5,6 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "tools/patch-decision-item-builder-worker.mjs"
+      - ".github/workflows/patch-decision-item-builder-worker.yml"
   workflow_dispatch:
 
 permissions:

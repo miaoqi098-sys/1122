@@ -149,12 +149,14 @@ export function runDecisionItemBuilder(input = {}) {
     };
   }
 
-  if (input.s03_next_action && input.s03_next_action !== 'continue_to_decision_item_builder') {
+  // Fail closed: DecisionItemBuilder may only build after an explicit S03 forward route.
+  // Missing, unknown or blocked S03 routes must never create an item that can reach S04.
+  if (input.s03_next_action !== 'continue_to_decision_item_builder') {
     return {
       builder_id: builderId,
       decision_items: [],
       merged_source_groups: [],
-      builder_notes: [`S03 next_action=${input.s03_next_action}，不允许进入 DecisionItemBuilder 正常建项。`],
+      builder_notes: [`S03 next_action=${input.s03_next_action ?? 'missing'}，不允许进入 DecisionItemBuilder 正常建项。`],
       next_action: 'hold_for_review',
       runtime_version: DECISION_ITEM_BUILDER_RUNTIME_VERSION,
       generated_at: now,

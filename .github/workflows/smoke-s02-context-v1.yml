@@ -191,27 +191,15 @@ jobs:
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          EVENT_ID: ${{ steps.event.outputs.event_id }}
         run: |
           set -euo pipefail
-          if [ -n "${EVENT_ID:-}" ]; then
-            npx --yes wrangler@4 d1 execute 1122-core --remote \
-              --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-              --command "DELETE FROM a1_conflict_runs WHERE event_id='$EVENT_ID'; DELETE FROM a1_context_runs WHERE event_id='$EVENT_ID'; DELETE FROM a1_event_intake_runs WHERE event_id='$EVENT_ID'; DELETE FROM events WHERE event_id='$EVENT_ID';" >/dev/null
-            npx --yes wrangler@4 d1 execute 1122-core --remote --json \
-              --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-              --command "SELECT (SELECT COUNT(*) FROM events WHERE event_id='$EVENT_ID') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs WHERE event_id='$EVENT_ID') AS smoke_intakes, (SELECT COUNT(*) FROM a1_context_runs WHERE event_id='$EVENT_ID') AS smoke_contexts, (SELECT COUNT(*) FROM a1_conflict_runs WHERE event_id='$EVENT_ID') AS smoke_conflicts;" > /tmp/s02-cleanup.json
-            node - <<'NODE'
-            const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/s02-cleanup.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];
-            for(const key of ['smoke_events','smoke_intakes','smoke_contexts','smoke_conflicts']){
-              if(Number(r?.[key]||0)!==0) throw new Error(`S02 cleanup failed: ${key}=${r?.[key]}`);
-            }
-            console.log('Synthetic S01/S02/S03 records cleaned.');
-            NODE
-          fi
           npx --yes wrangler@4 d1 execute 1122-core --remote \
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-            --command "UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'PARTIAL' ELSE 'PENDING_EVENT' END, updated_at=datetime('now') WHERE source_key='a1_context_loader'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, last_success_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), last_attempt_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'FRESH' ELSE 'PENDING_CONTEXT' END, parser_version='S03-runtime-v1.2.0', updated_at=datetime('now') WHERE source_key='a1_conflict_detector';" >/dev/null
+            --command "DELETE FROM a1_conflict_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s02_context_smoke'); DELETE FROM a1_context_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s02_context_smoke'); DELETE FROM a1_event_intake_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s02_context_smoke'); DELETE FROM events WHERE source='s02_context_smoke'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'PARTIAL' ELSE 'PENDING_EVENT' END, updated_at=datetime('now') WHERE source_key='a1_context_loader'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, last_success_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), last_attempt_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'FRESH' ELSE 'PENDING_CONTEXT' END, parser_version='S03-runtime-v1.2.0', updated_at=datetime('now') WHERE source_key='a1_conflict_detector';" >/dev/null
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM events WHERE source='s02_context_smoke') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs i JOIN events e ON e.event_id=i.event_id WHERE e.source='s02_context_smoke') AS smoke_intakes, (SELECT COUNT(*) FROM a1_context_runs c JOIN events e ON e.event_id=c.event_id WHERE e.source='s02_context_smoke') AS smoke_contexts, (SELECT COUNT(*) FROM a1_conflict_runs r JOIN events e ON e.event_id=r.event_id WHERE e.source='s02_context_smoke') AS smoke_conflicts;" > /tmp/s02-cleanup.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/s02-cleanup.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];for(const k of ['smoke_events','smoke_intakes','smoke_contexts','smoke_conflicts']){if(Number(r?.[k]||0)!==0){console.error('S02 cleanup failed',k,r?.[k]);process.exit(1)}}console.log('Synthetic S01/S02/S03 records cleaned.')"
 
       - name: Rotate Data Layer internal authorization
         if: always()

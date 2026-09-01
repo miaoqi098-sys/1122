@@ -52,18 +52,6 @@ jobs:
           echo "Frontend artifact contains only approved web files:"
           find dist -maxdepth 1 -type f -printf '%f\n' | sort
 
-      - name: Ensure Cloudflare Pages project
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          if ! npx --yes wrangler@4 pages project list 2>&1 | grep -q '1122-web-agent'; then
-            npx --yes wrangler@4 pages project create 1122-web-agent --production-branch=main
-          else
-            echo "Cloudflare Pages project 1122-web-agent already exists"
-          fi
-
       - name: Deploy latest 1122
         shell: bash
         env:
@@ -73,4 +61,4 @@ jobs:
           npx --yes wrangler@4 pages deploy dist --project-name=1122-web-agent --branch=main --commit-dirty=true
           echo "Stable URL: https://1122-web-agent.pages.dev"
 
-# deployment marker: data-layer-ui-v1-20260901
+# deployment marker: data-layer-ui-v1-direct-pages-deploy

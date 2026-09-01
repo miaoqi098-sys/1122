@@ -9,7 +9,14 @@ import {
   loadPendingContexts,
   A1_CONTEXT_LOADER_VERSION,
 } from './s02-context.js';
+import {
+  detectConflictsForContextRun,
+  detectConflictsForEvent,
+  detectPendingConflicts,
+  A1_CONFLICT_DETECTOR_VERSION,
+} from './s03-conflict.js';
 import { S02_RUNTIME_VERSION } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/执行程序/runtime.js';
+import { S03_RUNTIME_VERSION } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S03_冲突检测/执行程序/runtime.js';
 
 const ALLOWED_ORIGINS = new Set([
   'https://1122-web-agent.pages.dev',
@@ -74,6 +81,10 @@ async function getD1Summary(env) {
         (SELECT COUNT(*) FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') AS a1_ready_for_s02,
         (SELECT COUNT(*) FROM a1_context_runs) AS a1_context_runs,
         (SELECT COUNT(*) FROM a1_context_runs WHERE s02_status IN ('ready','ready_with_gaps')) AS a1_context_ready,
+        (SELECT COUNT(*) FROM a1_conflict_runs) AS a1_conflict_runs,
+        (SELECT COUNT(*) FROM a1_conflict_runs WHERE s03_status='clear') AS a1_conflict_clear,
+        (SELECT COUNT(*) FROM a1_conflict_runs WHERE s03_status='conflicts_found') AS a1_conflicts_found,
+        (SELECT COUNT(*) FROM a1_conflict_runs WHERE s03_status IN ('needs_evidence','blocked')) AS a1_conflict_gated,
         (SELECT COUNT(*) FROM decisions) AS decisions,
         (SELECT COUNT(*) FROM tasks) AS tasks,
         (SELECT COUNT(*) FROM validation_results) AS validations,
@@ -93,6 +104,10 @@ async function getD1Summary(env) {
       a1ReadyForS02: Number(row?.a1_ready_for_s02 || 0),
       a1ContextRuns: Number(row?.a1_context_runs || 0),
       a1ContextReady: Number(row?.a1_context_ready || 0),
+      a1ConflictRuns: Number(row?.a1_conflict_runs || 0),
+      a1ConflictClear: Number(row?.a1_conflict_clear || 0),
+      a1ConflictsFound: Number(row?.a1_conflicts_found || 0),
+      a1ConflictGated: Number(row?.a1_conflict_gated || 0),
       decisions: Number(row?.decisions || 0),
       tasks: Number(row?.tasks || 0),
       validations: Number(row?.validations || 0),
@@ -140,6 +155,10 @@ async function checkR2(env) {
   }
 }
 
+async function runS03Pending(env, limit = 10) {
+  return detectPendingConflicts(env, { limit: Math.min(Math.max(Number(limit || 10), 1), 10) });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -181,6 +200,16 @@ export default {
           automaticAfterS01: true,
           outputs: ['ready', 'ready_with_gaps', 'needs_information', 'blocked'],
         },
+        a1Conflict: {
+          version: A1_CONFLICT_DETECTOR_VERSION,
+          runtimeVersion: S03_RUNTIME_VERSION,
+          pipeline: ['S02ContextPackage', 'ConflictElementNormalizer', 'ConflictDetection', 'ConflictClusterer', 'EvidenceResolver', 'A1ConflictLedger'],
+          contextPackageIsUniqueFactSource: true,
+          automaticAfterS02: true,
+          directToS04: false,
+          normalNextAction: 'continue_to_decision_item_builder',
+          outputs: ['clear', 'conflicts_found', 'needs_evidence', 'blocked'],
+        },
         summary,
         sources,
         policy: {
@@ -207,7 +236,8 @@ export default {
         const result = await rebuildDerivedLayer(env, marketplace, productLimit, dateLimit);
         const a1Intake = await intakePendingEvents(env, { source: 'derived_layer_v1', limit: 20 });
         const a1Context = await loadPendingContexts(env, { limit: 10 });
-        return json({ success: true, ...result, a1Intake, a1Context }, 200, origin);
+        const a1Conflict = await runS03Pending(env, 10);
+        return json({ success: true, ...result, a1Intake, a1Context, a1Conflict }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'Derived Layer rebuild failed', error: error.message }, 500, origin);
       }
@@ -225,7 +255,8 @@ export default {
         const s02Context = result.intakeStatus === 'READY_FOR_S02'
           ? await loadContextForEvent(env, eventId, { contextRequest: body?.context_request || undefined })
           : null;
-        return json({ success: true, ...result, s02Context }, 200, origin);
+        const s03Conflict = s02Context?.found ? await detectConflictsForEvent(env, eventId) : null;
+        return json({ success: true, ...result, s02Context, s03Conflict }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'A1 event intake failed', error: error.message }, 500, origin);
       }
@@ -239,7 +270,8 @@ export default {
         const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 20), 1), 50);
         const result = await intakePendingEvents(env, { source, limit });
         const s02Context = await loadPendingContexts(env, { limit: Math.min(limit, 10) });
-        return json({ success: true, ...result, s02Context }, 200, origin);
+        const s03Conflict = await runS03Pending(env, Math.min(limit, 10));
+        return json({ success: true, ...result, s02Context, s03Conflict }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'A1 pending intake failed', error: error.message }, 500, origin);
       }
@@ -254,7 +286,8 @@ export default {
       try {
         const result = await loadContextForEvent(env, eventId, { contextRequest: body?.context_request || undefined });
         if (!result.found) return json({ success: false, message: 'No READY_FOR_S02 intake found for event', eventId }, 404, origin);
-        return json({ success: true, ...result }, 200, origin);
+        const s03Conflict = await detectConflictsForEvent(env, eventId);
+        return json({ success: true, ...result, s03Conflict }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'S02 context loading failed', error: error.message }, 500, origin);
       }
@@ -266,9 +299,56 @@ export default {
       try {
         const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 10), 1), 10);
         const result = await loadPendingContexts(env, { limit });
-        return json({ success: true, ...result }, 200, origin);
+        const s03Conflict = await runS03Pending(env, limit);
+        return json({ success: true, ...result, s03Conflict }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'S02 pending context loading failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/conflict-context') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      const body = await parseBody(request);
+      const contextRunId = String(body?.context_run_id || url.searchParams.get('context_run_id') || '').trim();
+      if (!contextRunId) return json({ success: false, message: 'context_run_id is required' }, 400, origin);
+      try {
+        const result = await detectConflictsForContextRun(env, contextRunId, {
+          normalizedElements: Array.isArray(body?.normalized_elements) ? body.normalized_elements : undefined,
+        });
+        if (!result.found) return json({ success: false, message: 'S02 ContextRun not found', contextRunId }, 404, origin);
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'S03 conflict detection failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/conflict-event') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      const body = await parseBody(request);
+      const eventId = String(body?.event_id || url.searchParams.get('event_id') || '').trim();
+      if (!eventId) return json({ success: false, message: 'event_id is required' }, 400, origin);
+      try {
+        const result = await detectConflictsForEvent(env, eventId, {
+          normalizedElements: Array.isArray(body?.normalized_elements) ? body.normalized_elements : undefined,
+        });
+        if (!result.found) return json({ success: false, message: 'No ready S02 ContextPackage found for event', eventId }, 404, origin);
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'S03 event conflict detection failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/conflict-pending') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      try {
+        const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 10), 1), 10);
+        const result = await detectPendingConflicts(env, { limit });
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'S03 pending conflict detection failed', error: error.message }, 500, origin);
       }
     }
 
@@ -276,4 +356,4 @@ export default {
   },
 };
 
-// deploy marker: s02-context-v1.0-auth-readiness
+// deploy marker: s03-conflict-v1.0

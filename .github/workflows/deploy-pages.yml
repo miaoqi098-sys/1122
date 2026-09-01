@@ -39,4 +39,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-# deployment marker: sif-mcp-ui-v1
+# deployment marker: operations-product-center-v1

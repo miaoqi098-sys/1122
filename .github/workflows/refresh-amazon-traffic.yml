@@ -1,6 +1,10 @@
 name: Refresh Amazon Traffic Snapshot
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/refresh-amazon-traffic.yml"
   workflow_dispatch:
 
 permissions:
@@ -125,4 +129,4 @@ jobs:
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
           echo "Internal authorization rotated."
 
-# No SKU/ASIN/sessions/orders/sales amounts are printed in workflow logs.
+# First real TrafficSnapshot validation. No SKU/ASIN/sessions/orders/sales amounts are printed.

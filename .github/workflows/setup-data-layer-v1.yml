@@ -1,0 +1,147 @@
+name: Setup 1122 Data Layer V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/setup-data-layer-v1.yml"
+      - "tools/configure-data-layer-v1.mjs"
+      - "数据板块/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify Cloudflare token
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "CLOUDFLARE_API_TOKEN is missing" >&2
+            exit 2
+          fi
+
+      - name: Provision D1 core database
+        id: d1
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 list --json > /tmp/d1-list.json
+          D1_ID=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-list.json','utf8'));const a=Array.isArray(x)?x:(x.result||[]);const d=a.find(v=>v.name==='1122-core'||v.database_name==='1122-core');if(d)process.stdout.write(String(d.uuid||d.id||d.database_id||''))")
+          if [ -z "$D1_ID" ]; then
+            echo "Creating D1 database 1122-core..."
+            npx --yes wrangler@4 d1 create 1122-core --location enam > /tmp/d1-create.txt
+            npx --yes wrangler@4 d1 list --json > /tmp/d1-list.json
+            D1_ID=$(node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-list.json','utf8'));const a=Array.isArray(x)?x:(x.result||[]);const d=a.find(v=>v.name==='1122-core'||v.database_name==='1122-core');if(!d)process.exit(2);process.stdout.write(String(d.uuid||d.id||d.database_id||''))")
+          else
+            echo "D1 database 1122-core already exists"
+          fi
+          if [ -z "$D1_ID" ]; then
+            echo "Unable to resolve D1 database id" >&2
+            exit 3
+          fi
+          echo "database_id=$D1_ID" >> "$GITHUB_OUTPUT"
+          echo "D1 1122-core is ready"
+
+      - name: Provision private R2 archive bucket
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if npx --yes wrangler@4 r2 bucket info 1122-data-archive --json >/tmp/r2-info.json 2>/dev/null; then
+            echo "R2 bucket 1122-data-archive already exists"
+          else
+            echo "Creating R2 bucket 1122-data-archive..."
+            npx --yes wrangler@4 r2 bucket create 1122-data-archive --storage-class Standard
+          fi
+          npx --yes wrangler@4 r2 bucket info 1122-data-archive --json >/tmp/r2-info.json
+          echo "R2 1122-data-archive is ready and remains private"
+
+      - name: Configure bindings
+        shell: bash
+        env:
+          D1_DATABASE_ID: ${{ steps.d1.outputs.database_id }}
+        run: node tools/configure-data-layer-v1.mjs
+
+      - name: Apply D1 migrations
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 migrations apply CORE_DB --remote --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
+
+      - name: Write R2 bootstrap archive marker
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 r2 object put 1122-data-archive/system/bootstrap/data-layer-v1.json \
+            --remote \
+            --file '数据板块/08_存储与访问层/cloudflare/bootstrap.json' \
+            --content-type application/json \
+            --force
+
+      - name: Deploy data layer Worker
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
+
+      - name: Deploy Amazon bridge with D1 and R2 bindings
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config '对外连接板块/02_1122连接亚马逊API/worker/wrangler.toml'
+
+      - name: Verify D1 schema
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';" > /tmp/d1-check.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<10){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
+
+      - name: Commit non-secret resource bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+                  '数据板块/08_存储与访问层/resources.json' \
+                  '对外连接板块/02_1122连接亚马逊API/worker/wrangler.toml'
+          if git diff --cached --quiet; then
+            echo "No binding metadata changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: bind 1122 data layer resources"
+          git push
+
+# DataLayer V1 bootstrap: D1 facts + R2 archive + KV current-state cache.

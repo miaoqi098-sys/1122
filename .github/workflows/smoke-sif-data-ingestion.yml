@@ -54,7 +54,7 @@ jobs:
             -H 'Accept: application/json' \
             'https://1122-sif-bridge.zhangshuaibing01.workers.dev/internal/sync-asins?marketplace=US&limit=1')
           cat /tmp/sif-sync.json
-          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/sif-sync.json','utf8'));if(!d.success){console.error(d.message||d.error||'Sif sync failed');process.exit(1)};if(Number(d.productsSelected||0)<1){console.error('No product selected for Sif smoke test');process.exit(2)};console.log('Sif sync summary:',JSON.stringify(d.summary||{}));"
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/sif-sync.json','utf8'));if(!d.success){console.error(d.message||d.error||'Sif sync failed');process.exit(1)};if(Number(d.productsSelected||0)<1){console.error('No product selected for Sif smoke test');process.exit(2)};console.log('Selected ASIN:',d.results?.[0]?.asin||'unknown');console.log('Sif sync summary:',JSON.stringify(d.summary||{}));"
           test "$CODE" -ge 200 -a "$CODE" -lt 300
 
       - name: Verify Sif observations persisted in D1
@@ -64,8 +64,8 @@ jobs:
         run: |
           set -euo pipefail
           npx --yes wrangler@4 d1 execute 1122-core --remote --json \
-            --command "SELECT (SELECT COUNT(*) FROM external_tool_observations WHERE provider='sif') AS observations, (SELECT COUNT(*) FROM sif_asin_profile_snapshots) AS profiles, (SELECT COUNT(*) FROM sif_asin_traffic_daily) AS traffic_rows, (SELECT COUNT(*) FROM sif_asin_keyword_signals) AS keyword_rows, (SELECT COUNT(*) FROM sif_asin_ad_structure_snapshots) AS ad_structure_rows;" > /tmp/sif-d1.json
-          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/sif-d1.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(!r){process.exit(1)};console.log(JSON.stringify({sifD1:r},null,2));if(Number(r.observations)<4){console.error('Expected at least four persisted Sif tool observations');process.exit(2)}"
+            --command "SELECT (SELECT COUNT(*) FROM external_tool_observations WHERE provider='sif') AS observations, (SELECT COUNT(*) FROM sif_asin_profile_snapshots) AS profiles, (SELECT COUNT(*) FROM sif_asin_profile_snapshots WHERE data_status='NO_DATA') AS no_data_profiles, (SELECT COUNT(*) FROM sif_asin_traffic_daily) AS traffic_rows, (SELECT COUNT(*) FROM sif_asin_keyword_signals) AS keyword_rows, (SELECT COUNT(*) FROM sif_asin_ad_structure_snapshots) AS ad_structure_rows;" > /tmp/sif-d1.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/sif-d1.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(!r){process.exit(1)};console.log(JSON.stringify({sifD1:r},null,2));if(Number(r.observations)<8){console.error('Expected at least eight persisted Sif tool observations after second sync');process.exit(2)};if(Number(r.no_data_profiles)<1){console.error('Expected at least one NO_DATA profile observation');process.exit(3)}"
 
       - name: Rotate internal authorization
         if: always()
@@ -78,3 +78,5 @@ jobs:
           echo "::add-mask::$ROTATED"
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put SIF_INTERNAL_TOKEN >/dev/null
           echo "Sif internal authorization rotated."
+
+# validation: no-data-rotation-v1

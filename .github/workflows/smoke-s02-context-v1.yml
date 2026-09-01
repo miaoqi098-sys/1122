@@ -1,0 +1,201 @@
+name: Smoke S02 Context Loader V1
+
+on:
+  workflow_run:
+    workflows: ["Setup 1122 Data Layer V1"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 1122-s02-context-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify S02 runtime contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/s02-context.test.mjs'
+
+      - name: Create temporary Data Layer internal authorization
+        id: auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          sleep 5
+
+      - name: Insert synthetic traffic event on product with derived context
+        id: event
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          EVENT_ID="smoke-s02-$(node -e "process.stdout.write(require('crypto').randomUUID())")"
+          echo "event_id=$EVENT_ID" >> "$GITHUB_OUTPUT"
+          SQL="INSERT INTO events (event_id, product_id, marketplace, event_type, severity, source, event_status, processing_disposition, evidence_json, payload_json, occurred_at, dedup_key) SELECT '$EVENT_ID', p.product_id, p.marketplace, 'AMAZON_SESSIONS_DROP', 'HIGH', 's02_context_smoke', 'NEW', 'AWAITING_A1', '{\"metricKey\":\"amazon.sessions\",\"currentValue\":75,\"priorValue\":101,\"baseline7d\":100,\"deltaPct\":-0.25,\"historyPoints\":7,\"threshold\":{\"deltaPctLte\":-0.2}}', '{\"engineVersion\":\"smoke-s02-v1\",\"deterministic\":true}', datetime('now'), 'smoke-s02:' || '$EVENT_ID' FROM products p WHERE p.marketplace='US' AND p.asin IS NOT NULL AND p.asin<>'' AND EXISTS (SELECT 1 FROM product_daily_state s WHERE s.product_id=p.product_id) AND EXISTS (SELECT 1 FROM product_daily_metrics m WHERE m.product_id=p.product_id) ORDER BY p.updated_at DESC LIMIT 1;"
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "$SQL" > /tmp/s02-insert.json
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS count FROM events WHERE event_id='$EVENT_ID';" > /tmp/s02-exists.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/s02-exists.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];
+          if(Number(r?.count||0)!==1){console.error('No product with derived context was available');process.exit(1)}
+          NODE
+
+      - name: Run exact event through S01 and S02
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          cat > /tmp/s02-request.json <<JSON
+          {"event_id":"$EVENT_ID","context_request":{"question":"判断该产品Sessions下降是否需要干预，并区分自身经营状态与市场变化。","max_context_items":80,"max_context_tokens":10000}}
+          JSON
+          CODE=$(curl -sS -o /tmp/s02-response.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/s02-request.json \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/intake-event')
+          cat /tmp/s02-response.json
+          node - <<'NODE'
+          const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/s02-response.json','utf8'));
+          if(!d.success || !['passed','passed_with_warnings'].includes(d.s01Status)) process.exit(1);
+          const c=d.s02Context;
+          if(!c?.found || !['ready','ready_with_gaps'].includes(c.status)) { console.error('S02 did not produce usable context', c); process.exit(2); }
+          if(c.runtimeVersion!=='S02-runtime-v1.2.0') process.exit(3);
+          const p=c.context_package||{};
+          for(const key of ['C01_product_identity','C02_business_state','C04_core_metrics','C05_events_and_promotions']){
+            if(!p[key]) { console.error('Missing P0 context domain:',key); process.exit(4); }
+          }
+          if(c.scope?.product_id==null) process.exit(5);
+          if(!Array.isArray(c.planned_domains)||c.planned_domains.length<4) process.exit(6);
+          console.log(JSON.stringify({eventId:c.eventId,status:c.status,nextAction:c.next_action,planned:c.planned_domains.map(x=>`${x.domain}:${x.priority}`),loaded:c.loaded_items.map(x=>x.domain),missing:c.missing_context.map(x=>x.domain)},null,2));
+          NODE
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+
+      - name: Verify Context Ledger and minimum sufficient package
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS run_count, MAX(s02_status) AS s02_status, MAX(next_action) AS next_action, MAX(loader_version) AS loader_version, MAX(context_package_json) AS context_package_json, MAX(planned_domains_json) AS planned_domains_json FROM a1_context_runs WHERE event_id='$EVENT_ID';" > /tmp/s02-ledger.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/s02-ledger.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];
+          if(Number(r?.run_count||0)!==1) process.exit(1);
+          if(!['ready','ready_with_gaps'].includes(String(r.s02_status))) process.exit(2);
+          if(r.loader_version!=='S02-runtime-v1.2.0') process.exit(3);
+          const p=JSON.parse(r.context_package_json);const planned=JSON.parse(r.planned_domains_json);
+          if(!p.C01_product_identity||!p.C02_business_state||!p.C04_core_metrics||!p.C05_events_and_promotions) process.exit(4);
+          if(Object.keys(p).length>10 || planned.length>10) process.exit(5);
+          console.log(JSON.stringify({runCount:r.run_count,s02Status:r.s02_status,contextDomains:Object.keys(p),plannedDomains:planned.map(x=>x.domain)},null,2));
+          NODE
+
+      - name: Verify pending loader is idempotent for processed intake
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/context-pending?limit=10' > /tmp/s02-pending.json
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS run_count FROM a1_context_runs WHERE event_id='$EVENT_ID';" > /tmp/s02-idempotent.json
+          node - <<'NODE'
+          const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/s02-idempotent.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];
+          if(Number(r?.run_count||0)!==1){console.error('Pending loader duplicated processed event');process.exit(1)}
+          console.log('S02 pending idempotency verified.');
+          NODE
+
+      - name: Verify Derived rebuild advertises automatic S02 bridge
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/rebuild-derived?marketplace=US&productLimit=1&dateLimit=30' > /tmp/s02-derived.json
+          node - <<'NODE'
+          const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/s02-derived.json','utf8'));
+          if(!d.success || !d.a1Intake || !d.a1Context) process.exit(1);
+          if(d.a1Context.runtimeVersion!=='S02-runtime-v1.2.0') process.exit(2);
+          console.log(JSON.stringify({derived:true,a1Intake:{processed:d.a1Intake.processed},a1Context:{processed:d.a1Context.processed,runtimeVersion:d.a1Context.runtimeVersion}},null,2));
+          NODE
+
+      - name: Verify live Data Layer advertises S02
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/s02-status.json
+          node - <<'NODE'
+          const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/s02-status.json','utf8'));
+          if(!d.success || d.version!=='1.5.0') process.exit(1);
+          if(d.a1Context?.runtimeVersion!=='S02-runtime-v1.2.0') process.exit(2);
+          if(d.a1Context?.contextPackageIsUniqueFactSource!==true || d.a1Context?.automaticAfterS01!==true) process.exit(3);
+          console.log(JSON.stringify({version:d.version,a1Context:d.a1Context},null,2));
+          NODE
+
+      - name: Cleanup synthetic S02 records
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "${EVENT_ID:-}" ]; then
+            npx --yes wrangler@4 d1 execute 1122-core --remote \
+              --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+              --command "DELETE FROM a1_context_runs WHERE event_id='$EVENT_ID'; DELETE FROM a1_event_intake_runs WHERE event_id='$EVENT_ID'; DELETE FROM events WHERE event_id='$EVENT_ID';" >/dev/null || true
+          fi
+          npx --yes wrangler@4 d1 execute 1122-core --remote \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'PARTIAL' ELSE 'PENDING_EVENT' END, updated_at=datetime('now') WHERE source_key='a1_context_loader';" >/dev/null || true
+
+      - name: Rotate Data Layer internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          echo "Data Layer internal authorization rotated."

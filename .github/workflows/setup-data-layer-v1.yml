@@ -62,24 +62,42 @@ jobs:
           echo "D1 1122-core is ready"
 
       - name: Provision private R2 archive bucket
+        id: r2
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          set -euo pipefail
-          if npx --yes wrangler@4 r2 bucket info 1122-data-archive --json >/tmp/r2-info.json 2>/dev/null; then
+          set -u
+          READY=false
+          if npx --yes wrangler@4 r2 bucket info 1122-data-archive --json >/tmp/r2-info.json 2>/tmp/r2-error.log; then
+            READY=true
             echo "R2 bucket 1122-data-archive already exists"
           else
-            echo "Creating R2 bucket 1122-data-archive..."
-            npx --yes wrangler@4 r2 bucket create 1122-data-archive --storage-class Standard
+            echo "R2 archive bucket is not available yet; attempting account provisioning..."
+            if npx --yes wrangler@4 r2 bucket create 1122-data-archive --storage-class Standard >/tmp/r2-create.log 2>&1; then
+              if npx --yes wrangler@4 r2 bucket info 1122-data-archive --json >/tmp/r2-info.json 2>/dev/null; then
+                READY=true
+              fi
+            else
+              if grep -q "10042\|Please enable R2" /tmp/r2-create.log; then
+                echo "R2 account feature is not enabled yet. Continuing D1-first bootstrap; R2 will be provisioned on the next run after enablement."
+              else
+                echo "R2 provisioning is currently unavailable. Continuing D1-first bootstrap."
+              fi
+            fi
           fi
-          npx --yes wrangler@4 r2 bucket info 1122-data-archive --json >/tmp/r2-info.json
-          echo "R2 1122-data-archive is ready and remains private"
+          echo "ready=$READY" >> "$GITHUB_OUTPUT"
+          if [ "$READY" = "true" ]; then
+            echo "R2 1122-data-archive is ready and private"
+          else
+            echo "R2 status: PENDING_ACCOUNT_ENABLEMENT"
+          fi
 
       - name: Configure bindings
         shell: bash
         env:
           D1_DATABASE_ID: ${{ steps.d1.outputs.database_id }}
+          R2_READY: ${{ steps.r2.outputs.ready }}
         run: node tools/configure-data-layer-v1.mjs
 
       - name: Apply D1 migrations
@@ -91,6 +109,7 @@ jobs:
           npx --yes wrangler@4 d1 migrations apply CORE_DB --remote --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
 
       - name: Write R2 bootstrap archive marker
+        if: steps.r2.outputs.ready == 'true'
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -110,7 +129,7 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@4 deploy --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
 
-      - name: Deploy Amazon bridge with D1 and R2 bindings
+      - name: Deploy Amazon bridge with available data bindings
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -128,6 +147,13 @@ jobs:
             --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';" > /tmp/d1-check.json
           node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<10){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
 
+      - name: Verify Data Layer Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/data-layer-status.json
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/data-layer-status.json','utf8'));if(!d.success||!d.storage?.d1?.ready){console.error('Data Layer Worker verification failed');process.exit(1)};console.log(JSON.stringify({success:true,version:d.version,d1:d.storage.d1,r2:d.storage.r2,kv:d.storage.kv},null,2))"
+
       - name: Commit non-secret resource bindings
         shell: bash
         run: |
@@ -144,4 +170,4 @@ jobs:
           git commit -m "feat: bind 1122 data layer resources"
           git push
 
-# DataLayer V1 bootstrap: D1 facts + R2 archive + KV current-state cache.
+# DataLayer V1 bootstrap: D1 facts + R2 archive when enabled + KV current-state cache.

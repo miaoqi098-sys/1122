@@ -406,6 +406,17 @@ function decideOutcome(conflicts) {
   return { status: 'conflicts_found', next_action: 'continue_to_decision_item_builder' };
 }
 
+function hasUsableContextPackage(context) {
+  if (!context || typeof context !== 'object' || Array.isArray(context)) return false;
+  const knownSections = ['C02_business_state', 'C03_current_goals', 'C04_core_metrics', 'C05_events_and_promotions', 'C07_agent_analyses', 'C10_active_tasks_and_constraints'];
+  return knownSections.some((key) => {
+    const value = context[key];
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === 'object') return Object.keys(value).length > 0;
+    return value !== null && value !== undefined && String(value).trim() !== '';
+  });
+}
+
 export function runS03(input = {}) {
   const generatedAt = (() => {
     const t = Date.parse(input.current_time || '');
@@ -415,10 +426,10 @@ export function runS03(input = {}) {
   const scope = input.scope && typeof input.scope === 'object' ? input.scope : null;
   const context = input.context_package && typeof input.context_package === 'object' ? input.context_package : null;
 
-  if (!eventId || !scope?.scope_type || !context) {
+  if (!eventId || !scope?.scope_type || !hasUsableContextPackage(context)) {
     return {
       skill_id: 'S03', event_id: eventId, scope: scope || { scope_type: 'global' }, status: 'blocked',
-      conflicts: [], conflict_groups: [], unresolved_points: ['S03缺少event_id、scope或context_package。'],
+      conflicts: [], conflict_groups: [], unresolved_points: ['S03缺少event_id、scope或有效context_package。'],
       normalized_elements: [], context_refs: unique(arr(input.context_refs)), next_action: 'hold_for_review',
       runtime_version: S03_RUNTIME_VERSION, generated_at: generatedAt,
     };

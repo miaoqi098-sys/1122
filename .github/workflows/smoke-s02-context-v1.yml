@@ -5,17 +5,21 @@ on:
     workflows: ["Setup 1122 Data Layer V1"]
     types: [completed]
   workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/smoke-s02-context-v1.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: 1122-s02-context-smoke
+  group: 1122-a1-event-intake-smoke
   cancel-in-progress: false
 
 jobs:
   smoke:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

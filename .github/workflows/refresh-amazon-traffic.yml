@@ -33,6 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
           printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
           sleep 5
@@ -49,16 +50,7 @@ jobs:
             -H "Authorization: Bearer $TOKEN" \
             -H 'Accept: application/json' \
             https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/create-traffic-report)
-          node - <<'NODE'
-          const fs=require('fs');
-          const d=JSON.parse(fs.readFileSync('/tmp/create.json','utf8'));
-          if(!d.success || !d.reportId){
-            console.error('Traffic report creation failed:', d.message || d.error || 'unknown');
-            process.exit(1);
-          }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `report_id=${d.reportId}\n`);
-          console.log(JSON.stringify({success:true,pending:true,source:d.source,createdAt:d.createdAt},null,2));
-          NODE
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/create.json','utf8'));if(!d.success||!d.reportId){console.error('Traffic report creation failed:',d.message||d.error||'unknown');process.exit(1)};fs.appendFileSync(process.env.GITHUB_OUTPUT,'report_id='+d.reportId+'\\n');console.log(JSON.stringify({success:true,pending:true,source:d.source,createdAt:d.createdAt},null,2))"
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "Create report returned HTTP $HTTP_CODE" >&2
             exit 4
@@ -79,35 +71,13 @@ jobs:
               "https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/finalize-traffic-report?reportId=$REPORT_ID")
 
             if [ "$HTTP_CODE" = "202" ]; then
-              STATUS=$(node -e "const d=require('/tmp/finalize.json');process.stdout.write(String(d.processingStatus||'PENDING'))")
+              STATUS=$(node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/finalize.json','utf8'));process.stdout.write(String(d.processingStatus||'PENDING'))")
               echo "Amazon report is still processing: $STATUS (attempt $attempt/30)"
               sleep 10
               continue
             fi
 
-            node - <<'NODE'
-            const fs=require('fs');
-            const d=JSON.parse(fs.readFileSync('/tmp/finalize.json','utf8'));
-            if(!d.success || !d.ready){
-              console.error('TrafficSnapshot finalize failed:', d.message || d.error || 'unknown');
-              process.exit(1);
-            }
-            console.log(JSON.stringify({
-              trafficSnapshot:{
-                success:true,
-                ready:true,
-                marketplace:d.marketplace,
-                updatedAt:d.updatedAt,
-                source:d.source,
-                dateRecordCount:d.dateRecordCount,
-                productRecordCount:d.productRecordCount,
-                matchedProductCount:d.matchedProductCount,
-                dataStartTime:d.dataStartTime,
-                dataEndTime:d.dataEndTime,
-                detailVisibility:d.detailVisibility
-              }
-            },null,2));
-            NODE
+            node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/finalize.json','utf8'));if(!d.success||!d.ready){console.error('TrafficSnapshot finalize failed:',d.message||d.error||'unknown');process.exit(1)};console.log(JSON.stringify({trafficSnapshot:{success:true,ready:true,marketplace:d.marketplace,updatedAt:d.updatedAt,source:d.source,dateRecordCount:d.dateRecordCount,productRecordCount:d.productRecordCount,matchedProductCount:d.matchedProductCount,dataStartTime:d.dataStartTime,dataEndTime:d.dataEndTime,detailVisibility:d.detailVisibility}},null,2))"
 
             if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
               echo "Finalize report returned HTTP $HTTP_CODE" >&2
@@ -126,6 +96,7 @@ jobs:
         run: |
           set -euo pipefail
           ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
           echo "Internal authorization rotated."
 

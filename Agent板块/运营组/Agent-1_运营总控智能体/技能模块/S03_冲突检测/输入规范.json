@@ -19,7 +19,7 @@
     "context_refs": {"type": "array", "items": {"type": "string"}},
     "normalized_elements": {
       "type": "array",
-      "description": "可由运行器从context_package派生，也可由S03内部生成；属于派生视图，不得覆盖context_package原始语义。",
+      "description": "可由运行器从context_package派生，也可由上游预计算后提供；属于派生比较视图。运行器必须校验其可追溯来源，且不得用它覆盖或改写context_package原始语义。",
       "items": {
         "type": "object",
         "required": ["element_id", "element_type", "source", "subject"],

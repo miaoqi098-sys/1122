@@ -2,3 +2,7 @@ name = "1122-amazon-sp-api-bridge"
 main = "worker.js"
 compatibility_date = "2026-08-31"
 workers_dev = true
+
+[[kv_namespaces]]
+binding = "PRODUCT_STATE"
+id = "daf3ad0cb59b4ada940e5f02405d4351"

@@ -1,0 +1,125 @@
+name: Smoke Derived Layer V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/smoke-derived-layer-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 1122-derived-layer-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Create temporary Data Layer internal authorization
+        id: auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          sleep 5
+
+      - name: Rebuild Derived Layer for two US products
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/derived.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Accept: application/json' \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/rebuild-derived?marketplace=US&productLimit=2&dateLimit=60')
+          cat /tmp/derived.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/derived.json','utf8'));
+          if (!d.success) {
+            console.error(d.message || d.error || 'Derived rebuild failed');
+            process.exit(1);
+          }
+          if (Number(d.productsProcessed || 0) < 1) {
+            console.error('No product was processed');
+            process.exit(2);
+          }
+          if (Number(d.stateRows || 0) < 7) {
+            console.error('Expected at least 7 ProductDailyState rows');
+            process.exit(3);
+          }
+          if (Number(d.metricRows || 0) < 50) {
+            console.error('Expected derived metric rows');
+            process.exit(4);
+          }
+          console.log('Derived summary:', JSON.stringify({
+            productsProcessed: d.productsProcessed,
+            stateRows: d.stateRows,
+            metricRows: d.metricRows,
+            eventRows: d.eventRows,
+          }));
+          NODE
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+
+      - name: Verify ProductDailyState Metric Event persistence
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM product_daily_state) AS states, (SELECT COUNT(*) FROM product_daily_metrics) AS metrics, (SELECT COUNT(*) FROM events WHERE source='derived_layer_v1') AS derived_events, (SELECT COUNT(*) FROM data_layer_audit WHERE action_type='DERIVED_REBUILD') AS rebuild_audits, (SELECT status FROM data_source_state WHERE source_key='derived_layer_v1') AS derived_status;" \
+            > /tmp/derived-d1.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/derived-d1.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (!r) process.exit(1);
+          console.log(JSON.stringify({ derivedD1: r }, null, 2));
+          if (Number(r.states) < 7 || Number(r.metrics) < 50) process.exit(2);
+          if (String(r.derived_status) !== 'READY') process.exit(3);
+          if (Number(r.rebuild_audits) < 1) process.exit(4);
+          NODE
+
+      - name: Show latest deterministic events
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT event_type, severity, marketplace, occurred_at FROM events WHERE source='derived_layer_v1' ORDER BY occurred_at DESC, severity DESC LIMIT 10;"
+
+      - name: Rotate Data Layer internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          echo "Data Layer internal authorization rotated."

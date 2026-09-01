@@ -82,7 +82,7 @@ async function mcpRequest(payload, secret, sessionId = null) {
   return { data, sessionId: responseSessionId };
 }
 
-async function initializeSif(secret) {
+async function startSession(secret) {
   const init = await mcpRequest(
     {
       jsonrpc: "2.0",
@@ -100,9 +100,6 @@ async function initializeSif(secret) {
     secret
   );
 
-  const negotiatedVersion = init.data?.result?.protocolVersion || MCP_PROTOCOL_VERSION;
-  const serverInfo = init.data?.result?.serverInfo || null;
-
   try {
     await mcpRequest(
       {
@@ -113,10 +110,17 @@ async function initializeSif(secret) {
       secret,
       init.sessionId
     );
-  } catch {
-    // Some Streamable HTTP servers return 202/no body for notifications.
-  }
+  } catch {}
 
+  return {
+    sessionId: init.sessionId,
+    protocolVersion: init.data?.result?.protocolVersion || MCP_PROTOCOL_VERSION,
+    serverInfo: init.data?.result?.serverInfo || null,
+  };
+}
+
+async function listTools(secret) {
+  const session = await startSession(secret);
   const tools = await mcpRequest(
     {
       jsonrpc: "2.0",
@@ -125,13 +129,12 @@ async function initializeSif(secret) {
       params: {},
     },
     secret,
-    init.sessionId
+    session.sessionId
   );
 
   return {
-    protocolVersion: negotiatedVersion,
-    serverInfo,
-    toolCount: Array.isArray(tools.data?.result?.tools) ? tools.data.result.tools.length : 0,
+    ...session,
+    tools: Array.isArray(tools.data?.result?.tools) ? tools.data.result.tools : [],
   };
 }
 
@@ -154,7 +157,7 @@ export default {
           ok: true,
           service: "1122-sif-bridge",
           status: "online",
-          version: "1.0.0",
+          version: "1.0.1",
           mode: "MCP",
           secretConfigured: Boolean(env.SIF_MCP_SECRET),
         },
@@ -178,7 +181,7 @@ export default {
           );
         }
 
-        const result = await initializeSif(secret);
+        const result = await listTools(secret);
 
         return json(
           {
@@ -190,7 +193,7 @@ export default {
               protocolVersion: result.protocolVersion,
               serverName: result.serverInfo?.name || "Sif MCP",
               serverVersion: result.serverInfo?.version || null,
-              toolCount: result.toolCount,
+              toolCount: result.tools.length,
               defaultMarketplace: "US",
             },
           },
@@ -208,6 +211,31 @@ export default {
           502,
           origin
         );
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/diagnostics/tools") {
+      try {
+        const secret = String(env.SIF_MCP_SECRET || "").trim();
+        if (!secret) return json({ success: false, message: "SIF_MCP_SECRET 尚未配置" }, 503, origin);
+
+        const result = await listTools(secret);
+        return json(
+          {
+            success: true,
+            protocolVersion: result.protocolVersion,
+            toolCount: result.tools.length,
+            tools: result.tools.map((tool) => ({
+              name: tool.name,
+              description: tool.description || "",
+              inputSchema: tool.inputSchema || null,
+            })),
+          },
+          200,
+          origin
+        );
+      } catch (error) {
+        return json({ success: false, message: "读取 Sif MCP 工具失败", error: error.message }, 502, origin);
       }
     }
 

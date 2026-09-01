@@ -1,0 +1,26 @@
+name: Test Sif Connection
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/test-sif-connection.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Sif bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== Sif connection-status ==='
+          curl -sS -D /tmp/headers.txt -o /tmp/body.txt \
+            https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status || true
+          cat /tmp/headers.txt
+          echo
+          cat /tmp/body.txt

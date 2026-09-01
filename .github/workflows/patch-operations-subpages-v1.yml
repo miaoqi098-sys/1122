@@ -38,3 +38,5 @@ jobs:
           git add index.html
           git commit -m "feat: add operations child centers and subpages"
           git push
+
+# trigger: operations-subpages-v1

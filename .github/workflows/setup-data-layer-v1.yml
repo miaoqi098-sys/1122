@@ -10,6 +10,7 @@ on:
       - "数据板块/09_数据库迁移与版本/migrations/**"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S01_事件校验/**"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/**"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S03_冲突检测/**"
   workflow_dispatch:
 
 permissions:
@@ -33,12 +34,13 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify A1 S01 and S02 runtime contracts
+      - name: Verify A1 S01 S02 and S03 runtime contracts
         shell: bash
         run: |
           set -euo pipefail
           node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/a1-intake.test.mjs'
           node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/s02-context.test.mjs'
+          node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/s03-conflict.test.mjs'
 
       - name: Verify Cloudflare token
         shell: bash
@@ -167,7 +169,7 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@4 d1 execute 1122-core --remote --json \
             --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';" > /tmp/d1-check.json
-          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<17){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<18){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
 
       - name: Verify A1 Event Intake schema
         shell: bash
@@ -213,6 +215,31 @@ jobs:
           console.log('A1 S02 Context schema ready:', JSON.stringify(r));
           NODE
 
+      - name: Verify A1 S03 Conflict schema
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='a1_conflict_runs') AS conflict_table, (SELECT parser_version FROM data_source_state WHERE source_key='a1_conflict_detector') AS runtime_version;" \
+            > /tmp/s03-schema.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/s03-schema.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (!r || Number(r.conflict_table) !== 1) {
+            console.error('A1 S03 Conflict table is missing');
+            process.exit(1);
+          }
+          if (String(r.runtime_version) !== 'S03-runtime-v1.2.0') {
+            console.error('Unexpected S03 runtime version:', r.runtime_version);
+            process.exit(2);
+          }
+          console.log('A1 S03 Conflict schema ready:', JSON.stringify(r));
+          NODE
+
       - name: Verify Sif intelligence schema
         shell: bash
         env:
@@ -240,6 +267,10 @@ jobs:
             console.error('A1 S02 Context runtime is not live');
             process.exit(3);
           }
+          if (d.a1Conflict?.runtimeVersion !== 'S03-runtime-v1.2.0' || d.a1Conflict?.contextPackageIsUniqueFactSource !== true || d.a1Conflict?.directToS04 !== false || d.a1Conflict?.normalNextAction !== 'continue_to_decision_item_builder') {
+            console.error('A1 S03 Conflict runtime is not live or violates routing boundary');
+            process.exit(4);
+          }
           console.log(JSON.stringify({
             success: true,
             version: d.version,
@@ -248,6 +279,7 @@ jobs:
             kv: d.storage.kv,
             a1Intake: d.a1Intake,
             a1Context: d.a1Context,
+            a1Conflict: d.a1Conflict,
             summary: d.summary,
           }, null, 2));
           NODE

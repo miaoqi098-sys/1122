@@ -67,3 +67,5 @@ jobs:
           sleep 3
           curl -fsS https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status > /tmp/sif-status.json
           node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/sif-status.json','utf8'));if(!d.success){console.error(d.message||d.error||'Sif verification failed');process.exit(1)};console.log('Sif bridge healthy, tools:',d.sif?.toolCount);"
+
+# trigger: stale-rotation-v1

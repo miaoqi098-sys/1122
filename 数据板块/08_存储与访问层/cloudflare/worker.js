@@ -1,37 +1,54 @@
 import { rebuildDerivedLayer, DERIVED_ENGINE_VERSION } from './derived.js';
+import {
+  intakeEventById,
+  intakePendingEvents,
+  A1_INTAKE_VERSION,
+} from './a1-intake.js';
 
 const ALLOWED_ORIGINS = new Set([
-  "https://1122-web-agent.pages.dev",
-  "https://miaoqi098-sys.github.io",
+  'https://1122-web-agent.pages.dev',
+  'https://miaoqi098-sys.github.io',
 ]);
-const PRIMARY_ORIGIN = "https://1122-web-agent.pages.dev";
+const PRIMARY_ORIGIN = 'https://1122-web-agent.pages.dev';
 
-function cors(origin = "") {
+function cors(origin = '') {
   return {
-    "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_ORIGIN,
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Cache-Control": "no-store",
-    "Content-Type": "application/json; charset=UTF-8",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
+    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_ORIGIN,
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Cache-Control': 'no-store',
+    'Content-Type': 'application/json; charset=UTF-8',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
   };
 }
 
-function json(data, status = 200, origin = "") {
+function json(data, status = 200, origin = '') {
   return new Response(JSON.stringify(data, null, 2), { status, headers: cors(origin) });
 }
 
 function isInternalAuthorized(request, env) {
-  const expected = String(env.DATA_LAYER_INTERNAL_TOKEN || "").trim();
+  const expected = String(env.DATA_LAYER_INTERNAL_TOKEN || '').trim();
   if (!expected) return false;
-  return String(request.headers.get("Authorization") || "") === `Bearer ${expected}`;
+  return String(request.headers.get('Authorization') || '') === `Bearer ${expected}`;
+}
+
+async function parseBody(request) {
+  const contentType = String(request.headers.get('Content-Type') || '');
+  if (!contentType.includes('application/json')) return {};
+  try {
+    return await request.json();
+  } catch {
+    return {};
+  }
 }
 
 async function checkD1(env) {
   if (!env.CORE_DB) return { configured: false, ready: false };
   try {
-    const result = await env.CORE_DB.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").first();
+    const result = await env.CORE_DB.prepare(
+      "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+    ).first();
     return { configured: true, ready: Number(result?.count || 0) >= 10, tableCount: Number(result?.count || 0) };
   } catch {
     return { configured: true, ready: false, tableCount: 0 };
@@ -51,6 +68,8 @@ async function getD1Summary(env) {
         (SELECT COUNT(*) FROM product_daily_state) AS product_daily_state,
         (SELECT COUNT(*) FROM product_daily_metrics) AS product_daily_metrics,
         (SELECT COUNT(*) FROM events) AS events,
+        (SELECT COUNT(*) FROM a1_event_intake_runs) AS a1_event_intakes,
+        (SELECT COUNT(*) FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') AS a1_ready_for_s02,
         (SELECT COUNT(*) FROM decisions) AS decisions,
         (SELECT COUNT(*) FROM tasks) AS tasks,
         (SELECT COUNT(*) FROM validation_results) AS validations,
@@ -66,6 +85,8 @@ async function getD1Summary(env) {
       productDailyStates: Number(row?.product_daily_state || 0),
       productDailyMetrics: Number(row?.product_daily_metrics || 0),
       events: Number(row?.events || 0),
+      a1EventIntakes: Number(row?.a1_event_intakes || 0),
+      a1ReadyForS02: Number(row?.a1_ready_for_s02 || 0),
       decisions: Number(row?.decisions || 0),
       tasks: Number(row?.tasks || 0),
       validations: Number(row?.validations || 0),
@@ -81,7 +102,7 @@ async function getSourceStates(env) {
   if (!env.CORE_DB) return [];
   try {
     const result = await env.CORE_DB.prepare(
-      "SELECT source_key, source_name, dataset, status, last_success_at, freshness_status FROM data_source_state ORDER BY source_key"
+      'SELECT source_key, source_name, dataset, status, last_success_at, freshness_status FROM data_source_state ORDER BY source_key',
     ).all();
     return (result?.results || []).map((row) => ({
       sourceKey: row.source_key,
@@ -98,30 +119,30 @@ async function getSourceStates(env) {
 
 async function checkR2(env) {
   if (!env.DATA_ARCHIVE) {
-    return { configured: false, ready: false, status: "PENDING_ACCOUNT_ENABLEMENT", bucketName: "1122-data-archive" };
+    return { configured: false, ready: false, status: 'PENDING_ACCOUNT_ENABLEMENT', bucketName: '1122-data-archive' };
   }
   try {
-    const object = await env.DATA_ARCHIVE.head("system/bootstrap/data-layer-v1.json");
+    const object = await env.DATA_ARCHIVE.head('system/bootstrap/data-layer-v1.json');
     return {
       configured: true,
       ready: Boolean(object),
-      status: object ? "READY" : "BOUND_AWAITING_BOOTSTRAP",
-      bucketName: "1122-data-archive",
+      status: object ? 'READY' : 'BOUND_AWAITING_BOOTSTRAP',
+      bucketName: '1122-data-archive',
     };
   } catch {
-    return { configured: true, ready: false, status: "BOUND_ERROR", bucketName: "1122-data-archive" };
+    return { configured: true, ready: false, status: 'BOUND_ERROR', bucketName: '1122-data-archive' };
   }
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const origin = request.headers.get("Origin") || "";
+    const origin = request.headers.get('Origin') || '';
 
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
-    if (origin && !ALLOWED_ORIGINS.has(origin)) return json({ success: false, message: "Origin not allowed" }, 403, origin);
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(origin) });
+    if (origin && !ALLOWED_ORIGINS.has(origin)) return json({ success: false, message: 'Origin not allowed' }, 403, origin);
 
-    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/status")) {
+    if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/status')) {
       const [d1, r2, summary, sources] = await Promise.all([
         checkD1(env),
         checkR2(env),
@@ -130,46 +151,81 @@ export default {
       ]);
       return json({
         success: true,
-        service: "1122-data-layer",
-        version: "1.3.0",
+        service: '1122-data-layer',
+        version: '1.4.0',
         storage: {
-          d1: { role: "core-operating-facts", databaseName: "1122-core", ...d1 },
-          r2: { role: "permanent-archive", ...r2 },
-          kv: { role: "current-state-cache", existing: true, ready: true },
+          d1: { role: 'core-operating-facts', databaseName: '1122-core', ...d1 },
+          r2: { role: 'permanent-archive', ...r2 },
+          kv: { role: 'current-state-cache', existing: true, ready: true },
         },
         derivedLayer: {
           version: DERIVED_ENGINE_VERSION,
-          pipeline: ["ProductDailyState", "Metric", "Event"],
-          eventPolicy: "deterministic-rules-only",
-          execution: "batch-d1",
+          pipeline: ['ProductDailyState', 'Metric', 'Event'],
+          eventPolicy: 'deterministic-rules-only',
+          execution: 'batch-d1',
+        },
+        a1Intake: {
+          version: A1_INTAKE_VERSION,
+          pipeline: ['RawEvent', 'CanonicalEvent', 'S01', 'NormalizedEvent', 'A1IntakeLedger'],
+          bypassS01: false,
+          readyForS02OnlyAfter: ['passed', 'passed_with_warnings'],
         },
         summary,
         sources,
         policy: {
-          rawArchive: "retain",
-          historicalFacts: "append-oriented",
-          currentCache: "rebuildable",
-          gitBusinessData: "forbidden",
+          rawArchive: 'retain',
+          historicalFacts: 'append-oriented',
+          currentCache: 'rebuildable',
+          gitBusinessData: 'forbidden',
         },
       }, 200, origin);
     }
 
-    if (request.method === "POST" && url.pathname === "/internal/rebuild-derived") {
-      if (!isInternalAuthorized(request, env)) return json({ success: false, message: "Unauthorized" }, 401, origin);
-      if (!env.CORE_DB) return json({ success: false, message: "CORE_DB is not configured" }, 503, origin);
+    if (request.method === 'POST' && url.pathname === '/internal/rebuild-derived') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
       try {
-        const marketplace = String(url.searchParams.get("marketplace") || "US").toUpperCase();
-        const productLimit = Math.min(Math.max(Number(url.searchParams.get("productLimit") || 5), 1), 20);
-        const dateLimit = Math.min(Math.max(Number(url.searchParams.get("dateLimit") || 60), 7), 180);
+        const marketplace = String(url.searchParams.get('marketplace') || 'US').toUpperCase();
+        const productLimit = Math.min(Math.max(Number(url.searchParams.get('productLimit') || 5), 1), 20);
+        const dateLimit = Math.min(Math.max(Number(url.searchParams.get('dateLimit') || 60), 7), 180);
         const result = await rebuildDerivedLayer(env, marketplace, productLimit, dateLimit);
-        return json({ success: true, ...result }, 200, origin);
+        const a1Intake = await intakePendingEvents(env, { source: 'derived_layer_v1', limit: 20 });
+        return json({ success: true, ...result, a1Intake }, 200, origin);
       } catch (error) {
-        return json({ success: false, message: "Derived Layer rebuild failed", error: error.message }, 500, origin);
+        return json({ success: false, message: 'Derived Layer rebuild failed', error: error.message }, 500, origin);
       }
     }
 
-    return json({ success: false, message: "Endpoint not found" }, 404, origin);
+    if (request.method === 'POST' && url.pathname === '/internal/a1/intake-event') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      const body = await parseBody(request);
+      const eventId = String(body?.event_id || url.searchParams.get('event_id') || '').trim();
+      if (!eventId) return json({ success: false, message: 'event_id is required' }, 400, origin);
+      try {
+        const result = await intakeEventById(env, eventId);
+        if (!result.found) return json({ success: false, message: 'Event not found', eventId }, 404, origin);
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'A1 event intake failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/intake-pending') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      try {
+        const source = String(url.searchParams.get('source') || 'derived_layer_v1');
+        const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 20), 1), 50);
+        const result = await intakePendingEvents(env, { source, limit });
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'A1 pending intake failed', error: error.message }, 500, origin);
+      }
+    }
+
+    return json({ success: false, message: 'Endpoint not found' }, 404, origin);
   },
 };
 
-// deploy marker: derived-batch-v1.1
+// deploy marker: a1-intake-v1.0

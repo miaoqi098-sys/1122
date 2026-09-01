@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: 1122-a1-event-intake-smoke
+  group: 1122-data-layer-internal-auth
   cancel-in-progress: false
 
 jobs:

@@ -6,9 +6,6 @@ workers_dev = true
 [[d1_databases]]
 binding = "CORE_DB"
 database_name = "1122-core"
-database_id = "__D1_DATABASE_ID__"
+database_id = "00076b01-471f-40e6-bf49-57cfc07facc8"
 migrations_dir = "../../09_数据库迁移与版本/migrations"
 
-[[r2_buckets]]
-binding = "DATA_ARCHIVE"
-bucket_name = "1122-data-archive"

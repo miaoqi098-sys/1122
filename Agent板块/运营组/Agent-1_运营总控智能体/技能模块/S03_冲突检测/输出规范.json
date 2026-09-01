@@ -33,6 +33,10 @@
     },
     "conflict_groups": {"type": "array"},
     "unresolved_points": {"type": "array"},
+    "normalized_elements": {"type": "array", "description": "S03用于比较的派生视图，供审计；不得被视为新的事实源。"},
+    "context_refs": {"type": "array", "items": {"type": "string"}},
+    "runtime_version": {"type": "string"},
+    "generated_at": {"type": "string"},
     "next_action": {"enum": ["continue_to_decision_item_builder", "request_evidence", "request_agent_review", "send_to_S10", "hold_for_review"]}
   },
   "additionalProperties": true

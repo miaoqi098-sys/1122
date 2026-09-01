@@ -61,7 +61,7 @@ function spHeaders(accessToken) {
     "Accept": "application/json",
     "x-amz-access-token": accessToken,
     "x-amz-date": new Date().toISOString().replace(/[:-]|\.\d{3}/g, ""),
-    "user-agent": "1122AmazonBridge/4.4 (Language=JavaScript; Platform=CloudflareWorkers)",
+    "user-agent": "1122AmazonBridge/4.4.1 (Language=JavaScript; Platform=CloudflareWorkers)",
   };
 }
 
@@ -761,7 +761,7 @@ async function refreshFinanceSnapshot(env) {
   let nextToken = null;
   let pages = 0;
   do {
-    const params = new URLSearchParams({ postedAfter, postedBefore, marketplaceId: US_MARKETPLACE_ID });
+    const params = new URLSearchParams({ postedAfter, postedBefore });
     if (nextToken) params.set("nextToken", nextToken);
     const data = await spGet(endpoint, `/finances/2024-06-19/transactions?${params.toString()}`, lwa.accessToken);
     const pageTransactions = Array.isArray(data?.payload?.transactions) ? data.payload.transactions : [];
@@ -933,7 +933,7 @@ export default {
         ok: true,
         service: "1122-amazon-sp-api-bridge",
         status: "online",
-        version: "4.4.0",
+        version: "4.4.1",
         credentialMode: "worker-secrets",
         productState: Boolean(env.PRODUCT_STATE),
       }, 200, origin);

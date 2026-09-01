@@ -7,7 +7,7 @@ function cors(origin = "") {
   return {
     "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_WEB_ORIGIN,
     "Access-Control-Allow-Methods": "GET,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
     "Content-Type": "application/json; charset=UTF-8",
     "Cache-Control": "no-store",
@@ -54,7 +54,7 @@ async function mcpRequest(payload, secret, sessionId = null) {
     "Accept": "application/json, text/event-stream",
     "secret-key": secret,
     "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
-    "User-Agent": "1122SifBridge/1.1",
+    "User-Agent": "1122SifBridge/1.2",
   };
 
   if (sessionId) headers["Mcp-Session-Id"] = sessionId;
@@ -83,7 +83,7 @@ async function mcpRequest(payload, secret, sessionId = null) {
   return { data, sessionId: responseSessionId };
 }
 
-async function initializeSif(secret) {
+async function initializeAndListSifTools(secret) {
   const init = await mcpRequest(
     {
       jsonrpc: "2.0",
@@ -94,7 +94,7 @@ async function initializeSif(secret) {
         capabilities: {},
         clientInfo: {
           name: "1122-sif-bridge",
-          version: "1.1.0",
+          version: "1.2.0",
         },
       },
     },
@@ -118,7 +118,7 @@ async function initializeSif(secret) {
     // Some Streamable HTTP servers return 202/no body for notifications.
   }
 
-  const tools = await mcpRequest(
+  const toolsResult = await mcpRequest(
     {
       jsonrpc: "2.0",
       id: 2,
@@ -129,10 +129,28 @@ async function initializeSif(secret) {
     init.sessionId
   );
 
+  const tools = Array.isArray(toolsResult.data?.result?.tools) ? toolsResult.data.result.tools : [];
+
   return {
     protocolVersion: negotiatedVersion,
     serverInfo,
-    toolCount: Array.isArray(tools.data?.result?.tools) ? tools.data.result.tools.length : 0,
+    tools,
+    toolCount: tools.length,
+  };
+}
+
+function isInternalAuthorized(request, env) {
+  const expected = String(env.SIF_INTERNAL_TOKEN || "").trim();
+  if (!expected) return false;
+  const value = String(request.headers.get("Authorization") || "");
+  return value === `Bearer ${expected}`;
+}
+
+function safeToolMetadata(tool) {
+  return {
+    name: String(tool?.name || ""),
+    description: String(tool?.description || ""),
+    inputSchema: tool?.inputSchema && typeof tool.inputSchema === "object" ? tool.inputSchema : null,
   };
 }
 
@@ -155,7 +173,7 @@ export default {
           ok: true,
           service: "1122-sif-bridge",
           status: "online",
-          version: "1.1.0",
+          version: "1.2.0",
           mode: "MCP",
           secretConfigured: Boolean(env.SIF_MCP_SECRET),
         },
@@ -179,7 +197,7 @@ export default {
           );
         }
 
-        const result = await initializeSif(secret);
+        const result = await initializeAndListSifTools(secret);
 
         return json(
           {
@@ -204,6 +222,42 @@ export default {
             success: false,
             configured: true,
             message: "Sif MCP 连接检查失败",
+            error: error.message,
+          },
+          502,
+          origin
+        );
+      }
+    }
+
+    if (request.method === "GET" && url.pathname === "/internal/tools") {
+      if (!isInternalAuthorized(request, env)) {
+        return json({ success: false, message: "Unauthorized" }, 401, origin);
+      }
+
+      try {
+        const secret = String(env.SIF_MCP_SECRET || "").trim();
+        if (!secret) {
+          return json({ success: false, message: "SIF_MCP_SECRET 尚未配置" }, 503, origin);
+        }
+
+        const result = await initializeAndListSifTools(secret);
+        return json(
+          {
+            success: true,
+            protocolVersion: result.protocolVersion,
+            serverName: result.serverInfo?.name || "Sif MCP",
+            toolCount: result.toolCount,
+            tools: result.tools.map(safeToolMetadata),
+          },
+          200,
+          origin
+        );
+      } catch (error) {
+        return json(
+          {
+            success: false,
+            message: "Sif MCP 工具发现失败",
             error: error.message,
           },
           502,

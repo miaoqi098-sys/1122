@@ -20,10 +20,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
       - name: Verify Cloudflare token
         shell: bash
         run: |
@@ -33,13 +35,73 @@ jobs:
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Deploy Sif Bridge
         run: npx --yes wrangler@4 deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: Verify real Sif MCP connection
         shell: bash
         run: |
           sleep 3
           curl -fsS "https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status" -o /tmp/sif-status.json
           node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/sif-status.json','utf8'));if(d.success!==true){console.error('Sif MCP check failed:',d.message||d.error||d);process.exit(1)};console.log('Sif MCP connected');console.log('Protocol:',d.sif?.protocolVersion||'unknown');console.log('Tools:',d.sif?.toolCount??'unknown');console.log('Server:',d.sif?.serverName||'Sif MCP');"
+
+      - name: Create temporary Sif internal authorization
+        id: sif_auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put SIF_INTERNAL_TOKEN >/dev/null
+          sleep 4
+
+      - name: Discover Sif MCP tool catalog
+        shell: bash
+        env:
+          TOKEN: ${{ steps.sif_auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          curl -fsS \
+            -H "Authorization: Bearer $TOKEN" \
+            "https://1122-sif-bridge.zhangshuaibing01.workers.dev/internal/tools" \
+            -o /tmp/sif-tools.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/sif-tools.json', 'utf8'));
+          if (!d.success || !Array.isArray(d.tools)) {
+            console.error(d.message || d.error || 'Sif tool discovery failed');
+            process.exit(1);
+          }
+          console.log('Sif MCP tool catalog discovered:', d.toolCount);
+          for (const tool of d.tools) {
+            const schema = tool.inputSchema || {};
+            const props = schema.properties && typeof schema.properties === 'object'
+              ? Object.keys(schema.properties)
+              : [];
+            const required = Array.isArray(schema.required) ? schema.required : [];
+            console.log(JSON.stringify({
+              name: tool.name,
+              description: tool.description,
+              parameters: props,
+              required,
+            }));
+          }
+          NODE
+
+      - name: Rotate Sif internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put SIF_INTERNAL_TOKEN >/dev/null
+          echo "Sif internal authorization rotated."

@@ -79,4 +79,5 @@ S03不裁决观察窗口内是否应该提前反转。
 ## 当前版本
 - 业务规则：V1.2；
 - 接口：V1.2，已统一ContextPackage并正式接DecisionItemBuilder；
-- Runtime（运行时）：`S03-runtime-v1.2.0`，正在接入Data Layer运行桥与D1 Ledger（账本）。
+- Runtime（运行时）：`S03-runtime-v1.2.0`；
+- 系统运行桥：接入中。

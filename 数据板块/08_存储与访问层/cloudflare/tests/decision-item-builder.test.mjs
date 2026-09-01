@@ -82,6 +82,22 @@ for (const s03NextAction of [undefined, null, '', 'continue_to_S04', 'unknown_ro
   assert.match(gated.builder_notes.join(' '), /S03 next_action=/);
 }
 
+// Provenance must stay event-exact. Never use another C05 event when the referenced
+// source event is missing, or S04 could receive mixed identity/evidence data.
+const mismatchedEvent = structuredClone(base);
+mismatchedEvent.context_package.C05_events_and_promotions.recent_events[0].event_id = 'EVT-OTHER-1';
+const mismatch = runDecisionItemBuilder(mismatchedEvent);
+assert.equal(mismatch.next_action, 'request_more_context');
+assert.equal(mismatch.decision_items.length, 0);
+assert.match(mismatch.builder_notes.join(' '), /source_event_refs.*C05/);
+
+const missingC05Event = structuredClone(base);
+missingC05Event.context_package.C05_events_and_promotions.recent_events = [];
+const missingEvent = runDecisionItemBuilder(missingC05Event);
+assert.equal(missingEvent.next_action, 'request_more_context');
+assert.equal(missingEvent.decision_items.length, 0);
+assert.match(missingEvent.builder_notes.join(' '), /source_event_refs.*C05/);
+
 const conflictInput = structuredClone(base);
 conflictInput.s03_status = 'conflicts_found';
 conflictInput.conflicts = [{
@@ -102,5 +118,7 @@ console.log(JSON.stringify({
   missingObjective: gap.next_action,
   gatedRoutes: gatedRoutes.map(([status, nextAction]) => ({ status, nextAction })),
   failClosedRoutes: ['missing', 'null', 'empty', 'continue_to_S04', 'unknown_route'],
+  provenanceMismatch: mismatch.next_action,
+  missingSourceEvent: missingEvent.next_action,
   conflictRefs: withConflict.decision_items[0].conflict_refs,
 }, null, 2));

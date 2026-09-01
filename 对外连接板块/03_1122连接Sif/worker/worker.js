@@ -1,10 +1,11 @@
-const ALLOWED_ORIGIN = "https://miaoqi098-sys.github.io";
+const ALLOWED_ORIGINS = new Set(["https://1122-web-agent.pages.dev", "https://miaoqi098-sys.github.io"]);
+const PRIMARY_WEB_ORIGIN = "https://1122-web-agent.pages.dev";
 const SIF_MCP_URL = "https://mcp.sif.com/mcp";
 const MCP_PROTOCOL_VERSION = "2024-11-05";
 
 function cors(origin = "") {
   return {
-    "Access-Control-Allow-Origin": origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
+    "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_WEB_ORIGIN,
     "Access-Control-Allow-Methods": "GET,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
@@ -53,7 +54,7 @@ async function mcpRequest(payload, secret, sessionId = null) {
     "Accept": "application/json, text/event-stream",
     "secret-key": secret,
     "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
-    "User-Agent": "1122SifBridge/1.0",
+    "User-Agent": "1122SifBridge/1.1",
   };
 
   if (sessionId) headers["Mcp-Session-Id"] = sessionId;
@@ -93,7 +94,7 @@ async function initializeSif(secret) {
         capabilities: {},
         clientInfo: {
           name: "1122-sif-bridge",
-          version: "1.0.0",
+          version: "1.1.0",
         },
       },
     },
@@ -144,7 +145,7 @@ export default {
       return new Response(null, { status: 204, headers: cors(origin) });
     }
 
-    if (origin && origin !== ALLOWED_ORIGIN) {
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
       return json({ success: false, message: "Origin not allowed" }, 403, origin);
     }
 
@@ -154,7 +155,7 @@ export default {
           ok: true,
           service: "1122-sif-bridge",
           status: "online",
-          version: "1.0.0",
+          version: "1.1.0",
           mode: "MCP",
           secretConfigured: Boolean(env.SIF_MCP_SECRET),
         },

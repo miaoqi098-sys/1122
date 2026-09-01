@@ -73,6 +73,15 @@ for (const [s03Status, s03NextAction] of gatedRoutes) {
   assert.match(gated.builder_notes.join(' '), new RegExp(s03NextAction));
 }
 
+// Fail closed when the S03 routing signal is missing or unknown.
+for (const s03NextAction of [undefined, null, '', 'continue_to_S04', 'unknown_route']) {
+  const input = { ...base, s03_next_action: s03NextAction };
+  const gated = runDecisionItemBuilder(input);
+  assert.equal(gated.next_action, 'hold_for_review');
+  assert.equal(gated.decision_items.length, 0);
+  assert.match(gated.builder_notes.join(' '), /S03 next_action=/);
+}
+
 const conflictInput = structuredClone(base);
 conflictInput.s03_status = 'conflicts_found';
 conflictInput.conflicts = [{
@@ -92,5 +101,6 @@ console.log(JSON.stringify({
   happyPath: ready.next_action,
   missingObjective: gap.next_action,
   gatedRoutes: gatedRoutes.map(([status, nextAction]) => ({ status, nextAction })),
+  failClosedRoutes: ['missing', 'null', 'empty', 'continue_to_S04', 'unknown_route'],
   conflictRefs: withConflict.decision_items[0].conflict_refs,
 }, null, 2));

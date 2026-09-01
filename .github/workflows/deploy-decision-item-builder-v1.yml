@@ -1,0 +1,68 @@
+name: Deploy DecisionItemBuilder V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/deploy-decision-item-builder-v1.yml"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/DecisionItemBuilder*.json"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/decision-item-builder.js"
+      - "数据板块/08_存储与访问层/cloudflare/worker.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
+      - "数据板块/09_数据库迁移与版本/migrations/0008_a1_decision_item_builder.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 1122-data-layer-setup
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify DecisionItemBuilder runtime contract
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs'
+
+      - name: Apply D1 migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 migrations apply CORE_DB --remote --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
+
+      - name: Deploy Data Layer Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
+
+      - name: Verify DecisionItemBuilder schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='a1_decision_item_builder_runs') AS builder_table, (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='a1_decision_items') AS item_table, (SELECT parser_version FROM data_source_state WHERE source_key='a1_decision_item_builder') AS runtime_version;" > /tmp/builder-schema.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/builder-schema.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(Number(r?.builder_table)!==1||Number(r?.item_table)!==1||r?.runtime_version!=='DecisionItemBuilder-runtime-v1.0.0'){console.error(r);process.exit(1)}console.log('DecisionItemBuilder D1 schema ready:',JSON.stringify(r))"
+
+      - name: Verify live Builder runtime
+        run: |
+          set -euo pipefail
+          curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/builder-status.json
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/builder-status.json','utf8'));const b=d.a1DecisionItems;if(!d.success||b?.runtimeVersion!=='DecisionItemBuilder-runtime-v1.0.0'||b?.contextPackageIsUniqueFactSource!==true||b?.builderDoesNotRank!==true||b?.automaticAfterS03!==true||b?.normalNextAction!=='continue_to_S04'){console.error(d);process.exit(1)}console.log(JSON.stringify({success:true,a1DecisionItems:b,summary:d.summary},null,2))"

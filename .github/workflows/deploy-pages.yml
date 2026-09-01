@@ -73,4 +73,4 @@ jobs:
           npx --yes wrangler@4 pages deploy dist --project-name=1122-web-agent --branch=main --commit-dirty=true
           echo "Stable URL: https://1122-web-agent.pages.dev"
 
-# Private GitHub source -> safe frontend artifact -> Cloudflare Pages
+# deployment marker: product-cockpit-v2-20260901

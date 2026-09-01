@@ -1,6 +1,10 @@
 name: Ingest 1122 Data Layer Daily
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/ingest-data-layer-daily.yml"
   schedule:
     - cron: "15 14 * * *"
   workflow_dispatch:
@@ -134,4 +138,4 @@ jobs:
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
           echo "Internal authorization rotated."
 
-# Runs daily at 14:15 UTC. Business data persists to D1; R2 archive activates automatically after R2 account enablement.
+# One-time live validation also uses a self-push trigger. Remove it after success; keep Daily + manual.

@@ -73,4 +73,4 @@ jobs:
           npx --yes wrangler@4 pages deploy dist --project-name=1122-web-agent --branch=main --commit-dirty=true
           echo "Stable URL: https://1122-web-agent.pages.dev"
 
-# deployment marker: product-cockpit-v2-20260901
+# deployment marker: data-layer-ui-v1-20260901

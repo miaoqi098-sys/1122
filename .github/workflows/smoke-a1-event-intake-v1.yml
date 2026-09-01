@@ -103,6 +103,7 @@ jobs:
           if (o.normalizedEvent?.source_type !== 'system') process.exit(4);
           if (o.normalizedEvent?.source_agent !== null) process.exit(5);
           if (o.normalizedEvent?.severity !== 'P1') process.exit(6);
+          if (!d.s02Context || d.s02Context.runtimeVersion !== 'S02-runtime-v1.2.0') process.exit(7);
           console.log('A1 intake outcome verified for event:', o.eventId);
           NODE
           test "$CODE" -ge 200 -a "$CODE" -lt 300
@@ -162,6 +163,7 @@ jobs:
           if (!d.success) process.exit(1);
           if (!d.a1Intake || d.a1Intake.validatorVersion !== 'S01-runtime-v1.2.0') process.exit(2);
           if (d.a1Intake.source !== 'derived_layer_v1') process.exit(3);
+          if (!d.a1Context || d.a1Context.runtimeVersion !== 'S02-runtime-v1.2.0') process.exit(4);
           console.log(JSON.stringify({
             productsProcessed: d.productsProcessed,
             eventRows: d.eventRows,
@@ -171,10 +173,15 @@ jobs:
               readyForS02: d.a1Intake.readyForS02,
               validatorVersion: d.a1Intake.validatorVersion,
             },
+            automaticS02: {
+              selected: d.a1Context.selected,
+              processed: d.a1Context.processed,
+              runtimeVersion: d.a1Context.runtimeVersion,
+            },
           }, null, 2));
           NODE
 
-      - name: Verify live Data Layer advertises A1 intake
+      - name: Verify live Data Layer advertises A1 intake and S02
         shell: bash
         run: |
           set -euo pipefail
@@ -182,10 +189,11 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const d = JSON.parse(fs.readFileSync('/tmp/a1-live-status.json','utf8'));
-          if (!d.success || d.version !== '1.4.0') process.exit(1);
+          if (!d.success || d.version !== '1.5.0') process.exit(1);
           if (d.a1Intake?.bypassS01 !== false) process.exit(2);
           if (!Array.isArray(d.a1Intake?.pipeline) || !d.a1Intake.pipeline.includes('A1IntakeLedger')) process.exit(3);
-          console.log(JSON.stringify({version:d.version,a1Intake:d.a1Intake},null,2));
+          if (d.a1Context?.runtimeVersion !== 'S02-runtime-v1.2.0' || d.a1Context?.automaticAfterS01 !== true) process.exit(4);
+          console.log(JSON.stringify({version:d.version,a1Intake:d.a1Intake,a1Context:d.a1Context},null,2));
           NODE
 
       - name: Cleanup synthetic event and reconcile A1 source state
@@ -193,24 +201,21 @@ jobs:
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          EVENT_ID: ${{ steps.event.outputs.event_id }}
         run: |
           set -euo pipefail
-          if [ -n "${EVENT_ID:-}" ]; then
-            npx --yes wrangler@4 d1 execute 1122-core --remote \
-              --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-              --command "DELETE FROM a1_event_intake_runs WHERE event_id='$EVENT_ID'; DELETE FROM events WHERE event_id='$EVENT_ID'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') THEN 'READY' ELSE 'READY_PENDING_FIRST_EVENT' END, last_success_at=(SELECT MAX(validated_at) FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02'), last_attempt_at=(SELECT MAX(validated_at) FROM a1_event_intake_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') THEN 'FRESH' ELSE 'PENDING_EVENT' END, parser_version='S01-runtime-v1.2.0', details_json=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs) THEN '{\"reconciled_from_ledger\":true}' ELSE '{\"pipeline\":[\"RawEvent\",\"CanonicalEvent\",\"S01\",\"NormalizedEvent\"],\"bypass_s01\":false}' END, updated_at=datetime('now') WHERE source_key='a1_event_intake';" >/dev/null
-          fi
+          npx --yes wrangler@4 d1 execute 1122-core --remote \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "DELETE FROM a1_context_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='a1_intake_smoke'); DELETE FROM a1_event_intake_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='a1_intake_smoke'); DELETE FROM events WHERE source='a1_intake_smoke'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') THEN 'READY' ELSE 'READY_PENDING_FIRST_EVENT' END, last_success_at=(SELECT MAX(validated_at) FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02'), last_attempt_at=(SELECT MAX(validated_at) FROM a1_event_intake_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') THEN 'FRESH' ELSE 'PENDING_EVENT' END, parser_version='S01-runtime-v1.2.0', details_json=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs) THEN '{\"reconciled_from_ledger\":true}' ELSE '{\"pipeline\":[\"RawEvent\",\"CanonicalEvent\",\"S01\",\"NormalizedEvent\"],\"bypass_s01\":false}' END, updated_at=datetime('now') WHERE source_key='a1_event_intake'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, last_success_at=(SELECT MAX(loaded_at) FROM a1_context_runs WHERE s02_status IN ('ready','ready_with_gaps')), last_attempt_at=(SELECT MAX(loaded_at) FROM a1_context_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_context_runs) THEN 'PARTIAL' ELSE 'PENDING_EVENT' END, parser_version='S02-runtime-v1.2.0', updated_at=datetime('now') WHERE source_key='a1_context_loader';" >/dev/null
           npx --yes wrangler@4 d1 execute 1122-core --remote --json \
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-            --command "SELECT (SELECT COUNT(*) FROM events WHERE source='a1_intake_smoke') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs i JOIN events e ON e.event_id=i.event_id WHERE e.source='a1_intake_smoke') AS smoke_intakes;" \
+            --command "SELECT (SELECT COUNT(*) FROM events WHERE source='a1_intake_smoke') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs i JOIN events e ON e.event_id=i.event_id WHERE e.source='a1_intake_smoke') AS smoke_intakes, (SELECT COUNT(*) FROM a1_context_runs c JOIN events e ON e.event_id=c.event_id WHERE e.source='a1_intake_smoke') AS smoke_contexts;" \
             > /tmp/a1-cleanup.json
           node - <<'NODE'
           const fs = require('fs');
           const x = JSON.parse(fs.readFileSync('/tmp/a1-cleanup.json','utf8'));
           const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
-          if (Number(r?.smoke_events || 0) !== 0 || Number(r?.smoke_intakes || 0) !== 0) process.exit(1);
-          console.log('Synthetic A1 smoke data cleaned.');
+          if (Number(r?.smoke_events || 0) !== 0 || Number(r?.smoke_intakes || 0) !== 0 || Number(r?.smoke_contexts || 0) !== 0) process.exit(1);
+          console.log('Synthetic A1/S02 smoke data cleaned.');
           NODE
 
       - name: Rotate Data Layer internal authorization

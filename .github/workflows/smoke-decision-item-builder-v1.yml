@@ -1,0 +1,140 @@
+name: Smoke DecisionItemBuilder V1
+
+on:
+  workflow_run:
+    workflows: ["Deploy DecisionItemBuilder V1"]
+    types: [completed]
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/smoke-decision-item-builder-v1.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 1122-data-layer-internal-auth
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify runtime contract
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs'
+
+      - name: Create temporary Data Layer internal authorization
+        id: auth
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' GET 'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/auth-check' /tmp/builder-auth.json)
+          test "$CODE" = "200"
+
+      - name: Insert synthetic event and operating objective
+        id: fixture
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVENT_ID="smoke-builder-$(node -e "process.stdout.write(require('crypto').randomUUID())")"
+          PLAN_ID="smoke-builder-plan-$(node -e "process.stdout.write(require('crypto').randomUUID())")"
+          GOAL_ID="smoke-builder-goal-$(node -e "process.stdout.write(require('crypto').randomUUID())")"
+          echo "event_id=$EVENT_ID" >> "$GITHUB_OUTPUT"
+          echo "plan_id=$PLAN_ID" >> "$GITHUB_OUTPUT"
+          echo "goal_id=$GOAL_ID" >> "$GITHUB_OUTPUT"
+          SQL="INSERT INTO product_operating_plans (plan_id,product_id,marketplace,stage,primary_goal,status,version,updated_at) SELECT '$PLAN_ID',product_id,marketplace,'growth','Restore qualified traffic while protecting conversion quality','ACTIVE',999,datetime('now') FROM products WHERE marketplace='US' AND asin IS NOT NULL AND asin<>'' AND EXISTS(SELECT 1 FROM product_daily_state s WHERE s.product_id=products.product_id) AND EXISTS(SELECT 1 FROM product_daily_metrics m WHERE m.product_id=products.product_id) ORDER BY updated_at DESC LIMIT 1; INSERT INTO product_plan_goals (goal_id,plan_id,metric_key,target_text,status,updated_at) SELECT '$GOAL_ID','$PLAN_ID','amazon.sessions','Restore qualified traffic while protecting conversion quality','ACTIVE',datetime('now') WHERE EXISTS(SELECT 1 FROM product_operating_plans WHERE plan_id='$PLAN_ID'); INSERT INTO events (event_id,product_id,marketplace,event_type,severity,source,event_status,processing_disposition,evidence_json,payload_json,occurred_at,dedup_key) SELECT '$EVENT_ID',product_id,marketplace,'AMAZON_SESSIONS_DROP','HIGH','decision_item_builder_smoke','NEW','AWAITING_A1','{\"metricKey\":\"amazon.sessions\",\"currentValue\":75,\"priorValue\":101,\"baseline7d\":100,\"deltaPct\":-0.25,\"historyPoints\":7,\"threshold\":{\"deltaPctLte\":-0.2}}','{\"engineVersion\":\"smoke-builder-v1\",\"deterministic\":true}',datetime('now'),'smoke-builder:'||'$EVENT_ID' FROM product_operating_plans WHERE plan_id='$PLAN_ID';"
+          npx --yes wrangler@4 d1 execute 1122-core --remote --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' --command "$SQL" >/dev/null
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' --command "SELECT (SELECT COUNT(*) FROM events WHERE event_id='$EVENT_ID') AS event_count,(SELECT COUNT(*) FROM product_operating_plans WHERE plan_id='$PLAN_ID') AS plan_count;" >/tmp/builder-fixture.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/builder-fixture.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(Number(r?.event_count)!==1||Number(r?.plan_count)!==1){console.error(r);process.exit(1)}"
+
+      - name: Run event through S01 S02 S03 and Builder
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.fixture.outputs.event_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '{"event_id":"%s"}' "$EVENT_ID" >/tmp/builder-request.json
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' POST 'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/intake-event' /tmp/builder-response.json -H 'Content-Type: application/json' --data-binary @/tmp/builder-request.json)
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+          node - <<'NODE'
+          const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/builder-response.json','utf8'));
+          if(!d.success||!['passed','passed_with_warnings'].includes(d.s01Status)) process.exit(1);
+          if(!['ready','ready_with_gaps'].includes(d.s02Context?.status)) process.exit(2);
+          if(d.s03Conflict?.nextAction!=='continue_to_decision_item_builder') process.exit(3);
+          const b=d.decisionItems;
+          if(!b?.found||b?.output?.next_action!=='continue_to_S04') {console.error(JSON.stringify(d,null,2));process.exit(4)}
+          const item=b.output.decision_items?.[0];
+          if(!item||item.item_type!=='problem'||item.goal_layer!=='business_quality'||item.objective!=='Restore qualified traffic while protecting conversion quality') process.exit(5);
+          if(Object.hasOwn(item,'business_priority')) process.exit(6);
+          console.log(JSON.stringify({eventId:b.eventId,builderRunId:b.builderRunId,nextAction:b.output.next_action,decisionItem:item},null,2));
+          NODE
+
+      - name: Verify D1 builder ledger and idempotency
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.fixture.outputs.event_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' --command "SELECT (SELECT COUNT(*) FROM a1_decision_item_builder_runs WHERE event_id='$EVENT_ID') AS builder_runs,(SELECT COUNT(*) FROM a1_decision_items WHERE event_id='$EVENT_ID') AS item_count,(SELECT MAX(next_action) FROM a1_decision_item_builder_runs WHERE event_id='$EVENT_ID') AS next_action;" >/tmp/builder-ledger.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/builder-ledger.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(Number(r?.builder_runs)!==1||Number(r?.item_count)!==1||r?.next_action!=='continue_to_S04'){console.error(r);process.exit(1)}"
+          printf '{"event_id":"%s"}' "$EVENT_ID" >/tmp/builder-idempotent-request.json
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' POST 'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/decision-items-event' /tmp/builder-idempotent.json -H 'Content-Type: application/json' --data-binary @/tmp/builder-idempotent-request.json)
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' --command "SELECT (SELECT COUNT(*) FROM a1_decision_item_builder_runs WHERE event_id='$EVENT_ID') AS builder_runs,(SELECT COUNT(*) FROM a1_decision_items WHERE event_id='$EVENT_ID') AS item_count;" >/tmp/builder-idempotent-count.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/builder-idempotent-count.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(Number(r?.builder_runs)!==1||Number(r?.item_count)!==1)process.exit(1);console.log('DecisionItemBuilder idempotency verified.')"
+
+      - name: Verify live status
+        run: |
+          curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status >/tmp/builder-live.json
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/builder-live.json','utf8'));const b=d.a1DecisionItems;if(b?.runtimeVersion!=='DecisionItemBuilder-runtime-v1.0.0'||b?.builderDoesNotRank!==true||b?.normalNextAction!=='continue_to_S04')process.exit(1);console.log(JSON.stringify(b,null,2))"
+
+      - name: Cleanup synthetic Builder records
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          EVENT_ID: ${{ steps.fixture.outputs.event_id }}
+          PLAN_ID: ${{ steps.fixture.outputs.plan_id }}
+          GOAL_ID: ${{ steps.fixture.outputs.goal_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${EVENT_ID:-}" ]; then
+            npx --yes wrangler@4 d1 execute 1122-core --remote --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' --command "DELETE FROM a1_decision_items WHERE event_id='$EVENT_ID'; DELETE FROM a1_decision_item_builder_runs WHERE event_id='$EVENT_ID'; DELETE FROM a1_conflict_runs WHERE event_id='$EVENT_ID'; DELETE FROM a1_context_runs WHERE event_id='$EVENT_ID'; DELETE FROM a1_event_intake_runs WHERE event_id='$EVENT_ID'; DELETE FROM events WHERE event_id='$EVENT_ID'; DELETE FROM product_plan_goals WHERE goal_id='${GOAL_ID:-}'; DELETE FROM product_operating_plans WHERE plan_id='${PLAN_ID:-}';" >/dev/null
+          fi
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' --command "SELECT (SELECT COUNT(*) FROM events WHERE source='decision_item_builder_smoke') AS events,(SELECT COUNT(*) FROM a1_decision_item_builder_runs b JOIN events e ON e.event_id=b.event_id WHERE e.source='decision_item_builder_smoke') AS builders;" >/tmp/builder-cleanup.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/builder-cleanup.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(Number(r?.events||0)!==0||Number(r?.builders||0)!==0){console.error(r);process.exit(1)}console.log('Synthetic DecisionItemBuilder records cleaned.')"
+
+      - name: Rotate Data Layer internal authorization
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          echo 'Data Layer internal authorization rotated.'

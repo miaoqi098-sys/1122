@@ -1,0 +1,36 @@
+name: Fix Finance US Retrieval V1.6.1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "tools/fix-finance-us-filter-v161.mjs"
+      - ".github/workflows/fix-finance-us-filter-v161.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Patch finance retrieval
+        run: node tools/fix-finance-us-filter-v161.mjs
+      - name: Commit worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET='对外连接板块/02_1122连接亚马逊API/worker/worker.js'
+          if git diff --quiet -- "$TARGET"; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$TARGET"
+          git commit -m "fix: retrieve US finance transactions without marketplace filter"
+          git push

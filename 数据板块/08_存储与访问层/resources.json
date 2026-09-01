@@ -18,5 +18,15 @@
     "role": "current-state-cache",
     "ready": true
   },
-  "updated_at": "2026-09-01T10:49:30.323Z"
+  "connectors": {
+    "amazon_sp_api": {
+      "d1_binding": true,
+      "r2_binding": false
+    },
+    "sif_mcp": {
+      "d1_binding": true,
+      "r2_binding": false
+    }
+  },
+  "updated_at": "2026-09-01T12:08:27.703Z"
 }

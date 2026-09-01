@@ -50,7 +50,22 @@ jobs:
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
           printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
-          sleep 5
+
+          for attempt in $(seq 1 30); do
+            CODE=$(curl -sS -o /tmp/data-layer-auth-check.json -w '%{http_code}' \
+              -H "Authorization: Bearer $TOKEN" \
+              'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/auth-check' || true)
+            if [ "$CODE" = "200" ]; then
+              echo "Data Layer internal authorization active after attempt $attempt."
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Timed out waiting for Data Layer internal authorization propagation." >&2
+              cat /tmp/data-layer-auth-check.json || true
+              exit 1
+            fi
+            sleep 2
+          done
 
       - name: Insert synthetic traffic event on product with derived context
         id: event

@@ -39,3 +39,5 @@ jobs:
           git add "$TARGET"
           git commit -m "feat: add TrafficSnapshot report pipeline"
           git push
+
+# trigger: traffic-v1.5

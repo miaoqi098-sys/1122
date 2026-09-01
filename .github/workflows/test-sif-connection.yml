@@ -19,8 +19,8 @@ jobs:
         run: |
           set -euo pipefail
           echo '=== Sif connection-status ==='
-          curl -sS -D /tmp/headers.txt -o /tmp/body.txt \
-            https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status || true
-          cat /tmp/headers.txt
+          curl -sS https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status
           echo
-          cat /tmp/body.txt
+          echo '=== Sif tool catalog ==='
+          curl -sS https://1122-sif-bridge.zhangshuaibing01.workers.dev/diagnostics/tools
+          echo

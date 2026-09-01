@@ -51,21 +51,12 @@ jobs:
           printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
 
-          for attempt in $(seq 1 30); do
-            CODE=$(curl -sS -o /tmp/data-layer-auth-check.json -w '%{http_code}' \
-              -H "Authorization: Bearer $TOKEN" \
-              'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/auth-check' || true)
-            if [ "$CODE" = "200" ]; then
-              echo "Data Layer internal authorization active after attempt $attempt."
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              echo "Timed out waiting for Data Layer internal authorization propagation." >&2
-              cat /tmp/data-layer-auth-check.json || true
-              exit 1
-            fi
-            sleep 2
-          done
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' \
+            GET \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/auth-check' \
+            /tmp/data-layer-auth-check.json)
+          test "$CODE" = "200"
+          echo 'Data Layer internal authorization is reachable.'
 
       - name: Insert synthetic traffic event on product with derived context
         id: event
@@ -98,12 +89,12 @@ jobs:
           cat > /tmp/s02-request.json <<JSON
           {"event_id":"$EVENT_ID","context_request":{"question":"判断该产品Sessions下降是否需要干预，并区分自身经营状态与市场变化。","max_context_items":80,"max_context_tokens":10000}}
           JSON
-          CODE=$(curl -sS -o /tmp/s02-response.json -w '%{http_code}' \
-            -X POST \
-            -H "Authorization: Bearer $TOKEN" \
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' \
+            POST \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/intake-event' \
+            /tmp/s02-response.json \
             -H 'Content-Type: application/json' \
-            --data-binary @/tmp/s02-request.json \
-            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/intake-event')
+            --data-binary @/tmp/s02-request.json)
           cat /tmp/s02-response.json
           node - <<'NODE'
           const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/s02-response.json','utf8'));
@@ -150,8 +141,11 @@ jobs:
           EVENT_ID: ${{ steps.event.outputs.event_id }}
         run: |
           set -euo pipefail
-          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" \
-            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/context-pending?limit=10' > /tmp/s02-pending.json
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' \
+            POST \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/context-pending?limit=10' \
+            /tmp/s02-pending.json)
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
           npx --yes wrangler@4 d1 execute 1122-core --remote --json \
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
             --command "SELECT COUNT(*) AS run_count FROM a1_context_runs WHERE event_id='$EVENT_ID';" > /tmp/s02-idempotent.json
@@ -167,8 +161,11 @@ jobs:
           TOKEN: ${{ steps.auth.outputs.token }}
         run: |
           set -euo pipefail
-          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" \
-            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/rebuild-derived?marketplace=US&productLimit=1&dateLimit=30' > /tmp/s02-derived.json
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' \
+            POST \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/rebuild-derived?marketplace=US&productLimit=1&dateLimit=30' \
+            /tmp/s02-derived.json)
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
           node - <<'NODE'
           const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/s02-derived.json','utf8'));
           if(!d.success || !d.a1Intake || !d.a1Context) process.exit(1);

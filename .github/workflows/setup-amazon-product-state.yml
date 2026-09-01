@@ -127,3 +127,5 @@ EOF
           ROTATED=$(openssl rand -hex 32)
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
           echo "Internal refresh token rotated after use."
+
+# trigger: 2026-09-01 ProductIdentity V1.1

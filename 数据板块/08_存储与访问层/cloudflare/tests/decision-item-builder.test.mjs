@@ -54,11 +54,27 @@ assert.equal(gap.next_action, 'request_more_context');
 assert.deepEqual(gap.decision_items, []);
 assert.match(gap.builder_notes.join(' '), /不自创目标/);
 
-const gated = runDecisionItemBuilder({ ...base, s03_next_action: 'request_evidence' });
-assert.equal(gated.next_action, 'hold_for_review');
-assert.equal(gated.decision_items.length, 0);
+// S03 is the routing authority. Every non-forward S03 route must remain gated here
+// so blocked/evidence/escalation/observation cases can never leak into S04.
+const gatedRoutes = [
+  ['blocked', 'hold_for_review'],
+  ['needs_evidence', 'request_evidence'],
+  ['conflicts_found', 'send_to_S10'],
+  ['conflicts_found', 'request_agent_review'],
+];
+for (const [s03Status, s03NextAction] of gatedRoutes) {
+  const gated = runDecisionItemBuilder({
+    ...base,
+    s03_status: s03Status,
+    s03_next_action: s03NextAction,
+  });
+  assert.equal(gated.next_action, 'hold_for_review');
+  assert.equal(gated.decision_items.length, 0);
+  assert.match(gated.builder_notes.join(' '), new RegExp(s03NextAction));
+}
 
 const conflictInput = structuredClone(base);
+conflictInput.s03_status = 'conflicts_found';
 conflictInput.conflicts = [{
   conflict_id: 'CF-001', type: 'goal', severity: 'medium', decision_impact: 'changes_ranking',
   disputed_points: ['growth vs inventory'], resolution_evidence: ['d1:inventory_snapshots:1'],
@@ -75,6 +91,6 @@ console.log(JSON.stringify({
   runtimeVersion: DECISION_ITEM_BUILDER_RUNTIME_VERSION,
   happyPath: ready.next_action,
   missingObjective: gap.next_action,
-  gatedByS03: gated.next_action,
+  gatedRoutes: gatedRoutes.map(([status, nextAction]) => ({ status, nextAction })),
   conflictRefs: withConflict.decision_items[0].conflict_refs,
 }, null, 2));

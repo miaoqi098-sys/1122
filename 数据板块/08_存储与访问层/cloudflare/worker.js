@@ -4,6 +4,12 @@ import {
   intakePendingEvents,
   A1_INTAKE_VERSION,
 } from './a1-intake.js';
+import {
+  loadContextForEvent,
+  loadPendingContexts,
+  A1_CONTEXT_LOADER_VERSION,
+} from './s02-context.js';
+import { S02_RUNTIME_VERSION } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/执行程序/runtime.js';
 
 const ALLOWED_ORIGINS = new Set([
   'https://1122-web-agent.pages.dev',
@@ -36,11 +42,7 @@ function isInternalAuthorized(request, env) {
 async function parseBody(request) {
   const contentType = String(request.headers.get('Content-Type') || '');
   if (!contentType.includes('application/json')) return {};
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
+  try { return await request.json(); } catch { return {}; }
 }
 
 async function checkD1(env) {
@@ -70,6 +72,8 @@ async function getD1Summary(env) {
         (SELECT COUNT(*) FROM events) AS events,
         (SELECT COUNT(*) FROM a1_event_intake_runs) AS a1_event_intakes,
         (SELECT COUNT(*) FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') AS a1_ready_for_s02,
+        (SELECT COUNT(*) FROM a1_context_runs) AS a1_context_runs,
+        (SELECT COUNT(*) FROM a1_context_runs WHERE s02_status IN ('ready','ready_with_gaps')) AS a1_context_ready,
         (SELECT COUNT(*) FROM decisions) AS decisions,
         (SELECT COUNT(*) FROM tasks) AS tasks,
         (SELECT COUNT(*) FROM validation_results) AS validations,
@@ -87,6 +91,8 @@ async function getD1Summary(env) {
       events: Number(row?.events || 0),
       a1EventIntakes: Number(row?.a1_event_intakes || 0),
       a1ReadyForS02: Number(row?.a1_ready_for_s02 || 0),
+      a1ContextRuns: Number(row?.a1_context_runs || 0),
+      a1ContextReady: Number(row?.a1_context_ready || 0),
       decisions: Number(row?.decisions || 0),
       tasks: Number(row?.tasks || 0),
       validations: Number(row?.validations || 0),
@@ -144,15 +150,12 @@ export default {
 
     if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/status')) {
       const [d1, r2, summary, sources] = await Promise.all([
-        checkD1(env),
-        checkR2(env),
-        getD1Summary(env),
-        getSourceStates(env),
+        checkD1(env), checkR2(env), getD1Summary(env), getSourceStates(env),
       ]);
       return json({
         success: true,
         service: '1122-data-layer',
-        version: '1.4.0',
+        version: '1.5.0',
         storage: {
           d1: { role: 'core-operating-facts', databaseName: '1122-core', ...d1 },
           r2: { role: 'permanent-archive', ...r2 },
@@ -169,6 +172,14 @@ export default {
           pipeline: ['RawEvent', 'CanonicalEvent', 'S01', 'NormalizedEvent', 'A1IntakeLedger'],
           bypassS01: false,
           readyForS02OnlyAfter: ['passed', 'passed_with_warnings'],
+        },
+        a1Context: {
+          version: A1_CONTEXT_LOADER_VERSION,
+          runtimeVersion: S02_RUNTIME_VERSION,
+          pipeline: ['S01NormalizedEvent', 'ContextPlanner', 'D1Retriever', 'FreshnessCheck', 'ContextPackage', 'A1ContextLedger'],
+          contextPackageIsUniqueFactSource: true,
+          automaticAfterS01: true,
+          outputs: ['ready', 'ready_with_gaps', 'needs_information', 'blocked'],
         },
         summary,
         sources,
@@ -190,7 +201,8 @@ export default {
         const dateLimit = Math.min(Math.max(Number(url.searchParams.get('dateLimit') || 60), 7), 180);
         const result = await rebuildDerivedLayer(env, marketplace, productLimit, dateLimit);
         const a1Intake = await intakePendingEvents(env, { source: 'derived_layer_v1', limit: 20 });
-        return json({ success: true, ...result, a1Intake }, 200, origin);
+        const a1Context = await loadPendingContexts(env, { limit: 10 });
+        return json({ success: true, ...result, a1Intake, a1Context }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'Derived Layer rebuild failed', error: error.message }, 500, origin);
       }
@@ -205,7 +217,10 @@ export default {
       try {
         const result = await intakeEventById(env, eventId);
         if (!result.found) return json({ success: false, message: 'Event not found', eventId }, 404, origin);
-        return json({ success: true, ...result }, 200, origin);
+        const s02Context = result.intakeStatus === 'READY_FOR_S02'
+          ? await loadContextForEvent(env, eventId, { contextRequest: body?.context_request || undefined })
+          : null;
+        return json({ success: true, ...result, s02Context }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'A1 event intake failed', error: error.message }, 500, origin);
       }
@@ -218,9 +233,37 @@ export default {
         const source = String(url.searchParams.get('source') || 'derived_layer_v1');
         const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 20), 1), 50);
         const result = await intakePendingEvents(env, { source, limit });
-        return json({ success: true, ...result }, 200, origin);
+        const s02Context = await loadPendingContexts(env, { limit: Math.min(limit, 10) });
+        return json({ success: true, ...result, s02Context }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'A1 pending intake failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/context-event') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      const body = await parseBody(request);
+      const eventId = String(body?.event_id || url.searchParams.get('event_id') || '').trim();
+      if (!eventId) return json({ success: false, message: 'event_id is required' }, 400, origin);
+      try {
+        const result = await loadContextForEvent(env, eventId, { contextRequest: body?.context_request || undefined });
+        if (!result.found) return json({ success: false, message: 'No READY_FOR_S02 intake found for event', eventId }, 404, origin);
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'S02 context loading failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/context-pending') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      try {
+        const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 10), 1), 10);
+        const result = await loadPendingContexts(env, { limit });
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'S02 pending context loading failed', error: error.message }, 500, origin);
       }
     }
 
@@ -228,4 +271,4 @@ export default {
   },
 };
 
-// deploy marker: a1-intake-v1.0
+// deploy marker: s02-context-v1.0

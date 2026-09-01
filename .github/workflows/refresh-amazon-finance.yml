@@ -67,4 +67,4 @@ jobs:
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
           echo "Internal authorization rotated."
 
-# Aggregate validation only. Real financial amounts are not printed.
+# Validation rerun after US marketplace-filter correction. Real financial amounts are not printed.

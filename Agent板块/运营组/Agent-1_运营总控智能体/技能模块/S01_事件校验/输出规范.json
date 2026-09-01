@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S01 事件校验输出规范 V1.1",
+  "title": "S01 事件校验输出规范 V1.2",
   "type": "object",
-  "required": ["skill_id", "event_id", "status", "blocking_errors", "warnings", "missing_information", "normalized_event", "next_action"],
+  "required": ["skill_id", "event_id", "status", "blocking_errors", "warnings", "missing_information", "duplicate_signal", "normalized_event", "next_action"],
   "properties": {
     "skill_id": {"const": "S01"},
     "event_id": {"type": "string"},
@@ -12,33 +12,49 @@
     "missing_information": {"type": "array", "items": {"type": "string"}},
     "duplicate_signal": {
       "type": "object",
+      "required": ["is_possible_duplicate", "matched_event_ids"],
       "properties": {
         "is_possible_duplicate": {"type": "boolean"},
         "matched_event_ids": {"type": "array", "items": {"type": "string"}}
-      }
+      },
+      "additionalProperties": false
     },
     "normalized_event": {
       "type": ["object", "null"],
-      "required": ["event_id", "source_agent", "scope_type", "event_type", "severity", "occurred_at", "summary", "facts"],
+      "required": ["event_id", "source_type", "scope_type", "event_type", "severity", "occurred_at", "summary", "facts"],
       "properties": {
         "event_id": {"type": "string"},
-        "source_agent": {"type": "string"},
+        "source_type": {"enum": ["professional_agent", "system", "human", "external"]},
+        "source_agent": {"type": ["string", "null"]},
+        "source_actor": {"type": ["string", "null"]},
+        "source_ref": {"type": ["string", "null"]},
         "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global"]},
         "scope_id": {"type": ["string", "null"]},
         "product_id": {"type": ["string", "null"]},
-        "scope_objects": {"type": "object"},
+        "asin": {"type": ["string", "null"]},
+        "scope_objects": {"type": "array", "items": {"type": "object"}},
         "event_type": {"type": "string"},
-        "severity": {"type": "string"},
+        "severity": {"enum": ["P0", "P1", "P2", "P3"]},
         "occurred_at": {"type": "string"},
+        "received_at": {"type": ["string", "null"]},
         "summary": {"type": "string"},
-        "facts": {"type": "array"},
+        "facts": {"type": "array", "items": {"type": "string"}},
+        "metrics": {"type": "object", "additionalProperties": true},
         "recommendation": {},
-        "source_event_ref": {"type": ["string", "null"]}
+        "confidence": {"type": ["number", "null"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "related_events": {"type": "array", "items": {"type": "string"}},
+        "parent_event_id": {"type": ["string", "null"]},
+        "requires_decision_by": {"type": ["string", "null"]},
+        "data_window": {"type": ["string", "null"]},
+        "attachments": {"type": "array", "items": {"type": "string"}},
+        "metadata": {"type": "object", "additionalProperties": true}
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "next_action": {"enum": ["continue_to_S02", "request_information", "hold_for_review", "discard_event"]},
-    "validation_summary": {"type": "string"}
+    "validation_summary": {"type": "string"},
+    "validator_version": {"type": "string"}
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

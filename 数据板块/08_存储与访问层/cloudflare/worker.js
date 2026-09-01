@@ -192,6 +192,11 @@ export default {
       }, 200, origin);
     }
 
+    if (request.method === 'GET' && url.pathname === '/internal/auth-check') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      return json({ success: true, service: '1122-data-layer', auth: 'ready' }, 200, origin);
+    }
+
     if (request.method === 'POST' && url.pathname === '/internal/rebuild-derived') {
       if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
       if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
@@ -271,4 +276,4 @@ export default {
   },
 };
 
-// deploy marker: s02-context-v1.0
+// deploy marker: s02-context-v1.0-auth-readiness

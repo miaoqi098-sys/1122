@@ -1,13 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "DecisionItemBuilder Output V1.0",
+  "title": "DecisionItemBuilder Output V1.1",
   "type": "object",
   "required": ["builder_id", "decision_items", "next_action"],
   "properties": {
     "builder_id": {"type": "string", "minLength": 1},
     "decision_items": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
         "required": ["decision_item_id", "item_type", "subject", "problem_definition", "objective", "goal_layer"],
@@ -42,7 +41,15 @@
     },
     "merged_source_groups": {"type": "array"},
     "builder_notes": {"type": "array"},
-    "next_action": {"enum": ["continue_to_S04", "request_more_context", "hold_for_review"]}
+    "next_action": {"enum": ["continue_to_S04", "request_more_context", "hold_for_review"]},
+    "runtime_version": {"type": "string"},
+    "generated_at": {"type": "string"}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"next_action": {"const": "continue_to_S04"}}, "required": ["next_action"]},
+      "then": {"properties": {"decision_items": {"minItems": 1}}}
+    }
+  ],
   "additionalProperties": true
 }

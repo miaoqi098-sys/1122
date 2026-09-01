@@ -1,0 +1,137 @@
+name: Ingest 1122 Data Layer Daily
+
+on:
+  schedule:
+    - cron: "15 14 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 1122-data-layer-ingestion
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 对外连接板块/02_1122连接亚马逊API/worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Create temporary internal authorization
+        id: auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
+          sleep 5
+
+      - name: Refresh ProductIdentity and InventorySnapshot
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/product.json -w '%{http_code}' \
+            -X POST -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json' \
+            https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/refresh-product-identities)
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/product.json','utf8'));if(!d.success){console.error(d.message||d.error||'Product refresh failed');process.exit(1)};console.log(JSON.stringify({productIdentity:{success:true,productCount:d.productCount,updatedAt:d.updatedAt,inventoryRecordCount:d.v13?.inventoryRecordCount||0}},null,2))"
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+
+      - name: Refresh SalesSnapshot
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/sales.json -w '%{http_code}' \
+            -X POST -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json' \
+            https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/refresh-sales)
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/sales.json','utf8'));if(!d.success){console.error(d.message||d.error||'Sales refresh failed');process.exit(1)};console.log(JSON.stringify({sales:{success:true,updatedAt:d.updatedAt,currency:d.currency,rangesAvailable:d.rangesAvailable}},null,2))"
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+
+      - name: Refresh FinanceSnapshot
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/finance.json -w '%{http_code}' \
+            -X POST -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json' \
+            https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/refresh-finance)
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/finance.json','utf8'));if(!d.success){console.error(d.message||d.error||'Finance refresh failed');process.exit(1)};console.log(JSON.stringify({finance:{success:true,updatedAt:d.updatedAt,transactionCount:d.transactionCount,semanticStatus:'PENDING_VALIDATION'}},null,2))"
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+
+      - name: Create Sales and Traffic report
+        id: traffic
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/traffic-create.json -w '%{http_code}' \
+            -X POST -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json' \
+            https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/create-traffic-report)
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/traffic-create.json','utf8'));if(!d.success||!d.reportId){console.error(d.message||d.error||'Traffic report creation failed');process.exit(1)};fs.appendFileSync(process.env.GITHUB_OUTPUT,'report_id='+d.reportId+'\\n');console.log(JSON.stringify({trafficReport:{created:true,createdAt:d.createdAt}},null,2))"
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+
+      - name: Finalize TrafficSnapshot
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+          REPORT_ID: ${{ steps.traffic.outputs.report_id }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            CODE=$(curl -sS -o /tmp/traffic-final.json -w '%{http_code}' \
+              -X POST -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json' \
+              "https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/finalize-traffic-report?reportId=$REPORT_ID")
+            if [ "$CODE" = "202" ]; then
+              echo "Traffic report processing ($attempt/36)"
+              sleep 10
+              continue
+            fi
+            node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/traffic-final.json','utf8'));if(!d.success||!d.ready){console.error(d.message||d.error||'Traffic finalize failed');process.exit(1)};console.log(JSON.stringify({traffic:{success:true,updatedAt:d.updatedAt,dateRecordCount:d.dateRecordCount,productRecordCount:d.productRecordCount,matchedProductCount:d.matchedProductCount}},null,2))"
+            test "$CODE" -ge 200 -a "$CODE" -lt 300
+            exit 0
+          done
+          echo "Traffic report timed out" >&2
+          exit 6
+
+      - name: Verify D1 ingestion state
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --command "SELECT (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM inventory_snapshots) AS inventory_snapshots, (SELECT COUNT(*) FROM sales_period_snapshots) AS sales_period_snapshots, (SELECT COUNT(*) FROM traffic_daily) AS traffic_daily, (SELECT COUNT(*) FROM finance_period_snapshots) AS finance_period_snapshots;" > /tmp/d1-state.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-state.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(!r){process.exit(1)};console.log(JSON.stringify({d1PermanentFacts:r},null,2))"
+
+      - name: Rotate internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
+          echo "Internal authorization rotated."
+
+# Runs daily at 14:15 UTC. Business data persists to D1; R2 archive activates automatically after R2 account enablement.

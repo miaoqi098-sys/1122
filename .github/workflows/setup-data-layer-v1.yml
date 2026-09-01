@@ -8,6 +8,7 @@ on:
       - "tools/configure-data-layer-v1.mjs"
       - "数据板块/08_存储与访问层/cloudflare/**"
       - "数据板块/09_数据库迁移与版本/migrations/**"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S01_事件校验/**"
   workflow_dispatch:
 
 permissions:
@@ -30,6 +31,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Verify A1 S01 runtime contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/a1-intake.test.mjs'
 
       - name: Verify Cloudflare token
         shell: bash
@@ -160,6 +167,31 @@ jobs:
             --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';" > /tmp/d1-check.json
           node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<15){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
 
+      - name: Verify A1 Event Intake schema
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='a1_event_intake_runs') AS intake_table, (SELECT parser_version FROM data_source_state WHERE source_key='a1_event_intake') AS validator_version;" \
+            > /tmp/a1-schema.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/a1-schema.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (!r || Number(r.intake_table) !== 1) {
+            console.error('A1 Event Intake table is missing');
+            process.exit(1);
+          }
+          if (String(r.validator_version) !== 'S01-runtime-v1.2.0') {
+            console.error('Unexpected S01 validator version:', r.validator_version);
+            process.exit(2);
+          }
+          console.log('A1 Event Intake schema ready:', JSON.stringify(r));
+          NODE
+
       - name: Verify Sif intelligence schema
         shell: bash
         env:
@@ -175,7 +207,27 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/data-layer-status.json
-          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/data-layer-status.json','utf8'));if(!d.success||!d.storage?.d1?.ready){console.error('Data Layer Worker verification failed');process.exit(1)};console.log(JSON.stringify({success:true,version:d.version,d1:d.storage.d1,r2:d.storage.r2,kv:d.storage.kv,summary:d.summary},null,2))"
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/data-layer-status.json','utf8'));
+          if (!d.success || !d.storage?.d1?.ready) {
+            console.error('Data Layer Worker verification failed');
+            process.exit(1);
+          }
+          if (d.version !== '1.4.0' || d.a1Intake?.bypassS01 !== false) {
+            console.error('A1 Intake runtime is not live');
+            process.exit(2);
+          }
+          console.log(JSON.stringify({
+            success: true,
+            version: d.version,
+            d1: d.storage.d1,
+            r2: d.storage.r2,
+            kv: d.storage.kv,
+            a1Intake: d.a1Intake,
+            summary: d.summary,
+          }, null, 2));
+          NODE
 
       - name: Verify Sif MCP after data binding deployment
         shell: bash

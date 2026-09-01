@@ -14,13 +14,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Sif bridge
+      - name: Run one Sif ASIN query
         shell: bash
         run: |
           set -euo pipefail
-          echo '=== Sif connection-status ==='
-          curl -sS https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status
-          echo
-          echo '=== Sif tool catalog ==='
-          curl -sS https://1122-sif-bridge.zhangshuaibing01.workers.dev/diagnostics/tools
+          echo '=== One-shot Sif ASIN query ==='
+          curl -sS https://1122-sif-bridge.zhangshuaibing01.workers.dev/diagnostics/test-asin
           echo

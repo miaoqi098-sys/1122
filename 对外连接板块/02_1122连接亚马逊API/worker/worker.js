@@ -278,6 +278,43 @@ async function normalizeProductIdentities(inventoryItems, pricingBySku, listings
   return normalized;
 }
 
+function buildInventorySnapshot(products, observedAt) {
+  const records = products.map((product) => {
+    const working = Number(product.inbound_working_quantity || 0);
+    const shipped = Number(product.inbound_shipped_quantity || 0);
+    const receiving = Number(product.inbound_receiving_quantity || 0);
+    return {
+      snapshot_id: `${observedAt}:${product.product_id}`,
+      product_id: product.product_id,
+      marketplace: product.marketplace,
+      marketplace_id: product.marketplace_id,
+      asin: product.asin,
+      seller_sku: product.seller_sku,
+      fnsku: product.fnsku,
+      observed_at: observedAt,
+      source: "Amazon FBA Inventory API",
+      total_quantity: product.total_quantity,
+      fulfillable_quantity: product.fulfillable_quantity,
+      inbound_working_quantity: product.inbound_working_quantity,
+      inbound_shipped_quantity: product.inbound_shipped_quantity,
+      inbound_receiving_quantity: product.inbound_receiving_quantity,
+      inbound_total_quantity: working + shipped + receiving,
+      inventory_state: "observed",
+      freshness: { observed_at: observedAt, status: "current_at_write" },
+    };
+  });
+
+  return {
+    schema: "InventorySnapshot.v1",
+    marketplace: "US",
+    marketplace_id: US_MARKETPLACE_ID,
+    observed_at: observedAt,
+    source: "Amazon FBA Inventory API",
+    record_count: records.length,
+    records,
+  };
+}
+
 async function refreshProductIdentities(env) {
   if (!env.PRODUCT_STATE) throw new Error("PRODUCT_STATE KV 尚未绑定");
   const { clientId, clientSecret, refreshToken } = getServerCredentials(env);
@@ -300,6 +337,7 @@ async function refreshProductIdentities(env) {
 
   const products = await normalizeProductIdentities(items, pricingNormalized.bySku, listingsResult.bySku);
   const updatedAt = new Date().toISOString();
+  const inventorySnapshot = buildInventorySnapshot(products, updatedAt);
   const listingResolvedCount = products.filter((product) => product.data_sources.listing).length;
   const priceResolvedCount = products.filter((product) => product.listing_price != null).length;
   const buyableCount = products.filter((product) => product.is_buyable).length;
@@ -342,9 +380,16 @@ async function refreshProductIdentities(env) {
       pricingBatchErrorCount: pricingResult.errors.length,
       listingErrorCount: listingsResult.errors.length,
     },
+    v13: {
+      inventorySnapshotReady: true,
+      inventoryRecordCount: inventorySnapshot.record_count,
+      observedAt: inventorySnapshot.observed_at,
+      source: inventorySnapshot.source,
+    },
   };
 
   await env.PRODUCT_STATE.put("product-identities:US", JSON.stringify(snapshot));
+  await env.PRODUCT_STATE.put("inventory-snapshot:US", JSON.stringify(inventorySnapshot));
   await env.PRODUCT_STATE.put("product-identity-status:US", JSON.stringify(status));
   return status;
 }
@@ -380,6 +425,12 @@ async function getPublicProductIdentityStatus(env) {
       issueProductCount: status.v12.issueProductCount ?? 0,
       pricingBatchErrorCount: status.v12.pricingBatchErrorCount ?? 0,
       listingErrorCount: status.v12.listingErrorCount ?? 0,
+    } : null,
+    v13: status.v13 ? {
+      inventorySnapshotReady: Boolean(status.v13.inventorySnapshotReady),
+      inventoryRecordCount: status.v13.inventoryRecordCount ?? 0,
+      observedAt: status.v13.observedAt || null,
+      source: status.v13.source || "Amazon FBA Inventory API",
     } : null,
   };
 }
@@ -428,7 +479,7 @@ export default {
         ok: true,
         service: "1122-amazon-sp-api-bridge",
         status: "online",
-        version: "4.0.0",
+        version: "4.1.0",
         credentialMode: "worker-secrets",
         productState: Boolean(env.PRODUCT_STATE),
       }, 200, origin);

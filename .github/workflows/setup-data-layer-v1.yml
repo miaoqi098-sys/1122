@@ -9,6 +9,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/**"
       - "数据板块/09_数据库迁移与版本/migrations/**"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S01_事件校验/**"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/**"
   workflow_dispatch:
 
 permissions:
@@ -32,11 +33,12 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify A1 S01 runtime contract
+      - name: Verify A1 S01 and S02 runtime contracts
         shell: bash
         run: |
           set -euo pipefail
           node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/a1-intake.test.mjs'
+          node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/s02-context.test.mjs'
 
       - name: Verify Cloudflare token
         shell: bash
@@ -165,7 +167,7 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@4 d1 execute 1122-core --remote --json \
             --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';" > /tmp/d1-check.json
-          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<15){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<17){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
 
       - name: Verify A1 Event Intake schema
         shell: bash
@@ -181,15 +183,34 @@ jobs:
           const fs = require('fs');
           const x = JSON.parse(fs.readFileSync('/tmp/a1-schema.json','utf8'));
           const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
-          if (!r || Number(r.intake_table) !== 1) {
-            console.error('A1 Event Intake table is missing');
+          if (!r || Number(r.intake_table) !== 1) process.exit(1);
+          if (String(r.validator_version) !== 'S01-runtime-v1.2.0') process.exit(2);
+          console.log('A1 Event Intake schema ready:', JSON.stringify(r));
+          NODE
+
+      - name: Verify A1 S02 Context schema
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='a1_context_runs') AS context_table, (SELECT parser_version FROM data_source_state WHERE source_key='a1_context_loader') AS runtime_version;" \
+            > /tmp/s02-schema.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/s02-schema.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (!r || Number(r.context_table) !== 1) {
+            console.error('A1 S02 Context table is missing');
             process.exit(1);
           }
-          if (String(r.validator_version) !== 'S01-runtime-v1.2.0') {
-            console.error('Unexpected S01 validator version:', r.validator_version);
+          if (String(r.runtime_version) !== 'S02-runtime-v1.2.0') {
+            console.error('Unexpected S02 runtime version:', r.runtime_version);
             process.exit(2);
           }
-          console.log('A1 Event Intake schema ready:', JSON.stringify(r));
+          console.log('A1 S02 Context schema ready:', JSON.stringify(r));
           NODE
 
       - name: Verify Sif intelligence schema
@@ -210,13 +231,14 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const d = JSON.parse(fs.readFileSync('/tmp/data-layer-status.json','utf8'));
-          if (!d.success || !d.storage?.d1?.ready) {
-            console.error('Data Layer Worker verification failed');
-            process.exit(1);
-          }
-          if (d.version !== '1.4.0' || d.a1Intake?.bypassS01 !== false) {
+          if (!d.success || !d.storage?.d1?.ready) process.exit(1);
+          if (d.version !== '1.5.0' || d.a1Intake?.bypassS01 !== false) {
             console.error('A1 Intake runtime is not live');
             process.exit(2);
+          }
+          if (d.a1Context?.runtimeVersion !== 'S02-runtime-v1.2.0' || d.a1Context?.contextPackageIsUniqueFactSource !== true) {
+            console.error('A1 S02 Context runtime is not live');
+            process.exit(3);
           }
           console.log(JSON.stringify({
             success: true,
@@ -225,6 +247,7 @@ jobs:
             r2: d.storage.r2,
             kv: d.storage.kv,
             a1Intake: d.a1Intake,
+            a1Context: d.a1Context,
             summary: d.summary,
           }, null, 2));
           NODE

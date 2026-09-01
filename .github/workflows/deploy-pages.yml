@@ -11,32 +11,66 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: "1122-web-pages"
   cancel-in-progress: true
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - name: Upload site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "."
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
 
-# deployment marker: latest-1122-20260901
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify Cloudflare token
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "CLOUDFLARE_API_TOKEN is missing" >&2
+            exit 2
+          fi
+
+      - name: Build safe frontend artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+          cp index.html dist/index.html
+          if [ -f amazon-sp-api.html ]; then
+            cp amazon-sp-api.html dist/amazon-sp-api.html
+          fi
+          printf 'User-agent: *\nDisallow:\n' > dist/robots.txt
+          echo "Frontend artifact contains only approved web files:"
+          find dist -maxdepth 1 -type f -printf '%f\n' | sort
+
+      - name: Ensure Cloudflare Pages project
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! npx --yes wrangler@4 pages project list 2>&1 | grep -q '1122-web-agent'; then
+            npx --yes wrangler@4 pages project create 1122-web-agent --production-branch=main
+          else
+            echo "Cloudflare Pages project 1122-web-agent already exists"
+          fi
+
+      - name: Deploy latest 1122
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 pages deploy dist --project-name=1122-web-agent --branch=main --commit-dirty=true
+          echo "Stable URL: https://1122-web-agent.pages.dev"
+
+# Private GitHub source -> safe frontend artifact -> Cloudflare Pages

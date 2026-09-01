@@ -25,3 +25,18 @@
 
 ## V1.2范围
 V1.2优先实现可解释、确定性的事实/任务/策略/约束/资源承受能力规则；无法可靠判断的语义冲突保留为证据请求，不使用猜测补全。
+
+## 调用
+```js
+import { runS03, S03_RUNTIME_VERSION } from './runtime.js';
+
+const result = runS03({
+  event_id,
+  scope,
+  context_package,
+  context_refs,
+  normalized_elements,
+});
+```
+
+`runS03` 是纯规则函数，不直接依赖D1、Cloudflare Worker或外部API。持久化和批处理由Data Layer运行桥负责。

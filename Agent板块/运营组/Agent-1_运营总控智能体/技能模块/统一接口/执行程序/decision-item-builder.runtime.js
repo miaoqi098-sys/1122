@@ -24,7 +24,7 @@ function eventIdFromRef(ref) {
 function selectSourceEvent(contextPackage, sourceEventRefs) {
   const events = arr(contextPackage?.C05_events_and_promotions?.recent_events);
   const wanted = new Set(unique(sourceEventRefs).map(eventIdFromRef));
-  return events.find((e) => wanted.has(String(e?.event_id || ''))) || events[0] || null;
+  return events.find((e) => wanted.has(String(e?.event_id || ''))) || null;
 }
 
 function objectiveFromContext(contextPackage = {}) {
@@ -163,6 +163,21 @@ export function runDecisionItemBuilder(input = {}) {
     };
   }
 
+  // Fail closed on provenance mismatch. A DecisionItem must be built from the same event
+  // referenced by source_event_refs; never borrow the first unrelated C05 event as evidence.
+  const sourceEvent = selectSourceEvent(contextPackage, sourceEventRefs);
+  if (!sourceEvent) {
+    return {
+      builder_id: builderId,
+      decision_items: [],
+      merged_source_groups: [],
+      builder_notes: ['source_event_refs 在 ContextPackage.C05 中没有对应事件；禁止借用其他事件证据进入 S04。'],
+      next_action: 'request_more_context',
+      runtime_version: DECISION_ITEM_BUILDER_RUNTIME_VERSION,
+      generated_at: now,
+    };
+  }
+
   const objective = objectiveFromContext(contextPackage);
   if (!objective && policy.require_objective_from_context) {
     return {
@@ -176,7 +191,6 @@ export function runDecisionItemBuilder(input = {}) {
     };
   }
 
-  const sourceEvent = selectSourceEvent(contextPackage, sourceEventRefs) || {};
   const eventType = sourceEvent.event_type || input.event_type || 'GENERAL_DECISION_ITEM';
   const itemType = classifyItem(eventType, conflicts);
   const conflictRefs = unique(conflicts.map((c) => c?.conflict_id));

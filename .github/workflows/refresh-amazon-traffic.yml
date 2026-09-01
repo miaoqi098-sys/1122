@@ -100,4 +100,4 @@ jobs:
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
           echo "Internal authorization rotated."
 
-# First real TrafficSnapshot validation. No SKU/ASIN/sessions/orders/sales amounts are printed.
+# CHILD-ASIN validation; no SKU/ASIN/sessions/orders/sales amounts are printed.

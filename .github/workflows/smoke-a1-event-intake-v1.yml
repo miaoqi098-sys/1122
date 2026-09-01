@@ -1,6 +1,10 @@
 name: Smoke A1 Event Intake V1
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/smoke-a1-event-intake-v1.yml"
   workflow_run:
     workflows: ["Setup 1122 Data Layer V1"]
     types: [completed]
@@ -15,7 +19,7 @@ concurrency:
 
 jobs:
   smoke:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

@@ -6,11 +6,16 @@ on:
     paths:
       - ".github/workflows/setup-data-layer-v1.yml"
       - "tools/configure-data-layer-v1.mjs"
-      - "数据板块/**"
+      - "数据板块/08_存储与访问层/cloudflare/**"
+      - "数据板块/09_数据库迁移与版本/migrations/**"
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: 1122-data-layer-setup
+  cancel-in-progress: false
 
 jobs:
   setup:
@@ -152,7 +157,7 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/data-layer-status.json
-          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/data-layer-status.json','utf8'));if(!d.success||!d.storage?.d1?.ready){console.error('Data Layer Worker verification failed');process.exit(1)};console.log(JSON.stringify({success:true,version:d.version,d1:d.storage.d1,r2:d.storage.r2,kv:d.storage.kv},null,2))"
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/data-layer-status.json','utf8'));if(!d.success||!d.storage?.d1?.ready){console.error('Data Layer Worker verification failed');process.exit(1)};console.log(JSON.stringify({success:true,version:d.version,d1:d.storage.d1,r2:d.storage.r2,kv:d.storage.kv,summary:d.summary},null,2))"
 
       - name: Commit non-secret resource bindings
         shell: bash
@@ -170,4 +175,4 @@ jobs:
           git commit -m "feat: bind 1122 data layer resources"
           git push
 
-# DataLayer V1 bootstrap: D1 facts + R2 archive when enabled + KV current-state cache.
+# Infrastructure setup only. Ordinary Data Layer documentation changes do not trigger provisioning.

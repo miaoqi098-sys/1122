@@ -1,25 +1,30 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "S02 上下文装载输入规范 V1.1",
+  "title": "S02 上下文装载输入规范 V1.2",
   "type": "object",
   "required": ["validated_event", "s01_validation", "context_request"],
   "properties": {
     "validated_event": {
       "type": "object",
       "description": "必须直接承接S01.normalized_event，不再回退使用原始事件。",
-      "required": ["event_id", "source_agent", "scope_type", "event_type", "severity", "occurred_at", "summary", "facts"],
+      "required": ["event_id", "source_type", "scope_type", "event_type", "severity", "occurred_at", "summary", "facts"],
       "properties": {
         "event_id": {"type": "string", "minLength": 1},
-        "source_agent": {"type": "string", "minLength": 1},
+        "source_type": {"enum": ["professional_agent", "system", "human", "external"]},
+        "source_agent": {"type": ["string", "null"]},
+        "source_actor": {"type": ["string", "null"]},
+        "source_ref": {"type": ["string", "null"]},
         "scope_type": {"enum": ["product", "parent_product", "sku", "account", "store", "global"]},
         "scope_id": {"type": ["string", "null"]},
         "product_id": {"type": ["string", "null"]},
-        "scope_objects": {"type": "object"},
+        "asin": {"type": ["string", "null"]},
+        "scope_objects": {"type": "array", "items": {"type": "object"}},
         "event_type": {"type": "string", "minLength": 1},
-        "severity": {"type": "string", "minLength": 1},
-        "occurred_at": {"type": "string"},
-        "summary": {"type": "string"},
-        "facts": {"type": "array"},
+        "severity": {"enum": ["P0", "P1", "P2", "P3"]},
+        "occurred_at": {"type": "string", "minLength": 1},
+        "summary": {"type": "string", "minLength": 1},
+        "facts": {"type": "array", "minItems": 1},
+        "metrics": {"type": "object"},
         "recommendation": {}
       },
       "additionalProperties": true
@@ -31,7 +36,8 @@
         "status": {"enum": ["passed", "passed_with_warnings"]},
         "warnings": {"type": "array"},
         "duplicate_signal": {"type": "object"},
-        "validation_summary": {"type": ["string", "null"]}
+        "validation_summary": {"type": ["string", "null"]},
+        "validator_version": {"type": ["string", "null"]}
       },
       "additionalProperties": true
     },
@@ -48,7 +54,10 @@
       },
       "additionalProperties": true
     },
-    "available_context": {"type": "object"},
+    "available_context": {
+      "type": "object",
+      "description": "由运行层Retriever提供的上下文域候选。S02 Runtime只从这里打包，不自行臆造数据。"
+    },
     "current_time": {"type": "string"},
     "freshness_policy": {"type": "object"}
   },

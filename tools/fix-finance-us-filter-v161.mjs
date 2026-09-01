@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const path='对外连接板块/02_1122连接亚马逊API/worker/worker.js';
+let code=fs.readFileSync(path,'utf8');
+const old='const params = new URLSearchParams({ postedAfter, postedBefore, marketplaceId: US_MARKETPLACE_ID });';
+const next='const params = new URLSearchParams({ postedAfter, postedBefore });';
+if(!code.includes(old)) throw new Error('Finance query target not found');
+code=code.replace(old,next);
+code=code.replace('version: "4.4.0"','version: "4.4.1"');
+code=code.replace('1122AmazonBridge/4.4','1122AmazonBridge/4.4.1');
+fs.writeFileSync(path,code);
+console.log('Finance US retrieval filter fixed');

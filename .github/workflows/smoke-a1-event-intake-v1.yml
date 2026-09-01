@@ -52,17 +52,6 @@ jobs:
             --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
           sleep 5
 
-      - name: Snapshot A1 source state
-        shell: bash
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
-            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-            --command "SELECT * FROM data_source_state WHERE source_key='a1_event_intake';" \
-            > /tmp/a1-state-before.json
-
       - name: Insert one synthetic deterministic event
         id: event
         shell: bash
@@ -93,7 +82,6 @@ jobs:
         shell: bash
         env:
           TOKEN: ${{ steps.auth.outputs.token }}
-          EVENT_ID: ${{ steps.event.outputs.event_id }}
         run: |
           set -euo pipefail
           CODE=$(curl -sS -o /tmp/a1-intake.json -w '%{http_code}' \
@@ -158,6 +146,34 @@ jobs:
           console.log('A1 intake idempotency verified.');
           NODE
 
+      - name: Verify Derived rebuild invokes A1 automatic intake bridge
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/rebuild-derived?marketplace=US&productLimit=1&dateLimit=7' \
+            > /tmp/derived-with-a1.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/derived-with-a1.json','utf8'));
+          if (!d.success) process.exit(1);
+          if (!d.a1Intake || d.a1Intake.validatorVersion !== 'S01-runtime-v1.2.0') process.exit(2);
+          if (d.a1Intake.source !== 'derived_layer_v1') process.exit(3);
+          console.log(JSON.stringify({
+            productsProcessed: d.productsProcessed,
+            eventRows: d.eventRows,
+            automaticA1Intake: {
+              selected: d.a1Intake.selected,
+              processed: d.a1Intake.processed,
+              readyForS02: d.a1Intake.readyForS02,
+              validatorVersion: d.a1Intake.validatorVersion,
+            },
+          }, null, 2));
+          NODE
+
       - name: Verify live Data Layer advertises A1 intake
         shell: bash
         run: |
@@ -172,7 +188,7 @@ jobs:
           console.log(JSON.stringify({version:d.version,a1Intake:d.a1Intake},null,2));
           NODE
 
-      - name: Cleanup synthetic event and restore source state
+      - name: Cleanup synthetic event and reconcile A1 source state
         if: always()
         shell: bash
         env:
@@ -183,24 +199,19 @@ jobs:
           if [ -n "${EVENT_ID:-}" ]; then
             npx --yes wrangler@4 d1 execute 1122-core --remote \
               --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-              --command "DELETE FROM a1_event_intake_runs WHERE event_id='$EVENT_ID'; DELETE FROM events WHERE event_id='$EVENT_ID';" >/dev/null || true
+              --command "DELETE FROM a1_event_intake_runs WHERE event_id='$EVENT_ID'; DELETE FROM events WHERE event_id='$EVENT_ID'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') THEN 'READY' ELSE 'READY_PENDING_FIRST_EVENT' END, last_success_at=(SELECT MAX(validated_at) FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02'), last_attempt_at=(SELECT MAX(validated_at) FROM a1_event_intake_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs WHERE intake_status='READY_FOR_S02') THEN 'FRESH' ELSE 'PENDING_EVENT' END, parser_version='S01-runtime-v1.2.0', details_json=CASE WHEN EXISTS(SELECT 1 FROM a1_event_intake_runs) THEN '{\"reconciled_from_ledger\":true}' ELSE '{\"pipeline\":[\"RawEvent\",\"CanonicalEvent\",\"S01\",\"NormalizedEvent\"],\"bypass_s01\":false}' END, updated_at=datetime('now') WHERE source_key='a1_event_intake';" >/dev/null
           fi
-          if [ -s /tmp/a1-state-before.json ]; then
-            node - <<'NODE'
-            const fs = require('fs');
-            const x = JSON.parse(fs.readFileSync('/tmp/a1-state-before.json','utf8'));
-            const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
-            if (!r) process.exit(0);
-            const q = (v) => v === null || v === undefined ? 'NULL' : `'${String(v).replaceAll("'", "''")}'`;
-            const sql = `UPDATE data_source_state SET source_name=${q(r.source_name)}, dataset=${q(r.dataset)}, status=${q(r.status)}, last_success_at=${q(r.last_success_at)}, last_attempt_at=${q(r.last_attempt_at)}, freshness_status=${q(r.freshness_status)}, schema_version=${q(r.schema_version)}, parser_version=${q(r.parser_version)}, details_json=${q(r.details_json)}, updated_at=${q(r.updated_at)} WHERE source_key='a1_event_intake';`;
-            fs.writeFileSync('/tmp/restore-a1-state.sql', sql);
-            NODE
-            if [ -s /tmp/restore-a1-state.sql ]; then
-              npx --yes wrangler@4 d1 execute 1122-core --remote \
-                --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
-                --file /tmp/restore-a1-state.sql >/dev/null || true
-            fi
-          fi
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM events WHERE source='a1_intake_smoke') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs i JOIN events e ON e.event_id=i.event_id WHERE e.source='a1_intake_smoke') AS smoke_intakes;" \
+            > /tmp/a1-cleanup.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/a1-cleanup.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (Number(r?.smoke_events || 0) !== 0 || Number(r?.smoke_intakes || 0) !== 0) process.exit(1);
+          console.log('Synthetic A1 smoke data cleaned.');
+          NODE
 
       - name: Rotate Data Layer internal authorization
         if: always()

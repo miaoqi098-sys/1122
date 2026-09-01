@@ -142,6 +142,14 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@4 deploy --config '对外连接板块/02_1122连接亚马逊API/worker/wrangler.toml'
 
+      - name: Deploy Sif bridge with intelligence data bindings
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config '对外连接板块/03_1122连接Sif/worker/wrangler.toml'
+
       - name: Verify D1 schema
         shell: bash
         env:
@@ -150,7 +158,17 @@ jobs:
           set -euo pipefail
           npx --yes wrangler@4 d1 execute 1122-core --remote --json \
             --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';" > /tmp/d1-check.json
-          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<10){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-check.json','utf8'));const rows=Array.isArray(x)?x:[];const count=rows?.[0]?.results?.[0]?.table_count ?? rows?.[0]?.result?.[0]?.table_count ?? null;if(count===null||Number(count)<15){console.error('D1 schema verification failed');process.exit(1)};console.log('D1 schema verified. Table count:',count)"
+
+      - name: Verify Sif intelligence schema
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --command "SELECT COUNT(*) AS sif_table_count FROM sqlite_master WHERE type='table' AND name IN ('external_tool_observations','sif_asin_profile_snapshots','sif_asin_traffic_daily','sif_asin_keyword_signals','sif_asin_ad_structure_snapshots','sif_keyword_market_snapshots');" > /tmp/sif-schema.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/sif-schema.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(!r||Number(r.sif_table_count)!==6){console.error('Sif intelligence schema verification failed');process.exit(1)};console.log('Sif intelligence tables ready:',r.sif_table_count)"
 
       - name: Verify Data Layer Worker
         shell: bash
@@ -158,6 +176,13 @@ jobs:
           set -euo pipefail
           curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/data-layer-status.json
           node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/data-layer-status.json','utf8'));if(!d.success||!d.storage?.d1?.ready){console.error('Data Layer Worker verification failed');process.exit(1)};console.log(JSON.stringify({success:true,version:d.version,d1:d.storage.d1,r2:d.storage.r2,kv:d.storage.kv,summary:d.summary},null,2))"
+
+      - name: Verify Sif MCP after data binding deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status > /tmp/sif-status.json
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/sif-status.json','utf8'));if(!d.success){console.error(d.message||d.error||'Sif verification failed');process.exit(1)};console.log(JSON.stringify({success:true,protocol:d.sif?.protocolVersion,tools:d.sif?.toolCount,server:d.sif?.serverName},null,2))"
 
       - name: Commit non-secret resource bindings
         shell: bash
@@ -167,7 +192,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
                   '数据板块/08_存储与访问层/resources.json' \
-                  '对外连接板块/02_1122连接亚马逊API/worker/wrangler.toml'
+                  '对外连接板块/02_1122连接亚马逊API/worker/wrangler.toml' \
+                  '对外连接板块/03_1122连接Sif/worker/wrangler.toml'
           if git diff --cached --quiet; then
             echo "No binding metadata changes to commit"
             exit 0

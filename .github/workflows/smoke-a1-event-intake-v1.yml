@@ -1,0 +1,212 @@
+name: Smoke A1 Event Intake V1
+
+on:
+  workflow_run:
+    workflows: ["Setup 1122 Data Layer V1"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 1122-a1-event-intake-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify S01 and canonical mapping unit contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/a1-intake.test.mjs'
+
+      - name: Create temporary Data Layer internal authorization
+        id: auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          sleep 5
+
+      - name: Snapshot A1 source state
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT * FROM data_source_state WHERE source_key='a1_event_intake';" \
+            > /tmp/a1-state-before.json
+
+      - name: Insert one synthetic deterministic event
+        id: event
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          EVENT_ID="smoke-a1-$(node -e "process.stdout.write(require('crypto').randomUUID())")"
+          echo "event_id=$EVENT_ID" >> "$GITHUB_OUTPUT"
+          SQL="INSERT INTO events (event_id, product_id, marketplace, event_type, severity, source, event_status, processing_disposition, evidence_json, payload_json, occurred_at, dedup_key) SELECT '$EVENT_ID', product_id, marketplace, 'AMAZON_SESSIONS_DROP', 'HIGH', 'a1_intake_smoke', 'NEW', 'AWAITING_A1', '{\"metricKey\":\"amazon.sessions\",\"currentValue\":75,\"priorValue\":101,\"baseline7d\":100,\"deltaPct\":-0.25,\"historyPoints\":7,\"threshold\":{\"deltaPctLte\":-0.2}}', '{\"engineVersion\":\"smoke-a1-v1\",\"deterministic\":true}', datetime('now'), 'smoke:' || '$EVENT_ID' FROM products WHERE marketplace='US' AND asin IS NOT NULL AND asin <> '' ORDER BY updated_at DESC LIMIT 1;"
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "$SQL" > /tmp/a1-smoke-insert.json
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS count FROM events WHERE event_id='$EVENT_ID';" > /tmp/a1-smoke-exists.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/a1-smoke-exists.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (Number(r?.count || 0) !== 1) {
+            console.error('Synthetic event was not inserted; a US product is required.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Intake synthetic event through pending A1 gate
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/a1-intake.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Accept: application/json' \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/intake-pending?source=a1_intake_smoke&limit=5')
+          cat /tmp/a1-intake.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/a1-intake.json','utf8'));
+          if (!d.success || Number(d.selected) !== 1 || Number(d.processed) !== 1 || Number(d.readyForS02) !== 1) {
+            console.error('A1 pending intake did not process exactly one ready event');
+            process.exit(1);
+          }
+          const o = d.outcomes?.[0];
+          if (!o || !['passed','passed_with_warnings'].includes(o.s01Status)) process.exit(2);
+          if (o.intakeStatus !== 'READY_FOR_S02' || o.nextAction !== 'continue_to_S02') process.exit(3);
+          if (o.normalizedEvent?.source_type !== 'system') process.exit(4);
+          if (o.normalizedEvent?.source_agent !== null) process.exit(5);
+          if (o.normalizedEvent?.severity !== 'P1') process.exit(6);
+          console.log('A1 intake outcome verified for event:', o.eventId);
+          NODE
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+
+      - name: Verify A1 ledger persistence and idempotency
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS ledger_count, MAX(s01_status) AS s01_status, MAX(intake_status) AS intake_status, MAX(next_action) AS next_action, MAX(validator_version) AS validator_version, MAX(normalized_event_json) AS normalized_event_json FROM a1_event_intake_runs WHERE event_id='$EVENT_ID';" \
+            > /tmp/a1-ledger.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/a1-ledger.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (Number(r?.ledger_count || 0) !== 1) process.exit(1);
+          if (!['passed','passed_with_warnings'].includes(String(r.s01_status))) process.exit(2);
+          if (r.intake_status !== 'READY_FOR_S02' || r.next_action !== 'continue_to_S02') process.exit(3);
+          if (r.validator_version !== 'S01-runtime-v1.2.0') process.exit(4);
+          const normalized = JSON.parse(r.normalized_event_json);
+          if (normalized.source_type !== 'system' || normalized.source_agent !== null || normalized.severity !== 'P1') process.exit(5);
+          console.log(JSON.stringify({ledgerCount:r.ledger_count,s01Status:r.s01_status,intakeStatus:r.intake_status,validatorVersion:r.validator_version},null,2));
+          NODE
+
+          curl -fsS -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/intake-pending?source=a1_intake_smoke&limit=5' \
+            > /tmp/a1-idempotent.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/a1-idempotent.json','utf8'));
+          if (!d.success || Number(d.selected) !== 0 || Number(d.processed) !== 0) {
+            console.error('A1 intake is not idempotent');
+            process.exit(1);
+          }
+          console.log('A1 intake idempotency verified.');
+          NODE
+
+      - name: Verify live Data Layer advertises A1 intake
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/a1-live-status.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/a1-live-status.json','utf8'));
+          if (!d.success || d.version !== '1.4.0') process.exit(1);
+          if (d.a1Intake?.bypassS01 !== false) process.exit(2);
+          if (!Array.isArray(d.a1Intake?.pipeline) || !d.a1Intake.pipeline.includes('A1IntakeLedger')) process.exit(3);
+          console.log(JSON.stringify({version:d.version,a1Intake:d.a1Intake},null,2));
+          NODE
+
+      - name: Cleanup synthetic event and restore source state
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          if [ -n "${EVENT_ID:-}" ]; then
+            npx --yes wrangler@4 d1 execute 1122-core --remote \
+              --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+              --command "DELETE FROM a1_event_intake_runs WHERE event_id='$EVENT_ID'; DELETE FROM events WHERE event_id='$EVENT_ID';" >/dev/null || true
+          fi
+          if [ -s /tmp/a1-state-before.json ]; then
+            node - <<'NODE'
+            const fs = require('fs');
+            const x = JSON.parse(fs.readFileSync('/tmp/a1-state-before.json','utf8'));
+            const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+            if (!r) process.exit(0);
+            const q = (v) => v === null || v === undefined ? 'NULL' : `'${String(v).replaceAll("'", "''")}'`;
+            const sql = `UPDATE data_source_state SET source_name=${q(r.source_name)}, dataset=${q(r.dataset)}, status=${q(r.status)}, last_success_at=${q(r.last_success_at)}, last_attempt_at=${q(r.last_attempt_at)}, freshness_status=${q(r.freshness_status)}, schema_version=${q(r.schema_version)}, parser_version=${q(r.parser_version)}, details_json=${q(r.details_json)}, updated_at=${q(r.updated_at)} WHERE source_key='a1_event_intake';`;
+            fs.writeFileSync('/tmp/restore-a1-state.sql', sql);
+            NODE
+            if [ -s /tmp/restore-a1-state.sql ]; then
+              npx --yes wrangler@4 d1 execute 1122-core --remote \
+                --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+                --file /tmp/restore-a1-state.sql >/dev/null || true
+            fi
+          fi
+
+      - name: Rotate Data Layer internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          echo "Data Layer internal authorization rotated."

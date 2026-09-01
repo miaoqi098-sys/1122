@@ -39,3 +39,5 @@ jobs:
           git add "$TARGET"
           git commit -m "feat: add FinanceSnapshot and child traffic mapping"
           git push
+
+# trigger: finance-v1.6

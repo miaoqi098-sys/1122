@@ -1,0 +1,52 @@
+name: Inspect Sif Payload Shapes
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/inspect-sif-payload-shapes.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read latest Sif payloads from D1
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --command "SELECT tool_name, payload_json FROM external_tool_observations WHERE provider='sif' AND tool_name IN ('market_get_asin_profile','market_get_asin_keyword_signals') ORDER BY observed_at DESC LIMIT 2;" \
+            --config '对外连接板块/03_1122连接Sif/worker/wrangler.toml' > /tmp/shapes.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/shapes.json','utf8'));
+          const rows = x?.[0]?.results || x?.[0]?.result || [];
+          function shape(v, depth=0) {
+            if (depth > 3) return typeof v;
+            if (Array.isArray(v)) return { type:'array', length:v.length, first:v.length ? shape(v[0], depth+1) : null };
+            if (v && typeof v === 'object') {
+              const out = {};
+              for (const k of Object.keys(v).slice(0, 30)) out[k] = shape(v[k], depth+1);
+              return out;
+            }
+            return typeof v;
+          }
+          for (const row of rows) {
+            let payload = null;
+            try { payload = JSON.parse(row.payload_json); } catch {}
+            console.log(JSON.stringify({ tool: row.tool_name, shape: shape(payload) }, null, 2));
+          }
+          NODE

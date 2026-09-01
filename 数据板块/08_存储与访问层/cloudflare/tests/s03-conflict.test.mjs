@@ -12,6 +12,23 @@ function run(elements, context = base.context_package) {
   return runS03({ ...base, context_package: context, normalized_elements: elements });
 }
 
+// Required-input safety contract: S03 must fail closed when identity/scope/context is absent.
+{
+  const cases = [
+    { name: 'missing event_id', input: { ...base, event_id: '' } },
+    { name: 'missing scope', input: { ...base, scope: null } },
+    { name: 'missing scope_type', input: { ...base, scope: { scope_id: 'P1' } } },
+    { name: 'missing context_package', input: { ...base, context_package: null } },
+  ];
+  for (const tc of cases) {
+    const d = runS03(tc.input);
+    assert.equal(d.status, 'blocked', tc.name);
+    assert.equal(d.next_action, 'hold_for_review', tc.name);
+    assert.equal(d.conflicts.length, 0, tc.name);
+    assert.ok(d.unresolved_points.length > 0, tc.name);
+  }
+}
+
 // T07: no conflict must route to DecisionItemBuilder, never directly to S04.
 {
   const d = run([

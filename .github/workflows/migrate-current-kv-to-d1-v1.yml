@@ -1,0 +1,80 @@
+name: Migrate Current KV To D1 V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/migrate-current-kv-to-d1-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 对外连接板块/02_1122连接亚马逊API/worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Create temporary internal authorization
+        id: auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
+          sleep 5
+
+      - name: Migrate current KV snapshots into D1
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          HTTP_CODE=$(curl -sS -o /tmp/migrate.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Accept: application/json' \
+            https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/migrate-current-data-layer)
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/migrate.json','utf8'));if(!d.success){console.error('Migration failed:',d.message||d.error||'unknown');process.exit(1)};console.log(JSON.stringify({success:true,migrated:d.migrated,detailVisibility:d.detailVisibility},null,2))"
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Migration endpoint returned HTTP $HTTP_CODE" >&2
+            exit 5
+          fi
+
+      - name: Verify permanent D1 facts
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --command "SELECT (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM inventory_snapshots) AS inventory_snapshots, (SELECT COUNT(*) FROM sales_period_snapshots) AS sales_period_snapshots, (SELECT COUNT(*) FROM traffic_daily) AS traffic_daily, (SELECT COUNT(*) FROM finance_period_snapshots) AS finance_period_snapshots, (SELECT COUNT(*) FROM data_layer_audit) AS audits;" > /tmp/d1-facts.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('/tmp/d1-facts.json','utf8'));const r=x?.[0]?.results?.[0]||x?.[0]?.result?.[0];if(!r||Number(r.products)<1||Number(r.inventory_snapshots)<1){console.error('D1 permanent facts verification failed');process.exit(1)};console.log(JSON.stringify({d1Facts:r},null,2))"
+
+      - name: Rotate internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
+          echo "Internal authorization rotated."
+
+# One-time current-state migration. No SKU/ASIN/price/inventory/sales amounts are printed.

@@ -12,13 +12,15 @@ function run(elements, context = base.context_package) {
   return runS03({ ...base, context_package: context, normalized_elements: elements });
 }
 
-// Required-input safety contract: S03 must fail closed when identity/scope/context is absent.
+// Required-input safety contract: S03 must fail closed when identity/scope/context is absent or unusable.
 {
   const cases = [
     { name: 'missing event_id', input: { ...base, event_id: '' } },
     { name: 'missing scope', input: { ...base, scope: null } },
     { name: 'missing scope_type', input: { ...base, scope: { scope_id: 'P1' } } },
     { name: 'missing context_package', input: { ...base, context_package: null } },
+    { name: 'empty context_package', input: { ...base, context_package: {} } },
+    { name: 'context_package without usable S02 sections', input: { ...base, context_package: { metadata: { source: 'test' } } } },
   ];
   for (const tc of cases) {
     const d = runS03(tc.input);

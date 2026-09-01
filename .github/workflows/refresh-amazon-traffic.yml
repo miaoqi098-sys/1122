@@ -1,0 +1,128 @@
+name: Refresh Amazon Traffic Snapshot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 对外连接板块/02_1122连接亚马逊API/worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Create temporary internal authorization
+        id: auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
+          sleep 5
+
+      - name: Create Sales & Traffic report
+        id: create
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          HTTP_CODE=$(curl -sS -o /tmp/create.json -w '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Accept: application/json' \
+            https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/create-traffic-report)
+          node - <<'NODE'
+          const fs=require('fs');
+          const d=JSON.parse(fs.readFileSync('/tmp/create.json','utf8'));
+          if(!d.success || !d.reportId){
+            console.error('Traffic report creation failed:', d.message || d.error || 'unknown');
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `report_id=${d.reportId}\n`);
+          console.log(JSON.stringify({success:true,pending:true,source:d.source,createdAt:d.createdAt},null,2));
+          NODE
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Create report returned HTTP $HTTP_CODE" >&2
+            exit 4
+          fi
+
+      - name: Poll and finalize TrafficSnapshot
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+          REPORT_ID: ${{ steps.create.outputs.report_id }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            HTTP_CODE=$(curl -sS -o /tmp/finalize.json -w '%{http_code}' \
+              -X POST \
+              -H "Authorization: Bearer $TOKEN" \
+              -H 'Accept: application/json' \
+              "https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/internal/finalize-traffic-report?reportId=$REPORT_ID")
+
+            if [ "$HTTP_CODE" = "202" ]; then
+              STATUS=$(node -e "const d=require('/tmp/finalize.json');process.stdout.write(String(d.processingStatus||'PENDING'))")
+              echo "Amazon report is still processing: $STATUS (attempt $attempt/30)"
+              sleep 10
+              continue
+            fi
+
+            node - <<'NODE'
+            const fs=require('fs');
+            const d=JSON.parse(fs.readFileSync('/tmp/finalize.json','utf8'));
+            if(!d.success || !d.ready){
+              console.error('TrafficSnapshot finalize failed:', d.message || d.error || 'unknown');
+              process.exit(1);
+            }
+            console.log(JSON.stringify({
+              trafficSnapshot:{
+                success:true,
+                ready:true,
+                marketplace:d.marketplace,
+                updatedAt:d.updatedAt,
+                source:d.source,
+                dateRecordCount:d.dateRecordCount,
+                productRecordCount:d.productRecordCount,
+                matchedProductCount:d.matchedProductCount,
+                dataStartTime:d.dataStartTime,
+                dataEndTime:d.dataEndTime,
+                detailVisibility:d.detailVisibility
+              }
+            },null,2));
+            NODE
+
+            if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+              echo "Finalize report returned HTTP $HTTP_CODE" >&2
+              exit 5
+            fi
+            exit 0
+          done
+          echo "Traffic report did not finish within polling window" >&2
+          exit 6
+
+      - name: Rotate internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
+          echo "Internal authorization rotated."
+
+# No SKU/ASIN/sessions/orders/sales amounts are printed in workflow logs.

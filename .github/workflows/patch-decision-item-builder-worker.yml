@@ -1,0 +1,47 @@
+name: Patch DecisionItemBuilder Worker
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "tools/patch-decision-item-builder-worker.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-decision-item-builder-worker
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Apply guarded patch
+        run: node tools/patch-decision-item-builder-worker.mjs
+
+      - name: Commit generated Worker integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- '数据板块/08_存储与访问层/cloudflare/worker.js'; then
+            echo 'Worker already contains DecisionItemBuilder integration.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add '数据板块/08_存储与访问层/cloudflare/worker.js'
+          git commit -m 'feat: integrate DecisionItemBuilder into Data Layer Worker'
+          git push origin HEAD:main

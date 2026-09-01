@@ -4,7 +4,7 @@
 
 - 冲突ID：`CONFLICT-POLICY-DATA-001`
 - 冲突名称：GitHub Public Repository（公开仓）与 1122 真实经营敏感数据存储需求冲突
-- 当前状态：`暂缓`
+- 当前状态：`已解决`
 - 严重级别：`P1`
 - 发现日期：2026-09-01
 - 发现来源：Amazon SP-API ProductIdentity V1.1 真实数据接入
@@ -18,7 +18,7 @@
 
 ## 一、冲突描述
 
-1122 当前 GitHub Repository（GitHub 仓库）为 Public（公开）状态，但系统已经从原型阶段进入真实 Amazon SP-API 数据接入阶段。
+冲突发现时，1122 GitHub Repository（GitHub 仓库）为 Public（公开）状态，而系统已经从原型阶段进入真实 Amazon SP-API 数据接入阶段。2026-09-01 主仓已切换为 Private（私有仓）。
 
 随着系统继续建设，后端会逐步接触以下非公开经营数据：
 
@@ -38,7 +38,7 @@ Public Repository 的所有代码、配置文件、提交历史以及大部分 G
 
 ### A. 当前基础设施约束
 
-`miaoqi098-sys/1122` 当前为 GitHub Public Repository（公开仓），便于当前网页展示、GitHub Pages 部署和快速工程迭代。
+冲突发现时 `miaoqi098-sys/1122` 为 GitHub Public Repository（公开仓）。2026-09-01 已完成 Private Repository（私有仓）切换。
 
 ### B. 1122 真实运营系统要求
 
@@ -359,8 +359,23 @@ Cloudflare Runtime
 
 ## 十一、解决日期
 
-未解决。
+2026-09-01。
 
 ## 十二、备注
 
 本问题不是要求未来将所有数据写入 Private GitHub Repository。即使仓库改为 Private，经营数据库、Token、Secret 仍应继续保存在专用运行数据层和 Secret Manager 中，保持“代码与数据、代码与密钥分离”。
+
+
+## 十三、闭环更新（2026-09-01）
+
+已验证 GitHub Repository visibility = Private。
+
+根冲突“核心源码与 Workflow 对公网公开”已解除，因此本冲突标记为 `已解决`。
+
+以下措施继续作为长期安全规则，而不是因为仓库私有而撤销：
+- Secret / Token 永不写入 Git；
+- SKU、库存、价格、广告、财务等经营数据继续保存在 KV / D1 / R2 / 数据库；
+- GitHub Actions 日志继续最小化；
+- Web UI 完成真实 Authentication / Authorization 前，不开放完整经营明细和高影响写操作。
+
+Web 身份认证属于后续独立安全建设项，不再阻塞本“公开仓冲突”的关闭。

@@ -53,7 +53,7 @@ jobs:
             sleep 3
           done
 
-          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/product-status.json','utf8'));if(!d.success){console.error('ProductIdentity refresh failed:',d.message||d.error||'unknown');process.exit(1)};console.log(JSON.stringify({success:true,marketplace:d.marketplace,productCount:d.productCount,pages:d.pages,updatedAt:d.updatedAt,source:d.source,detailVisibility:d.detailVisibility,v12:d.v12||null},null,2))"
+          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/product-status.json','utf8'));if(!d.success){console.error('ProductIdentity refresh failed:',d.message||d.error||'unknown');process.exit(1)};console.log(JSON.stringify({success:true,marketplace:d.marketplace,productCount:d.productCount,pages:d.pages,updatedAt:d.updatedAt,source:d.source,detailVisibility:d.detailVisibility,v12:d.v12||null,v13:d.v13||null},null,2))"
 
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
             echo "Refresh endpoint returned HTTP $HTTP_CODE" >&2
@@ -62,6 +62,6 @@ jobs:
 
           ROTATED=$(openssl rand -hex 32)
           printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put OPERATIONS_REFRESH_TOKEN >/dev/null
-          echo "Private ProductIdentity refresh completed; internal token rotated."
+          echo "Private ProductIdentity + InventorySnapshot refresh completed; internal token rotated."
 
-# V1.2 aggregate validation only; no SKU/ASIN/SellerId/price details are logged.
+# V1.3 aggregate validation only; no SKU/ASIN/SellerId/price/inventory-unit details are logged.

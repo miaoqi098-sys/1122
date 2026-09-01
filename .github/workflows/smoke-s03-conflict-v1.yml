@@ -1,0 +1,214 @@
+name: Smoke S03 Conflict Detection V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/smoke-s03-conflict-v1.yml"
+  workflow_run:
+    workflows: ["Setup 1122 Data Layer V1"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 1122-data-layer-internal-auth
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify S03 runtime contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-default-type=module '数据板块/08_存储与访问层/cloudflare/tests/s03-conflict.test.mjs'
+
+      - name: Create temporary Data Layer internal authorization
+        id: auth
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(openssl rand -hex 32)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' \
+            GET \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/auth-check' \
+            /tmp/s03-auth.json)
+          test "$CODE" = "200"
+
+      - name: Insert one synthetic event
+        id: event
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          EVENT_ID="smoke-s03-$(node -e "process.stdout.write(require('crypto').randomUUID())")"
+          echo "event_id=$EVENT_ID" >> "$GITHUB_OUTPUT"
+          SQL="INSERT INTO events (event_id, product_id, marketplace, event_type, severity, source, event_status, processing_disposition, evidence_json, payload_json, occurred_at, dedup_key) SELECT '$EVENT_ID', product_id, marketplace, 'AMAZON_SESSIONS_DROP', 'HIGH', 's03_conflict_smoke', 'NEW', 'AWAITING_A1', '{\"metricKey\":\"amazon.sessions\",\"currentValue\":75,\"priorValue\":101,\"baseline7d\":100,\"deltaPct\":-0.25,\"historyPoints\":7,\"threshold\":{\"deltaPctLte\":-0.2}}', '{\"engineVersion\":\"smoke-s03-v1\",\"deterministic\":true}', datetime('now'), 'smoke:s03:' || '$EVENT_ID' FROM products WHERE marketplace='US' AND asin IS NOT NULL AND asin <> '' ORDER BY updated_at DESC LIMIT 1;"
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "$SQL" > /tmp/s03-insert.json
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS count FROM events WHERE event_id='$EVENT_ID';" > /tmp/s03-exists.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/s03-exists.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (Number(r?.count || 0) !== 1) throw new Error('Synthetic S03 event was not inserted');
+          NODE
+
+      - name: Run exact event through S01 S02 and S03
+        id: chain
+        shell: bash
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          BODY=$(printf '{"event_id":"%s"}' "$EVENT_ID")
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' \
+            POST \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/intake-event' \
+            /tmp/s03-chain.json \
+            -H 'Content-Type: application/json' \
+            --data "$BODY")
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/s03-chain.json','utf8'));
+          if (!d.success) throw new Error('A1 exact intake failed');
+          if (!['passed','passed_with_warnings'].includes(d.s01Status)) throw new Error(`Unexpected S01: ${d.s01Status}`);
+          if (d.intakeStatus !== 'READY_FOR_S02') throw new Error(`Unexpected intake: ${d.intakeStatus}`);
+          if (!d.s02Context?.found || d.s02Context.runtimeVersion !== 'S02-runtime-v1.2.0') throw new Error('S02 did not run');
+          if (!d.s03Conflict?.found || d.s03Conflict.runtimeVersion !== 'S03-runtime-v1.2.0') throw new Error('S03 did not run');
+          if (!['clear','conflicts_found','needs_evidence','blocked'].includes(d.s03Conflict.s03Status)) throw new Error(`Unexpected S03 status: ${d.s03Conflict.s03Status}`);
+          console.log(JSON.stringify({
+            s01: d.s01Status,
+            s02: d.s02Context.status,
+            s03: d.s03Conflict.s03Status,
+            s03NextAction: d.s03Conflict.nextAction,
+            contextRunId: d.s03Conflict.contextRunId,
+            conflictRunId: d.s03Conflict.conflictRunId,
+          }, null, 2));
+          NODE
+
+      - name: Verify S03 ledger and idempotency
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TOKEN: ${{ steps.auth.outputs.token }}
+          EVENT_ID: ${{ steps.event.outputs.event_id }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS run_count, MAX(runtime_version) AS runtime_version, MAX(s03_status) AS s03_status, MAX(next_action) AS next_action FROM a1_conflict_runs WHERE event_id='$EVENT_ID';" \
+            > /tmp/s03-ledger.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/s03-ledger.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (Number(r?.run_count || 0) !== 1) throw new Error(`Expected one S03 ledger run, got ${r?.run_count}`);
+          if (r.runtime_version !== 'S03-runtime-v1.2.0') throw new Error(`Unexpected runtime: ${r.runtime_version}`);
+          if (!['clear','conflicts_found','needs_evidence','blocked'].includes(r.s03_status)) throw new Error(`Unexpected status: ${r.s03_status}`);
+          NODE
+
+          BODY=$(printf '{"event_id":"%s"}' "$EVENT_ID")
+          CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' \
+            POST \
+            'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/a1/conflict-event' \
+            /tmp/s03-repeat.json \
+            -H 'Content-Type: application/json' \
+            --data "$BODY")
+          test "$CODE" -ge 200 -a "$CODE" -lt 300
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/s03-repeat.json','utf8'));
+          if (!d.success || !d.found || d.runtimeVersion !== 'S03-runtime-v1.2.0' || d.idempotent !== true) {
+            throw new Error('S03 idempotent replay failed');
+          }
+          NODE
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT COUNT(*) AS run_count FROM a1_conflict_runs WHERE event_id='$EVENT_ID';" > /tmp/s03-count-again.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/s03-count-again.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          if (Number(r?.run_count || 0) !== 1) throw new Error('S03 ledger is not idempotent');
+          NODE
+
+      - name: Verify live S03 boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS https://1122-data-layer.zhangshuaibing01.workers.dev/status > /tmp/s03-status.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('/tmp/s03-status.json','utf8'));
+          if (!d.success) process.exit(1);
+          if (d.a1Conflict?.runtimeVersion !== 'S03-runtime-v1.2.0') process.exit(2);
+          if (d.a1Conflict?.automaticAfterS02 !== true) process.exit(3);
+          if (d.a1Conflict?.contextPackageIsUniqueFactSource !== true) process.exit(4);
+          if (d.a1Conflict?.directToS04 !== false) process.exit(5);
+          if (d.a1Conflict?.normalNextAction !== 'continue_to_decision_item_builder') process.exit(6);
+          console.log(JSON.stringify(d.a1Conflict, null, 2));
+          NODE
+
+      - name: Cleanup synthetic S03 records
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute 1122-core --remote \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "DELETE FROM a1_conflict_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_context_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM a1_event_intake_runs WHERE event_id IN (SELECT event_id FROM events WHERE source='s03_conflict_smoke'); DELETE FROM events WHERE source='s03_conflict_smoke'; UPDATE data_source_state SET status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'READY' ELSE 'READY_PENDING_FIRST_CONTEXT' END, last_success_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), last_attempt_at=(SELECT MAX(generated_at) FROM a1_conflict_runs), freshness_status=CASE WHEN EXISTS(SELECT 1 FROM a1_conflict_runs) THEN 'FRESH' ELSE 'PENDING_CONTEXT' END, parser_version='S03-runtime-v1.2.0', updated_at=datetime('now') WHERE source_key='a1_conflict_detector';" >/dev/null
+          npx --yes wrangler@4 d1 execute 1122-core --remote --json \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' \
+            --command "SELECT (SELECT COUNT(*) FROM events WHERE source='s03_conflict_smoke') AS smoke_events, (SELECT COUNT(*) FROM a1_event_intake_runs i JOIN events e ON e.event_id=i.event_id WHERE e.source='s03_conflict_smoke') AS smoke_intakes, (SELECT COUNT(*) FROM a1_context_runs c JOIN events e ON e.event_id=c.event_id WHERE e.source='s03_conflict_smoke') AS smoke_contexts, (SELECT COUNT(*) FROM a1_conflict_runs r JOIN events e ON e.event_id=r.event_id WHERE e.source='s03_conflict_smoke') AS smoke_conflicts;" > /tmp/s03-cleanup.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const x = JSON.parse(fs.readFileSync('/tmp/s03-cleanup.json','utf8'));
+          const r = x?.[0]?.results?.[0] || x?.[0]?.result?.[0];
+          for (const k of ['smoke_events','smoke_intakes','smoke_contexts','smoke_conflicts']) {
+            if (Number(r?.[k] || 0) !== 0) throw new Error(`S03 cleanup failed: ${k}=${r?.[k]}`);
+          }
+          console.log('Synthetic S03 smoke data cleaned.');
+          NODE
+
+      - name: Rotate Data Layer internal authorization
+        if: always()
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          ROTATED=$(openssl rand -hex 32)
+          echo "::add-mask::$ROTATED"
+          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN \
+            --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          echo 'Data Layer internal authorization rotated.'

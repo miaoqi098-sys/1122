@@ -15,8 +15,15 @@ import {
   detectPendingConflicts,
   A1_CONFLICT_DETECTOR_VERSION,
 } from './s03-conflict.js';
+import {
+  buildDecisionItemsForConflictRun,
+  buildDecisionItemsForEvent,
+  buildPendingDecisionItems,
+  A1_DECISION_ITEM_BUILDER_VERSION,
+} from './decision-item-builder.js';
 import { S02_RUNTIME_VERSION } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/执行程序/runtime.js';
 import { S03_RUNTIME_VERSION } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S03_冲突检测/执行程序/runtime.js';
+import { DECISION_ITEM_BUILDER_RUNTIME_VERSION } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js';
 
 const ALLOWED_ORIGINS = new Set([
   'https://1122-web-agent.pages.dev',
@@ -85,6 +92,9 @@ async function getD1Summary(env) {
         (SELECT COUNT(*) FROM a1_conflict_runs WHERE s03_status='clear') AS a1_conflict_clear,
         (SELECT COUNT(*) FROM a1_conflict_runs WHERE s03_status='conflicts_found') AS a1_conflicts_found,
         (SELECT COUNT(*) FROM a1_conflict_runs WHERE s03_status IN ('needs_evidence','blocked')) AS a1_conflict_gated,
+        (SELECT COUNT(*) FROM a1_decision_item_builder_runs) AS a1_builder_runs,
+        (SELECT COUNT(*) FROM a1_decision_item_builder_runs WHERE next_action='continue_to_S04') AS a1_builder_ready,
+        (SELECT COUNT(*) FROM a1_decision_items) AS a1_decision_items,
         (SELECT COUNT(*) FROM decisions) AS decisions,
         (SELECT COUNT(*) FROM tasks) AS tasks,
         (SELECT COUNT(*) FROM validation_results) AS validations,
@@ -108,6 +118,9 @@ async function getD1Summary(env) {
       a1ConflictClear: Number(row?.a1_conflict_clear || 0),
       a1ConflictsFound: Number(row?.a1_conflicts_found || 0),
       a1ConflictGated: Number(row?.a1_conflict_gated || 0),
+      a1DecisionItemBuilderRuns: Number(row?.a1_builder_runs || 0),
+      a1DecisionItemBuilderReady: Number(row?.a1_builder_ready || 0),
+      a1DecisionItems: Number(row?.a1_decision_items || 0),
       decisions: Number(row?.decisions || 0),
       tasks: Number(row?.tasks || 0),
       validations: Number(row?.validations || 0),
@@ -157,6 +170,10 @@ async function checkR2(env) {
 
 async function runS03Pending(env, limit = 10) {
   return detectPendingConflicts(env, { limit: Math.min(Math.max(Number(limit || 10), 1), 10) });
+}
+
+async function runDecisionItemBuilderPending(env, limit = 10) {
+  return buildPendingDecisionItems(env, { limit: Math.min(Math.max(Number(limit || 10), 1), 10) });
 }
 
 export default {
@@ -210,6 +227,16 @@ export default {
           normalNextAction: 'continue_to_decision_item_builder',
           outputs: ['clear', 'conflicts_found', 'needs_evidence', 'blocked'],
         },
+        a1DecisionItems: {
+          version: A1_DECISION_ITEM_BUILDER_VERSION,
+          runtimeVersion: DECISION_ITEM_BUILDER_RUNTIME_VERSION,
+          pipeline: ['S03ConflictResult', 'DecisionItemBuilder', 'CanonicalDecisionItem', 'A1DecisionItemLedger'],
+          contextPackageIsUniqueFactSource: true,
+          automaticAfterS03: true,
+          builderDoesNotRank: true,
+          normalNextAction: 'continue_to_S04',
+          outputs: ['continue_to_S04', 'request_more_context', 'hold_for_review'],
+        },
         summary,
         sources,
         policy: {
@@ -237,7 +264,8 @@ export default {
         const a1Intake = await intakePendingEvents(env, { source: 'derived_layer_v1', limit: 20 });
         const a1Context = await loadPendingContexts(env, { limit: 10 });
         const a1Conflict = await runS03Pending(env, 10);
-        return json({ success: true, ...result, a1Intake, a1Context, a1Conflict }, 200, origin);
+        const a1DecisionItems = await runDecisionItemBuilderPending(env, 10);
+        return json({ success: true, ...result, a1Intake, a1Context, a1Conflict, a1DecisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'Derived Layer rebuild failed', error: error.message }, 500, origin);
       }
@@ -256,7 +284,10 @@ export default {
           ? await loadContextForEvent(env, eventId, { contextRequest: body?.context_request || undefined })
           : null;
         const s03Conflict = s02Context?.found ? await detectConflictsForEvent(env, eventId) : null;
-        return json({ success: true, ...result, s02Context, s03Conflict }, 200, origin);
+        const decisionItems = s03Conflict?.nextAction === 'continue_to_decision_item_builder'
+          ? await buildDecisionItemsForEvent(env, eventId)
+          : null;
+        return json({ success: true, ...result, s02Context, s03Conflict, decisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'A1 event intake failed', error: error.message }, 500, origin);
       }
@@ -271,7 +302,8 @@ export default {
         const result = await intakePendingEvents(env, { source, limit });
         const s02Context = await loadPendingContexts(env, { limit: Math.min(limit, 10) });
         const s03Conflict = await runS03Pending(env, Math.min(limit, 10));
-        return json({ success: true, ...result, s02Context, s03Conflict }, 200, origin);
+        const decisionItems = await runDecisionItemBuilderPending(env, Math.min(limit, 10));
+        return json({ success: true, ...result, s02Context, s03Conflict, decisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'A1 pending intake failed', error: error.message }, 500, origin);
       }
@@ -287,7 +319,10 @@ export default {
         const result = await loadContextForEvent(env, eventId, { contextRequest: body?.context_request || undefined });
         if (!result.found) return json({ success: false, message: 'No READY_FOR_S02 intake found for event', eventId }, 404, origin);
         const s03Conflict = await detectConflictsForEvent(env, eventId);
-        return json({ success: true, ...result, s03Conflict }, 200, origin);
+        const decisionItems = s03Conflict?.nextAction === 'continue_to_decision_item_builder'
+          ? await buildDecisionItemsForEvent(env, eventId)
+          : null;
+        return json({ success: true, ...result, s03Conflict, decisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'S02 context loading failed', error: error.message }, 500, origin);
       }
@@ -300,7 +335,8 @@ export default {
         const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 10), 1), 10);
         const result = await loadPendingContexts(env, { limit });
         const s03Conflict = await runS03Pending(env, limit);
-        return json({ success: true, ...result, s03Conflict }, 200, origin);
+        const decisionItems = await runDecisionItemBuilderPending(env, limit);
+        return json({ success: true, ...result, s03Conflict, decisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'S02 pending context loading failed', error: error.message }, 500, origin);
       }
@@ -317,7 +353,10 @@ export default {
           normalizedElements: Array.isArray(body?.normalized_elements) ? body.normalized_elements : undefined,
         });
         if (!result.found) return json({ success: false, message: 'S02 ContextRun not found', contextRunId }, 404, origin);
-        return json({ success: true, ...result }, 200, origin);
+        const decisionItems = result.nextAction === 'continue_to_decision_item_builder'
+          ? await buildDecisionItemsForConflictRun(env, result.conflictRunId)
+          : null;
+        return json({ success: true, ...result, decisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'S03 conflict detection failed', error: error.message }, 500, origin);
       }
@@ -334,7 +373,10 @@ export default {
           normalizedElements: Array.isArray(body?.normalized_elements) ? body.normalized_elements : undefined,
         });
         if (!result.found) return json({ success: false, message: 'No ready S02 ContextPackage found for event', eventId }, 404, origin);
-        return json({ success: true, ...result }, 200, origin);
+        const decisionItems = result.nextAction === 'continue_to_decision_item_builder'
+          ? await buildDecisionItemsForEvent(env, eventId)
+          : null;
+        return json({ success: true, ...result, decisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'S03 event conflict detection failed', error: error.message }, 500, origin);
       }
@@ -346,9 +388,52 @@ export default {
       try {
         const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 10), 1), 10);
         const result = await detectPendingConflicts(env, { limit });
-        return json({ success: true, ...result }, 200, origin);
+        const decisionItems = await runDecisionItemBuilderPending(env, limit);
+        return json({ success: true, ...result, decisionItems }, 200, origin);
       } catch (error) {
         return json({ success: false, message: 'S03 pending conflict detection failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/decision-items-conflict') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      const body = await parseBody(request);
+      const conflictRunId = String(body?.conflict_run_id || url.searchParams.get('conflict_run_id') || '').trim();
+      if (!conflictRunId) return json({ success: false, message: 'conflict_run_id is required' }, 400, origin);
+      try {
+        const result = await buildDecisionItemsForConflictRun(env, conflictRunId, { builderPolicy: body?.builder_policy || undefined });
+        if (!result.found) return json({ success: false, message: 'S03 ConflictRun not found', conflictRunId }, 404, origin);
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'DecisionItemBuilder failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/decision-items-event') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      const body = await parseBody(request);
+      const eventId = String(body?.event_id || url.searchParams.get('event_id') || '').trim();
+      if (!eventId) return json({ success: false, message: 'event_id is required' }, 400, origin);
+      try {
+        const result = await buildDecisionItemsForEvent(env, eventId, { builderPolicy: body?.builder_policy || undefined });
+        if (!result.found) return json({ success: false, message: 'No eligible S03 ConflictRun found for event', eventId }, 404, origin);
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'DecisionItemBuilder event build failed', error: error.message }, 500, origin);
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/internal/a1/decision-items-pending') {
+      if (!isInternalAuthorized(request, env)) return json({ success: false, message: 'Unauthorized' }, 401, origin);
+      if (!env.CORE_DB) return json({ success: false, message: 'CORE_DB is not configured' }, 503, origin);
+      try {
+        const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || 10), 1), 10);
+        const result = await buildPendingDecisionItems(env, { limit });
+        return json({ success: true, ...result }, 200, origin);
+      } catch (error) {
+        return json({ success: false, message: 'DecisionItemBuilder pending build failed', error: error.message }, 500, origin);
       }
     }
 
@@ -356,4 +441,4 @@ export default {
   },
 };
 
-// deploy marker: s03-conflict-v1.0
+// deploy marker: decision-item-builder-v1.0

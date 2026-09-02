@@ -162,6 +162,24 @@ const cases = [
   ['unsupported item type', {
     decision_item_json: JSON.stringify({ ...validItem, item_type: 'execute_price_change' }),
   }, 'unsupported_decision_item_type'],
+  ['unsupported goal layer', {
+    decision_item_json: JSON.stringify({ ...validItem, goal_layer: 'override_all_controls' }),
+  }, 'unsupported_decision_item_goal_layer'],
+  ['missing urgency', {
+    decision_item_json: JSON.stringify({ ...validItem, urgency: '' }),
+  }, 'missing_decision_item_urgency'],
+  ['unsupported urgency', {
+    decision_item_json: JSON.stringify({ ...validItem, urgency: 'execute_now' }),
+  }, 'unsupported_decision_item_urgency'],
+  ['missing evidence strength', {
+    decision_item_json: JSON.stringify({ ...validItem, evidence_strength: null }),
+  }, 'missing_decision_item_evidence_strength'],
+  ['unsupported evidence strength', {
+    decision_item_json: JSON.stringify({ ...validItem, evidence_strength: 'guaranteed' }),
+  }, 'unsupported_decision_item_evidence_strength'],
+  ['unsupported severity', {
+    decision_item_json: JSON.stringify({ ...validItem, severity: 'ADMIN_OVERRIDE' }),
+  }, 'unsupported_decision_item_severity'],
   ['missing source refs', {
     decision_item_json: JSON.stringify({ ...validItem, source_event_refs: [] }),
   }, 'missing_decision_item_source_event_refs'],

@@ -19,6 +19,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-dispatch-envelope.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-execution-result.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-execution-result-verification.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-audit-envelope.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-runtime.test.mjs"
@@ -32,6 +33,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-envelope.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-execution-result.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-execution-result-verification.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-audit-envelope.contract.test.mjs"
   pull_request:
     paths:
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
@@ -48,6 +50,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-dispatch-envelope.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-execution-result.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-execution-result-verification.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-audit-envelope.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-runtime.test.mjs"
@@ -61,6 +64,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-envelope.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-execution-result.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-execution-result-verification.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-audit-envelope.contract.test.mjs"
   workflow_dispatch:
 
 permissions:
@@ -116,3 +120,6 @@ jobs:
 
       - name: Verify fail-closed S04 execution result verification boundary
         run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-execution-result-verification.contract.test.mjs'
+
+      - name: Verify fail-closed read-only S04 audit envelope
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-audit-envelope.contract.test.mjs'

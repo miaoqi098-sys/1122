@@ -1,4 +1,4 @@
-export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.5.0';
+export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.6.0';
 
 function parseJson(value, fallback = null) {
   if (value && typeof value === 'object') return value;
@@ -18,15 +18,50 @@ function text(value) {
 }
 
 const S04_ITEM_TYPES = new Set(['risk', 'opportunity', 'goal_gap', 'problem', 'investigation']);
+const S04_GOAL_LAYERS = new Set([
+  'safety_sellability',
+  'survival_operations',
+  'growth_expansion',
+  'business_quality',
+  'unknown',
+]);
+const S04_URGENCIES = new Set(['immediate', 'high', 'medium', 'low', 'unknown']);
+const S04_EVIDENCE_STRENGTHS = new Set(['high', 'medium', 'low', 'unknown']);
+const S04_SEVERITIES = new Set(['P0', 'P1', 'P2', 'P3', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']);
 
 function validateDecisionItemShape(item, reasons) {
-  const requiredTextFields = ['decision_item_id', 'item_type', 'subject', 'problem_definition', 'objective', 'goal_layer'];
+  const requiredTextFields = [
+    'decision_item_id',
+    'item_type',
+    'subject',
+    'problem_definition',
+    'objective',
+    'goal_layer',
+    'urgency',
+    'evidence_strength',
+  ];
   for (const field of requiredTextFields) {
     if (!text(item?.[field])) reasons.push(`missing_decision_item_${field}`);
   }
 
   const itemType = text(item?.item_type);
   if (itemType && !S04_ITEM_TYPES.has(itemType)) reasons.push('unsupported_decision_item_type');
+
+  const goalLayer = text(item?.goal_layer);
+  if (goalLayer && !S04_GOAL_LAYERS.has(goalLayer)) reasons.push('unsupported_decision_item_goal_layer');
+
+  const urgency = text(item?.urgency);
+  if (urgency && !S04_URGENCIES.has(urgency)) reasons.push('unsupported_decision_item_urgency');
+
+  const evidenceStrength = text(item?.evidence_strength);
+  if (evidenceStrength && !S04_EVIDENCE_STRENGTHS.has(evidenceStrength)) {
+    reasons.push('unsupported_decision_item_evidence_strength');
+  }
+
+  const severity = text(item?.severity);
+  if (severity && !S04_SEVERITIES.has(severity.toUpperCase())) {
+    reasons.push('unsupported_decision_item_severity');
+  }
 
   if (!Array.isArray(item?.source_event_refs) || item.source_event_refs.length === 0) {
     reasons.push('missing_decision_item_source_event_refs');

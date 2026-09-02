@@ -36,6 +36,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-execution-result-verification.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-audit-envelope.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-state-machine-validation.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-e2e-closed-loop.contract.test.mjs"
   pull_request:
     paths:
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
@@ -69,6 +70,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-execution-result-verification.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-audit-envelope.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-state-machine-validation.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-e2e-closed-loop.contract.test.mjs"
   workflow_dispatch:
 
 permissions:
@@ -130,3 +132,6 @@ jobs:
 
       - name: Verify fail-closed read-only S04 state machine validation
         run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-state-machine-validation.contract.test.mjs'
+
+      - name: Verify A1/S04 read-only closed-loop E2E contract
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-e2e-closed-loop.contract.test.mjs'

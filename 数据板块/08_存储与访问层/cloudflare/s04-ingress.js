@@ -1,4 +1,4 @@
-export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.1.0';
+export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.2.0';
 
 function parseJson(value, fallback = null) {
   if (value && typeof value === 'object') return value;
@@ -21,6 +21,10 @@ export function validateS04DecisionItemLineage(row = {}) {
   if (!row.builder_run_id) reasons.push('missing_builder_run_id');
   if (!row.conflict_run_id) reasons.push('missing_conflict_run_id');
   if (!row.event_id) reasons.push('missing_event_id');
+  if (!row.builder_context_run_id) reasons.push('missing_builder_context_run_id');
+  if (!row.conflict_context_run_id) reasons.push('missing_conflict_context_run_id');
+  if (!row.builder_intake_id) reasons.push('missing_builder_intake_id');
+  if (!row.conflict_intake_id) reasons.push('missing_conflict_intake_id');
 
   if (row.builder_next_action !== 'continue_to_S04') {
     reasons.push('builder_not_released_to_S04');
@@ -32,6 +36,21 @@ export function validateS04DecisionItemLineage(row = {}) {
   if (row.builder_event_id !== row.event_id) reasons.push('builder_event_mismatch');
   if (row.conflict_event_id !== row.event_id) reasons.push('conflict_event_mismatch');
   if (row.builder_conflict_run_id !== row.conflict_run_id) reasons.push('builder_conflict_mismatch');
+  if (row.builder_context_run_id !== row.conflict_context_run_id) reasons.push('context_run_mismatch');
+  if (row.builder_intake_id !== row.conflict_intake_id) reasons.push('intake_mismatch');
+
+  if (
+    row.decision_product_id !== row.builder_product_id ||
+    row.builder_product_id !== row.conflict_product_id
+  ) {
+    reasons.push('product_lineage_mismatch');
+  }
+  if (
+    row.decision_marketplace !== row.builder_marketplace ||
+    row.builder_marketplace !== row.conflict_marketplace
+  ) {
+    reasons.push('marketplace_lineage_mismatch');
+  }
 
   if (!item || typeof item !== 'object') {
     reasons.push('invalid_decision_item_json');
@@ -63,12 +82,22 @@ export async function getS04ReadyDecisionItem(env, decisionItemId) {
       d.decision_item_id,
       d.builder_run_id,
       d.event_id,
+      d.product_id AS decision_product_id,
+      d.marketplace AS decision_marketplace,
       d.decision_item_json,
       b.conflict_run_id,
       b.conflict_run_id AS builder_conflict_run_id,
       b.event_id AS builder_event_id,
+      b.context_run_id AS builder_context_run_id,
+      b.intake_id AS builder_intake_id,
+      b.product_id AS builder_product_id,
+      b.marketplace AS builder_marketplace,
       b.next_action AS builder_next_action,
       r.event_id AS conflict_event_id,
+      r.context_run_id AS conflict_context_run_id,
+      r.intake_id AS conflict_intake_id,
+      r.product_id AS conflict_product_id,
+      r.marketplace AS conflict_marketplace,
       r.next_action AS s03_next_action
     FROM a1_decision_items d
     JOIN a1_decision_item_builder_runs b ON b.builder_run_id = d.builder_run_id

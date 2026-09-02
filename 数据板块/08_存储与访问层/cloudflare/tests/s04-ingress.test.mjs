@@ -74,6 +74,13 @@ const globalScope = validateS04DecisionItemLineage({
 assert.equal(globalScope.eligible, true);
 assert.equal(globalScope.nextAction, 'continue_to_S04');
 
+const { builder_input_json: omittedBuilderInput, ...rowWithoutBuilderInput } = base;
+void omittedBuilderInput;
+const missingBuilderInput = validateS04DecisionItemLineage(rowWithoutBuilderInput);
+assert.equal(missingBuilderInput.eligible, false);
+assert.equal(missingBuilderInput.nextAction, 'hold_for_review');
+assert.ok(missingBuilderInput.reasons.includes('invalid_builder_input_json'));
+
 const cases = [
   ['missing builder ledger', { builder_run_id: null }, 'missing_builder_run_id'],
   ['missing conflict ledger', { conflict_run_id: null }, 'missing_conflict_run_id'],
@@ -145,5 +152,6 @@ console.log(JSON.stringify({
   prefixedSameEvent: prefixedSameEvent.nextAction,
   storeScope: storeScope.nextAction,
   globalScope: globalScope.nextAction,
+  missingBuilderInput: missingBuilderInput.nextAction,
   failClosedCases: cases.map(([name]) => name),
 }, null, 2));

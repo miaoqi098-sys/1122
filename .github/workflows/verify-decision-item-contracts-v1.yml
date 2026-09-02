@@ -16,6 +16,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-approval-gate.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-permission-decision.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-dispatch-gate.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-dispatch-envelope.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-runtime.test.mjs"
@@ -26,6 +27,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-approval-gate.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-permission-decision.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-gate.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-envelope.contract.test.mjs"
   pull_request:
     paths:
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
@@ -39,6 +41,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-approval-gate.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-permission-decision.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-dispatch-gate.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-dispatch-envelope.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-runtime.test.mjs"
@@ -49,6 +52,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-approval-gate.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-permission-decision.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-gate.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-envelope.contract.test.mjs"
   workflow_dispatch:
 
 permissions:
@@ -95,3 +99,6 @@ jobs:
 
       - name: Verify fail-closed read-only S04 dispatch gate
         run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-gate.contract.test.mjs'
+
+      - name: Verify fail-closed read-only S04 dispatch envelope
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-dispatch-envelope.contract.test.mjs'

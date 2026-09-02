@@ -1,9 +1,16 @@
-export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.0.0';
+export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.1.0';
 
 function parseJson(value, fallback = null) {
   if (value && typeof value === 'object') return value;
   if (typeof value !== 'string' || !value.trim()) return fallback;
   try { return JSON.parse(value); } catch { return fallback; }
+}
+
+function eventIdFromRef(ref) {
+  const value = String(ref || '').trim();
+  if (!value) return '';
+  if (value.startsWith('d1:events:')) return value.slice('d1:events:'.length).split(':')[0];
+  return value;
 }
 
 export function validateS04DecisionItemLineage(row = {}) {
@@ -31,7 +38,10 @@ export function validateS04DecisionItemLineage(row = {}) {
   } else {
     if (item.decision_item_id !== row.decision_item_id) reasons.push('decision_item_id_mismatch');
     const refs = Array.isArray(item.source_event_refs) ? item.source_event_refs : [];
-    if (!refs.includes(row.event_id)) reasons.push('source_event_ref_mismatch');
+    const refEventIds = refs.map(eventIdFromRef).filter(Boolean);
+    const expectedEventId = String(row.event_id || '');
+    if (!refEventIds.includes(expectedEventId)) reasons.push('source_event_ref_mismatch');
+    if (refEventIds.some((eventId) => eventId !== expectedEventId)) reasons.push('cross_event_source_ref');
   }
 
   return {

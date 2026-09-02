@@ -94,7 +94,10 @@ assert.deepEqual(
     ]),
     [
       attestation(),
-      attestation({ attestationId: 'EA-2' }),
+      attestation({
+        attestationId: 'EA-2',
+        executionResultContractId: 'ER:UNRELATED',
+      }),
     ],
   ).reasons,
   ['duplicate_execution_result_contract'],

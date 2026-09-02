@@ -27,6 +27,17 @@ assert.equal(ready.eligible, true);
 assert.equal(ready.nextAction, 'continue_to_S04');
 assert.deepEqual(ready.reasons, []);
 
+const prefixedSameEvent = validateS04DecisionItemLineage({
+  ...base,
+  decision_item_json: JSON.stringify({
+    decision_item_id: 'DI:EVT-1:01',
+    source_event_refs: ['d1:events:EVT-1:canonical'],
+    item_type: 'problem',
+  }),
+});
+assert.equal(prefixedSameEvent.eligible, true);
+assert.equal(prefixedSameEvent.nextAction, 'continue_to_S04');
+
 const cases = [
   ['missing builder ledger', { builder_run_id: null }, 'missing_builder_run_id'],
   ['missing conflict ledger', { conflict_run_id: null }, 'missing_conflict_run_id'],
@@ -42,6 +53,13 @@ const cases = [
   ['source event mismatch', {
     decision_item_json: JSON.stringify({ decision_item_id: 'DI:EVT-1:01', source_event_refs: ['EVT-OTHER'] }),
   }, 'source_event_ref_mismatch'],
+  ['cross event source ref', {
+    decision_item_json: JSON.stringify({
+      decision_item_id: 'DI:EVT-1:01',
+      source_event_refs: ['EVT-1', 'EVT-OTHER'],
+      item_type: 'problem',
+    }),
+  }, 'cross_event_source_ref'],
 ];
 
 for (const [name, patch, expectedReason] of cases) {
@@ -55,5 +73,6 @@ console.log(JSON.stringify({
   success: true,
   contractVersion: S04_INGRESS_CONTRACT_VERSION,
   happyPath: ready.nextAction,
+  prefixedSameEvent: prefixedSameEvent.nextAction,
   failClosedCases: cases.map(([name]) => name),
 }, null, 2));

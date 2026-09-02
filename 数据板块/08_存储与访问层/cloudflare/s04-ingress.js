@@ -1,4 +1,4 @@
-export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.4.0';
+export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.5.0';
 
 function parseJson(value, fallback = null) {
   if (value && typeof value === 'object') return value;
@@ -15,6 +15,37 @@ function eventIdFromRef(ref) {
 
 function text(value) {
   return value === null || value === undefined ? '' : String(value).trim();
+}
+
+const S04_ITEM_TYPES = new Set(['risk', 'opportunity', 'goal_gap', 'problem', 'investigation']);
+
+function validateDecisionItemShape(item, reasons) {
+  const requiredTextFields = ['decision_item_id', 'item_type', 'subject', 'problem_definition', 'objective', 'goal_layer'];
+  for (const field of requiredTextFields) {
+    if (!text(item?.[field])) reasons.push(`missing_decision_item_${field}`);
+  }
+
+  const itemType = text(item?.item_type);
+  if (itemType && !S04_ITEM_TYPES.has(itemType)) reasons.push('unsupported_decision_item_type');
+
+  if (!Array.isArray(item?.source_event_refs) || item.source_event_refs.length === 0) {
+    reasons.push('missing_decision_item_source_event_refs');
+  }
+
+  if (!text(item?.created_at) || !Number.isFinite(Date.parse(item.created_at))) {
+    reasons.push('invalid_decision_item_created_at');
+  }
+
+  if (item?.dependency_count !== undefined && item?.dependency_count !== null) {
+    const count = Number(item.dependency_count);
+    if (!Number.isInteger(count) || count < 0) reasons.push('invalid_decision_item_dependency_count');
+  }
+
+  for (const field of ['blocked_items', 'conflict_refs', 'constraint_refs', 'evidence_refs', 'context_refs']) {
+    if (item?.[field] !== undefined && !Array.isArray(item[field])) {
+      reasons.push(`invalid_decision_item_${field}`);
+    }
+  }
 }
 
 export function validateS04DecisionItemLineage(row = {}) {
@@ -88,6 +119,7 @@ export function validateS04DecisionItemLineage(row = {}) {
   if (!item || typeof item !== 'object') {
     reasons.push('invalid_decision_item_json');
   } else {
+    validateDecisionItemShape(item, reasons);
     if (item.decision_item_id !== row.decision_item_id) reasons.push('decision_item_id_mismatch');
     const refs = Array.isArray(item.source_event_refs) ? item.source_event_refs : [];
     const refEventIds = refs.map(eventIdFromRef).filter(Boolean);

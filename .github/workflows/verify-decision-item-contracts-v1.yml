@@ -11,11 +11,13 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-priority.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-priority-policy.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-runtime.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-priority.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-priority-policy.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-decision-formation.test.mjs"
   pull_request:
     paths:
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
@@ -24,11 +26,13 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-priority.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-priority-policy.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-runtime.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-priority.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/s04-priority-policy.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-decision-formation.test.mjs"
   workflow_dispatch:
 
 permissions:
@@ -60,3 +64,6 @@ jobs:
 
       - name: Verify deterministic read-only S04 priority policy
         run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-priority-policy.test.mjs'
+
+      - name: Verify read-only S04 decision formation contract
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-decision-formation.test.mjs'

@@ -22,6 +22,9 @@ const base = {
   decision_marketplace: 'US',
   builder_marketplace: 'US',
   conflict_marketplace: 'US',
+  builder_input_json: JSON.stringify({
+    scope: { scope_type: 'product', scope_id: 'PROD-1', product_id: 'PROD-1', asin: 'B000TEST01' },
+  }),
   builder_next_action: 'continue_to_S04',
   s03_next_action: 'continue_to_decision_item_builder',
   decision_item_json: JSON.stringify({
@@ -48,7 +51,17 @@ const prefixedSameEvent = validateS04DecisionItemLineage({
 assert.equal(prefixedSameEvent.eligible, true);
 assert.equal(prefixedSameEvent.nextAction, 'continue_to_S04');
 
-const nullableScope = validateS04DecisionItemLineage({
+const storeScope = validateS04DecisionItemLineage({
+  ...base,
+  decision_product_id: null,
+  builder_product_id: null,
+  conflict_product_id: null,
+  builder_input_json: JSON.stringify({ scope: { scope_type: 'store', scope_id: 'US', product_id: null } }),
+});
+assert.equal(storeScope.eligible, true);
+assert.equal(storeScope.nextAction, 'continue_to_S04');
+
+const globalScope = validateS04DecisionItemLineage({
   ...base,
   decision_product_id: null,
   builder_product_id: null,
@@ -56,9 +69,10 @@ const nullableScope = validateS04DecisionItemLineage({
   decision_marketplace: null,
   builder_marketplace: null,
   conflict_marketplace: null,
+  builder_input_json: JSON.stringify({ scope: { scope_type: 'global', scope_id: '1122', product_id: null } }),
 });
-assert.equal(nullableScope.eligible, true);
-assert.equal(nullableScope.nextAction, 'continue_to_S04');
+assert.equal(globalScope.eligible, true);
+assert.equal(globalScope.nextAction, 'continue_to_S04');
 
 const cases = [
   ['missing builder ledger', { builder_run_id: null }, 'missing_builder_run_id'],
@@ -78,6 +92,29 @@ const cases = [
   ['conflict product mismatch', { conflict_product_id: 'PROD-OTHER' }, 'product_lineage_mismatch'],
   ['decision marketplace mismatch', { decision_marketplace: 'CA' }, 'marketplace_lineage_mismatch'],
   ['conflict marketplace mismatch', { conflict_marketplace: 'CA' }, 'marketplace_lineage_mismatch'],
+  ['invalid builder input json', { builder_input_json: '{bad json' }, 'invalid_builder_input_json'],
+  ['missing builder scope', { builder_input_json: JSON.stringify({ scope: null }) }, 'missing_builder_scope'],
+  ['product scope missing product', {
+    builder_input_json: JSON.stringify({ scope: { scope_type: 'product', scope_id: 'PROD-1', product_id: null } }),
+  }, 'incomplete_product_scope_lineage'],
+  ['product scope mismatch', {
+    builder_input_json: JSON.stringify({ scope: { scope_type: 'product', scope_id: 'PROD-OTHER', product_id: 'PROD-OTHER' } }),
+  }, 'product_scope_mismatch'],
+  ['store scope carrying product', {
+    builder_input_json: JSON.stringify({ scope: { scope_type: 'store', scope_id: 'US', product_id: 'PROD-1' } }),
+  }, 'store_scope_product_mismatch'],
+  ['store scope mismatch', {
+    decision_product_id: null,
+    builder_product_id: null,
+    conflict_product_id: null,
+    builder_input_json: JSON.stringify({ scope: { scope_type: 'store', scope_id: 'CA', product_id: null } }),
+  }, 'store_scope_mismatch'],
+  ['global scope carrying lineage', {
+    builder_input_json: JSON.stringify({ scope: { scope_type: 'global', scope_id: '1122', product_id: null } }),
+  }, 'global_scope_lineage_mismatch'],
+  ['unsupported scope type', {
+    builder_input_json: JSON.stringify({ scope: { scope_type: 'account', scope_id: 'A1', product_id: null } }),
+  }, 'unsupported_scope_type'],
   ['invalid item json', { decision_item_json: '{bad json' }, 'invalid_decision_item_json'],
   ['item id mismatch', {
     decision_item_json: JSON.stringify({ decision_item_id: 'DI:OTHER:01', source_event_refs: ['EVT-1'] }),
@@ -106,6 +143,7 @@ console.log(JSON.stringify({
   contractVersion: S04_INGRESS_CONTRACT_VERSION,
   happyPath: ready.nextAction,
   prefixedSameEvent: prefixedSameEvent.nextAction,
-  nullableScope: nullableScope.nextAction,
+  storeScope: storeScope.nextAction,
+  globalScope: globalScope.nextAction,
   failClosedCases: cases.map(([name]) => name),
 }, null, 2));

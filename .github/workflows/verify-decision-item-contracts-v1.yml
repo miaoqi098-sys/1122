@@ -1,0 +1,41 @@
+name: Verify DecisionItem Contracts V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-decision-item-contracts-v1.yml"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/decision-item-builder.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-ingress.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
+  pull_request:
+    paths:
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/decision-item-builder.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-ingress.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify DecisionItemBuilder contract
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs'
+
+      - name: Verify fail-closed S04 ingress contract
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs'

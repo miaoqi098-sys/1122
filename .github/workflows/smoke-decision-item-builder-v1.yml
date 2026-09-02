@@ -45,7 +45,16 @@ jobs:
           TOKEN=$(openssl rand -hex 32)
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
-          printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
+          for attempt in 1 2 3; do
+            if printf '%s' "$TOKEN" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Failed to install temporary Data Layer authorization after retries.' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done
           CODE=$(DATA_LAYER_TOKEN="$TOKEN" bash '数据板块/08_存储与访问层/cloudflare/scripts/data-layer-auth-curl.sh' GET 'https://1122-data-layer.zhangshuaibing01.workers.dev/internal/auth-check' /tmp/builder-auth.json)
           test "$CODE" = "200"
 
@@ -136,5 +145,14 @@ jobs:
           set -euo pipefail
           ROTATED=$(openssl rand -hex 32)
           echo "::add-mask::$ROTATED"
-          printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null
-          echo 'Data Layer internal authorization rotated.'
+          for attempt in 1 2 3; do
+            if printf '%s' "$ROTATED" | npx --yes wrangler@4 secret put DATA_LAYER_INTERNAL_TOKEN --config '数据板块/08_存储与访问层/cloudflare/wrangler.toml' >/dev/null; then
+              echo 'Data Layer internal authorization rotated.'
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo 'Failed to rotate Data Layer internal authorization after retries.' >&2
+              exit 1
+            fi
+            sleep $((attempt * 3))
+          done

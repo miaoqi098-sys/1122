@@ -48,6 +48,18 @@ const prefixedSameEvent = validateS04DecisionItemLineage({
 assert.equal(prefixedSameEvent.eligible, true);
 assert.equal(prefixedSameEvent.nextAction, 'continue_to_S04');
 
+const nullableScope = validateS04DecisionItemLineage({
+  ...base,
+  decision_product_id: null,
+  builder_product_id: null,
+  conflict_product_id: null,
+  decision_marketplace: null,
+  builder_marketplace: null,
+  conflict_marketplace: null,
+});
+assert.equal(nullableScope.eligible, true);
+assert.equal(nullableScope.nextAction, 'continue_to_S04');
+
 const cases = [
   ['missing builder ledger', { builder_run_id: null }, 'missing_builder_run_id'],
   ['missing conflict ledger', { conflict_run_id: null }, 'missing_conflict_run_id'],
@@ -56,6 +68,16 @@ const cases = [
   ['builder event mismatch', { builder_event_id: 'EVT-OTHER' }, 'builder_event_mismatch'],
   ['conflict event mismatch', { conflict_event_id: 'EVT-OTHER' }, 'conflict_event_mismatch'],
   ['builder conflict mismatch', { builder_conflict_run_id: 'CR-OTHER' }, 'builder_conflict_mismatch'],
+  ['missing builder context', { builder_context_run_id: null }, 'missing_builder_context_run_id'],
+  ['missing conflict context', { conflict_context_run_id: null }, 'missing_conflict_context_run_id'],
+  ['context run mismatch', { builder_context_run_id: 'CTX-OTHER' }, 'context_run_mismatch'],
+  ['missing builder intake', { builder_intake_id: null }, 'missing_builder_intake_id'],
+  ['missing conflict intake', { conflict_intake_id: null }, 'missing_conflict_intake_id'],
+  ['intake mismatch', { builder_intake_id: 'INTAKE-OTHER' }, 'intake_mismatch'],
+  ['decision product mismatch', { decision_product_id: 'PROD-OTHER' }, 'product_lineage_mismatch'],
+  ['conflict product mismatch', { conflict_product_id: 'PROD-OTHER' }, 'product_lineage_mismatch'],
+  ['decision marketplace mismatch', { decision_marketplace: 'CA' }, 'marketplace_lineage_mismatch'],
+  ['conflict marketplace mismatch', { conflict_marketplace: 'CA' }, 'marketplace_lineage_mismatch'],
   ['invalid item json', { decision_item_json: '{bad json' }, 'invalid_decision_item_json'],
   ['item id mismatch', {
     decision_item_json: JSON.stringify({ decision_item_id: 'DI:OTHER:01', source_event_refs: ['EVT-1'] }),
@@ -84,5 +106,6 @@ console.log(JSON.stringify({
   contractVersion: S04_INGRESS_CONTRACT_VERSION,
   happyPath: ready.nextAction,
   prefixedSameEvent: prefixedSameEvent.nextAction,
+  nullableScope: nullableScope.nextAction,
   failClosedCases: cases.map(([name]) => name),
 }, null, 2));

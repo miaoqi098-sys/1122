@@ -4,6 +4,26 @@ import {
   S04_INGRESS_CONTRACT_VERSION,
 } from '../s04-ingress.js';
 
+const validItem = {
+  decision_item_id: 'DI:EVT-1:01',
+  source_event_refs: ['EVT-1'],
+  item_type: 'problem',
+  subject: 'Test product｜TRAFFIC_DROP',
+  problem_definition: 'Traffic dropped versus baseline.',
+  objective: 'Restore qualified traffic while protecting profitability.',
+  goal_layer: 'business_quality',
+  severity: 'P2',
+  urgency: 'medium',
+  dependency_count: 0,
+  blocked_items: [],
+  conflict_refs: [],
+  constraint_refs: [],
+  evidence_refs: ['EVT-1'],
+  context_refs: [],
+  evidence_strength: 'medium',
+  created_at: '2026-09-02T00:00:00.000Z',
+};
+
 const base = {
   decision_item_id: 'DI:EVT-1:01',
   builder_run_id: 'BR-1',
@@ -27,11 +47,7 @@ const base = {
   }),
   builder_next_action: 'continue_to_S04',
   s03_next_action: 'continue_to_decision_item_builder',
-  decision_item_json: JSON.stringify({
-    decision_item_id: 'DI:EVT-1:01',
-    source_event_refs: ['EVT-1'],
-    item_type: 'problem',
-  }),
+  decision_item_json: JSON.stringify(validItem),
 };
 
 const ready = validateS04DecisionItemLineage(base);
@@ -43,9 +59,8 @@ assert.deepEqual(ready.reasons, []);
 const prefixedSameEvent = validateS04DecisionItemLineage({
   ...base,
   decision_item_json: JSON.stringify({
-    decision_item_id: 'DI:EVT-1:01',
+    ...validItem,
     source_event_refs: ['d1:events:EVT-1:canonical'],
-    item_type: 'problem',
   }),
 });
 assert.equal(prefixedSameEvent.eligible, true);
@@ -124,18 +139,41 @@ const cases = [
   }, 'unsupported_scope_type'],
   ['invalid item json', { decision_item_json: '{bad json' }, 'invalid_decision_item_json'],
   ['item id mismatch', {
-    decision_item_json: JSON.stringify({ decision_item_id: 'DI:OTHER:01', source_event_refs: ['EVT-1'] }),
+    decision_item_json: JSON.stringify({ ...validItem, decision_item_id: 'DI:OTHER:01' }),
   }, 'decision_item_id_mismatch'],
   ['source event mismatch', {
-    decision_item_json: JSON.stringify({ decision_item_id: 'DI:EVT-1:01', source_event_refs: ['EVT-OTHER'] }),
+    decision_item_json: JSON.stringify({ ...validItem, source_event_refs: ['EVT-OTHER'] }),
   }, 'source_event_ref_mismatch'],
   ['cross event source ref', {
-    decision_item_json: JSON.stringify({
-      decision_item_id: 'DI:EVT-1:01',
-      source_event_refs: ['EVT-1', 'EVT-OTHER'],
-      item_type: 'problem',
-    }),
+    decision_item_json: JSON.stringify({ ...validItem, source_event_refs: ['EVT-1', 'EVT-OTHER'] }),
   }, 'cross_event_source_ref'],
+  ['missing subject', {
+    decision_item_json: JSON.stringify({ ...validItem, subject: '' }),
+  }, 'missing_decision_item_subject'],
+  ['missing problem definition', {
+    decision_item_json: JSON.stringify({ ...validItem, problem_definition: null }),
+  }, 'missing_decision_item_problem_definition'],
+  ['missing objective', {
+    decision_item_json: JSON.stringify({ ...validItem, objective: '' }),
+  }, 'missing_decision_item_objective'],
+  ['missing goal layer', {
+    decision_item_json: JSON.stringify({ ...validItem, goal_layer: '' }),
+  }, 'missing_decision_item_goal_layer'],
+  ['unsupported item type', {
+    decision_item_json: JSON.stringify({ ...validItem, item_type: 'execute_price_change' }),
+  }, 'unsupported_decision_item_type'],
+  ['missing source refs', {
+    decision_item_json: JSON.stringify({ ...validItem, source_event_refs: [] }),
+  }, 'missing_decision_item_source_event_refs'],
+  ['invalid created at', {
+    decision_item_json: JSON.stringify({ ...validItem, created_at: 'not-a-date' }),
+  }, 'invalid_decision_item_created_at'],
+  ['negative dependency count', {
+    decision_item_json: JSON.stringify({ ...validItem, dependency_count: -1 }),
+  }, 'invalid_decision_item_dependency_count'],
+  ['invalid blocked items shape', {
+    decision_item_json: JSON.stringify({ ...validItem, blocked_items: 'CR-1' }),
+  }, 'invalid_decision_item_blocked_items'],
 ];
 
 for (const [name, patch, expectedReason] of cases) {

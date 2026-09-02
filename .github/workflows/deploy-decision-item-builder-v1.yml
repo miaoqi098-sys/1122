@@ -8,8 +8,10 @@ on:
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/DecisionItemBuilder*.json"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/decision-item-builder.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-ingress.js"
       - "数据板块/08_存储与访问层/cloudflare/worker.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs"
       - "数据板块/09_数据库迁移与版本/migrations/0008_a1_decision_item_builder.sql"
   workflow_dispatch:
 
@@ -34,8 +36,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify DecisionItemBuilder runtime contract
-        run: node '数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs'
+      - name: Verify DecisionItemBuilder and S04 ingress contracts
+        run: |
+          set -euo pipefail
+          node '数据板块/08_存储与访问层/cloudflare/tests/decision-item-builder.test.mjs'
+          node '数据板块/08_存储与访问层/cloudflare/tests/s04-ingress.test.mjs'
 
       - name: Apply D1 migrations
         env:

@@ -4,6 +4,26 @@ import {
   S04_RUNTIME_CONTRACT_VERSION,
 } from '../s04-runtime.js';
 
+const validDecisionItem = {
+  decision_item_id: 'DI:EVT-1:01',
+  source_event_refs: ['EVT-1'],
+  item_type: 'problem',
+  subject: 'Test product｜TRAFFIC_DROP',
+  problem_definition: 'Traffic dropped versus baseline.',
+  objective: 'Restore qualified traffic while protecting profitability.',
+  goal_layer: 'business_quality',
+  severity: 'P2',
+  urgency: 'medium',
+  dependency_count: 0,
+  blocked_items: [],
+  conflict_refs: [],
+  constraint_refs: [],
+  evidence_refs: ['EVT-1'],
+  context_refs: [],
+  evidence_strength: 'medium',
+  created_at: '2026-09-02T00:00:00.000Z',
+};
+
 const validRow = {
   decision_item_id: 'DI:EVT-1:01',
   builder_run_id: 'BR-1',
@@ -27,11 +47,7 @@ const validRow = {
   }),
   builder_next_action: 'continue_to_S04',
   s03_next_action: 'continue_to_decision_item_builder',
-  decision_item_json: JSON.stringify({
-    decision_item_id: 'DI:EVT-1:01',
-    source_event_refs: ['EVT-1'],
-    item_type: 'problem',
-  }),
+  decision_item_json: JSON.stringify(validDecisionItem),
 };
 
 function dbReturning(row, state = {}) {
@@ -90,6 +106,19 @@ const mismatchedLineage = await runS04Runtime(
 assert.equal(mismatchedLineage.eligible, false);
 assert.ok(mismatchedLineage.reasons.includes('builder_event_mismatch'));
 
+const malformedPersisted = await runS04Runtime(
+  {
+    CORE_DB: dbReturning({
+      ...validRow,
+      decision_item_json: JSON.stringify({ ...validDecisionItem, objective: '' }),
+    }),
+  },
+  { decision_item_id: 'DI:EVT-1:01' },
+);
+assert.equal(malformedPersisted.eligible, false);
+assert.equal(malformedPersisted.nextAction, 'hold_for_review');
+assert.ok(malformedPersisted.reasons.includes('missing_decision_item_objective'));
+
 const forgedState = {};
 const forgedCaller = await runS04Runtime(
   { CORE_DB: dbReturning(null, forgedState) },
@@ -132,6 +161,7 @@ console.log(JSON.stringify({
     'database lookup failure',
     'corrupt persisted item',
     'lineage mismatch',
+    'malformed persisted decision item',
     'forged caller payload ignored',
   ],
 }, null, 2));

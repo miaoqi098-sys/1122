@@ -1,4 +1,4 @@
-export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.3.0';
+export const S04_INGRESS_CONTRACT_VERSION = 'S04-ingress-contract-v1.4.0';
 
 function parseJson(value, fallback = null) {
   if (value && typeof value === 'object') return value;
@@ -15,10 +15,6 @@ function eventIdFromRef(ref) {
 
 function text(value) {
   return value === null || value === undefined ? '' : String(value).trim();
-}
-
-function hasOwn(object, key) {
-  return Object.prototype.hasOwnProperty.call(object, key);
 }
 
 export function validateS04DecisionItemLineage(row = {}) {
@@ -60,34 +56,32 @@ export function validateS04DecisionItemLineage(row = {}) {
     reasons.push('marketplace_lineage_mismatch');
   }
 
-  // Rows loaded from D1 must prove the original Builder scope as well as IDs copied
-  // into ledger columns. This prevents a product/store/global scope from being silently
-  // changed while keeping event/product/marketplace columns internally consistent.
-  if (hasOwn(row, 'builder_input_json')) {
-    const builderInput = parseJson(row.builder_input_json, null);
-    if (!builderInput || typeof builderInput !== 'object') {
-      reasons.push('invalid_builder_input_json');
-    } else {
-      const scope = builderInput.scope;
-      const scopeType = text(scope?.scope_type);
-      const scopeId = text(scope?.scope_id);
-      const scopeProductId = text(scope?.product_id);
-      const productId = text(row.builder_product_id);
-      const marketplace = text(row.builder_marketplace);
+  // Builder input is mandatory provenance. Never let a partial row skip scope checks:
+  // callers of this exported validator must prove the same persisted product/store/global
+  // scope that the D1 ingress query provides.
+  const builderInput = parseJson(row.builder_input_json, null);
+  if (!builderInput || typeof builderInput !== 'object') {
+    reasons.push('invalid_builder_input_json');
+  } else {
+    const scope = builderInput.scope;
+    const scopeType = text(scope?.scope_type);
+    const scopeId = text(scope?.scope_id);
+    const scopeProductId = text(scope?.product_id);
+    const productId = text(row.builder_product_id);
+    const marketplace = text(row.builder_marketplace);
 
-      if (!scope || typeof scope !== 'object' || !scopeType || !scopeId) {
-        reasons.push('missing_builder_scope');
-      } else if (scopeType === 'product') {
-        if (!scopeProductId || !productId) reasons.push('incomplete_product_scope_lineage');
-        if (scopeId !== scopeProductId || scopeProductId !== productId) reasons.push('product_scope_mismatch');
-      } else if (scopeType === 'store') {
-        if (scopeProductId || productId) reasons.push('store_scope_product_mismatch');
-        if (!marketplace || scopeId !== marketplace) reasons.push('store_scope_mismatch');
-      } else if (scopeType === 'global') {
-        if (scopeProductId || productId || marketplace) reasons.push('global_scope_lineage_mismatch');
-      } else {
-        reasons.push('unsupported_scope_type');
-      }
+    if (!scope || typeof scope !== 'object' || !scopeType || !scopeId) {
+      reasons.push('missing_builder_scope');
+    } else if (scopeType === 'product') {
+      if (!scopeProductId || !productId) reasons.push('incomplete_product_scope_lineage');
+      if (scopeId !== scopeProductId || scopeProductId !== productId) reasons.push('product_scope_mismatch');
+    } else if (scopeType === 'store') {
+      if (scopeProductId || productId) reasons.push('store_scope_product_mismatch');
+      if (!marketplace || scopeId !== marketplace) reasons.push('store_scope_mismatch');
+    } else if (scopeType === 'global') {
+      if (scopeProductId || productId || marketplace) reasons.push('global_scope_lineage_mismatch');
+    } else {
+      reasons.push('unsupported_scope_type');
     }
   }
 

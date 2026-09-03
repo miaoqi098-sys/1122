@@ -4,7 +4,7 @@ import {
   S04_RUNTIME_CONTRACT_VERSION,
 } from './s04-runtime.js';
 
-export const A3_A1_S04_RUNTIME_VERSION = 'A3-A1-S04-runtime-v1.0.0';
+export const A3_A1_S04_RUNTIME_VERSION = 'A3-A1-S04-runtime-v1.0.1';
 
 const PRIVILEGE_KEYS = new Set([
   'executionAuthorized',
@@ -141,15 +141,8 @@ function validateAgent3S04Lineage(input, decisionBridgeResult) {
 
   if (!isObject(item)) {
     reasons.push('missing_decision_item');
-  } else {
-    if (!Array.isArray(item.source_event_refs) || !item.source_event_refs.includes(event.event_id)) {
-      reasons.push('decision_item_event_lineage_mismatch');
-    }
-    if (item.scope?.scope_type !== event.scope_type
-        || item.scope?.scope_id !== (event.scope_id ?? event.product_id ?? null)
-        || item.scope?.product_id !== event.product_id) {
-      reasons.push('decision_item_scope_lineage_mismatch');
-    }
+  } else if (!Array.isArray(item.source_event_refs) || !item.source_event_refs.includes(event.event_id)) {
+    reasons.push('decision_item_event_lineage_mismatch');
   }
 
   if (s03Result?.next_action !== 'continue_to_decision_item_builder'
@@ -165,9 +158,11 @@ function validateAgent3S04Lineage(input, decisionBridgeResult) {
  * Read-only Agent-3 bridge into the existing fail-closed S04 ingress/runtime.
  *
  * The bridge re-runs Agent-3 -> R16 -> S01 -> S02 -> S03 -> DecisionItemBuilder,
- * validates source/product/competitor/snapshot/DecisionItem lineage, and then exposes
- * only a synthetic read-only persistence view to S04. It performs no D1 write and
- * grants no approval, permission, execution, dispatch, or production-write authority.
+ * validates source/product/competitor/snapshot/event lineage, and then exposes only
+ * a synthetic read-only persistence view to S04. Product scope provenance is carried
+ * in the verified event plus persisted Builder/S03 lineage because DecisionItem V1
+ * does not embed scope. It performs no D1 write and grants no approval, permission,
+ * execution, dispatch, or production-write authority.
  */
 export async function runAgent3ToS04(input, options = {}) {
   if (!isObject(input)) return failClosed(['invalid_runtime_input']);
@@ -229,8 +224,9 @@ export async function runAgent3ToS04(input, options = {}) {
   if (s04Result.eventId !== event.event_id) {
     return failClosed(['s04_event_lineage_mismatch'], decisionBridgeResult, s04Result);
   }
-  if (s04Result.decisionItem?.scope?.product_id !== event.product_id) {
-    return failClosed(['s04_product_lineage_mismatch'], decisionBridgeResult, s04Result);
+  if (!Array.isArray(s04Result.decisionItem?.source_event_refs)
+      || !s04Result.decisionItem.source_event_refs.includes(event.event_id)) {
+    return failClosed(['s04_source_event_ref_mismatch'], decisionBridgeResult, s04Result);
   }
 
   return {

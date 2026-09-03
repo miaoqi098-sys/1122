@@ -4,7 +4,7 @@ import {
   DECISION_ITEM_BUILDER_RUNTIME_VERSION,
 } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js';
 
-export const A3_A1_DECISION_ITEM_RUNTIME_VERSION = 'A3-A1-DecisionItem-runtime-v1.0.0';
+export const A3_A1_DECISION_ITEM_RUNTIME_VERSION = 'A3-A1-DecisionItem-runtime-v1.0.1';
 
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
@@ -95,8 +95,10 @@ function validateAgent3BuilderLineage(input, s03BridgeResult) {
  * Read-only Agent-3 -> DecisionItemBuilder bridge.
  *
  * Re-runs Agent-3 -> R16 -> S01 -> S02 -> S03 and verifies event, product,
- * competitor and context lineage before building DecisionItems. It never
- * enters S04, approves, dispatches, executes, or performs production writes.
+ * competitor and context lineage before building DecisionItems. Product scope
+ * remains authoritative in the verified event/builder input; DecisionItem V1
+ * itself does not embed a scope object. This bridge never enters S04 directly,
+ * approves, dispatches, executes, or performs production writes.
  */
 export function runAgent3ToDecisionItem(input, options = {}) {
   if (!isObject(input)) return failClosed(['invalid_runtime_input']);
@@ -176,9 +178,6 @@ export function runAgent3ToDecisionItem(input, options = {}) {
   }
   if (builderResult.decision_items.some((item) => !Array.isArray(item.source_event_refs) || !item.source_event_refs.includes(event.event_id))) {
     return failClosed(['decision_item_event_lineage_mismatch'], s03BridgeResult, builderResult);
-  }
-  if (builderResult.decision_items.some((item) => item.scope?.product_id !== event.product_id)) {
-    return failClosed(['decision_item_product_lineage_mismatch'], s03BridgeResult, builderResult);
   }
 
   return {

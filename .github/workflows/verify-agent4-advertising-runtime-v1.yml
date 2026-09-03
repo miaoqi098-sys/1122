@@ -1,0 +1,39 @@
+name: Verify Agent-4 Advertising Runtime V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent4-advertising-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a4-advertising-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a4-advertising-runtime.contract.test.mjs"
+      - "Agent板块/运营组/Agent-4_广告运营智能体/事件输出/AdvertisingIntelligenceEvent.schema.json"
+      - "Agent板块/运营组/Agent-4_广告运营智能体/请求响应接口/AdvertisingAnalysisResponse.schema.json"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-agent4-advertising-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a4-advertising-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a4-advertising-runtime.contract.test.mjs"
+      - "Agent板块/运营组/Agent-4_广告运营智能体/事件输出/AdvertisingIntelligenceEvent.schema.json"
+      - "Agent板块/运营组/Agent-4_广告运营智能体/请求响应接口/AdvertisingAnalysisResponse.schema.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent4-advertising-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify Agent-4 read-only advertising signal reaches R16 safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a4-advertising-runtime.contract.test.mjs'

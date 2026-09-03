@@ -1,8 +1,17 @@
 export const R16_EVENT_NORMALIZER_VERSION = 'R16-event-normalizer-v1.0.0';
+export const R16_RESPONSE_NORMALIZER_VERSION = 'R16-response-normalizer-v1.0.0';
 
 const AGENTS = new Set(Array.from({ length: 12 }, (_, index) => `Agent-${index + 2}`));
 const SCOPES = new Set(['product', 'parent_product', 'sku', 'account', 'store', 'global']);
 const SEVERITIES = new Set(['P0', 'P1', 'P2', 'P3']);
+const RESPONSE_STATUSES = new Set(['answered', 'answered_with_gaps', 'insufficient_evidence', 'blocked']);
+const RESPONSE_STATUS_MAP = new Map([
+  ['completed', 'answered'],
+  ['partial', 'answered_with_gaps'],
+  ['needs_information', 'insufficient_evidence'],
+  ['unsupported', 'insufficient_evidence'],
+  ['blocked', 'blocked'],
+]);
 const SEVERITY_MAP = new Map([
   ['critical', 'P0'],
   ['high', 'P1'],
@@ -47,6 +56,19 @@ function failClosed(reasons) {
   };
 }
 
+function failClosedResponse(reasons) {
+  return {
+    status: 'blocked',
+    nextAction: 'hold_for_review',
+    reasons: [...new Set(reasons)],
+    normalizationVersion: R16_RESPONSE_NORMALIZER_VERSION,
+    canonicalResponse: null,
+    readOnly: true,
+    executionAuthorized: false,
+    dispatchAuthorized: false,
+  };
+}
+
 function normalizeSeverity(value) {
   if (SEVERITIES.has(value)) return value;
   if (typeof value === 'string') return SEVERITY_MAP.get(value.toLowerCase()) ?? null;
@@ -69,6 +91,12 @@ function optionalStringArray(value) {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.some((item) => !nonEmptyString(item))) return null;
   return [...value];
+}
+
+function normalizeResponseStatus(value) {
+  if (RESPONSE_STATUSES.has(value)) return value;
+  if (typeof value === 'string') return RESPONSE_STATUS_MAP.get(value.toLowerCase()) ?? null;
+  return null;
 }
 
 export function normalizeProfessionalAgentEvent(input, options = {}) {
@@ -223,6 +251,83 @@ export function normalizeProfessionalAgentEvent(input, options = {}) {
       mapped_at: mappedAt,
       metadata: { normalizer_version: R16_EVENT_NORMALIZER_VERSION },
     },
+    readOnly: true,
+    executionAuthorized: false,
+    dispatchAuthorized: false,
+  };
+}
+
+export function normalizeProfessionalAgentResponse(input) {
+  const reasons = [];
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return failClosedResponse(['invalid_normalizer_input']);
+  }
+
+  const sourceAgent = input.source_agent ?? input.responder_agent ?? input.agent_id;
+  const requestId = input.request_id;
+  const analysisScope = input.analysis_scope ?? input.scope;
+  const confidence = normalizeConfidence(input.confidence);
+  const status = normalizeResponseStatus(input.status);
+
+  if (!AGENTS.has(sourceAgent)) reasons.push('invalid_source_agent');
+  if (!nonEmptyString(requestId)) reasons.push('missing_request_id');
+  if (!analysisScope || typeof analysisScope !== 'object' || Array.isArray(analysisScope)) reasons.push('invalid_analysis_scope');
+  if (!Array.isArray(input.facts) || input.facts.some((item) => !nonEmptyString(item))) reasons.push('invalid_facts');
+  if (!Array.isArray(input.interpretation) || input.interpretation.some((item) => !nonEmptyString(item))) reasons.push('invalid_interpretation');
+  if (!nonEmptyString(input.conclusion)) reasons.push('invalid_conclusion');
+  if (confidence.value === null) reasons.push('invalid_confidence');
+  if (!nonEmptyString(input.data_window)) reasons.push('invalid_data_window');
+  if (!status) reasons.push('invalid_status');
+
+  const evidenceRefs = optionalStringArray(input.evidence_refs);
+  const missingData = optionalStringArray(input.missing_data ?? input.missing_inputs ?? input.gaps);
+  const risks = optionalStringArray(input.risks ?? input.limitations);
+  if (evidenceRefs === null) reasons.push('invalid_evidence_refs');
+  if (missingData === null) reasons.push('invalid_missing_data');
+  if (risks === null) reasons.push('invalid_risks');
+  if (input.recommendation !== undefined && input.recommendation !== null && !nonEmptyString(input.recommendation)) reasons.push('invalid_recommendation');
+  if (input.valid_until !== undefined && input.valid_until !== null && !validDateTime(input.valid_until)) reasons.push('invalid_valid_until');
+  if (input.review_at !== undefined && input.review_at !== null && !validDateTime(input.review_at)) reasons.push('invalid_review_at');
+
+  for (const key of PRIVILEGE_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(input, key)) reasons.push(`privilege_injection_${key}`);
+  }
+  if (reasons.length) return failClosedResponse(reasons);
+
+  const metadata = {
+    normalizer_version: R16_RESPONSE_NORMALIZER_VERSION,
+  };
+  if (input.status !== status) metadata.original_status = input.status;
+  if (confidence.original) metadata.original_confidence = confidence.original;
+  if (input.generated_at !== undefined) metadata.generated_at = input.generated_at;
+  if (input.cross_agent_dependencies !== undefined) metadata.cross_agent_dependencies = input.cross_agent_dependencies;
+  if (input.metadata && typeof input.metadata === 'object' && !Array.isArray(input.metadata)) metadata.domain_metadata = input.metadata;
+
+  const canonicalResponse = {
+    request_id: requestId,
+    source_agent: sourceAgent,
+    analysis_scope: analysisScope,
+    facts: [...input.facts],
+    interpretation: [...input.interpretation],
+    conclusion: input.conclusion,
+    recommendation: input.recommendation ?? null,
+    confidence: confidence.value,
+    data_window: input.data_window,
+    evidence_refs: evidenceRefs ?? [],
+    missing_data: missingData ?? [],
+    risks: risks ?? [],
+    valid_until: input.valid_until ?? null,
+    review_at: input.review_at ?? null,
+    status,
+    metadata,
+  };
+
+  return {
+    status: 'normalized',
+    nextAction: 'continue_to_A1_professional_response_intake',
+    reasons: [],
+    normalizationVersion: R16_RESPONSE_NORMALIZER_VERSION,
+    canonicalResponse,
     readOnly: true,
     executionAuthorized: false,
     dispatchAuthorized: false,

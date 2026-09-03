@@ -6,31 +6,41 @@ on:
     paths:
       - ".github/workflows/verify-professional-agent-runtime-v1.yml"
       - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-response-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/a2-product-status-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a2-product-status-runtime.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
       - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
       - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/智能事件包.schema.json"
       - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/专业Agent结果.schema.json"
+      - "Agent板块/运营组/Agent-2_商品状态智能体/状态模型/商品状态快照.schema.json"
+      - "Agent板块/运营组/Agent-2_商品状态智能体/检测规则/README.md"
   pull_request:
     paths:
       - ".github/workflows/verify-professional-agent-runtime-v1.yml"
       - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-response-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/a2-product-status-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a2-product-status-runtime.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
       - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
       - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/智能事件包.schema.json"
       - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/专业Agent结果.schema.json"
+      - "Agent板块/运营组/Agent-2_商品状态智能体/状态模型/商品状态快照.schema.json"
+      - "Agent板块/运营组/Agent-2_商品状态智能体/检测规则/README.md"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  r16-normalizers:
+  professional-agent-runtime:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,3 +56,6 @@ jobs:
 
       - name: Verify fail-closed R16 professional agent response normalizer
         run: node '数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs'
+
+      - name: Verify fail-closed Agent-2 read-only product status adapter
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-product-status-runtime.contract.test.mjs'

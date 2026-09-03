@@ -11,6 +11,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-intake-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s02-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s03-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/s02-context.js"
       - "数据板块/08_存储与访问层/cloudflare/s03-conflict.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
@@ -19,6 +20,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-intake-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s02-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s03-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
       - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
@@ -27,6 +29,7 @@ on:
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S01_事件校验/执行程序/runtime.js"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/执行程序/runtime.js"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S03_冲突检测/执行程序/runtime.js"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
       - "Agent板块/运营组/Agent-2_商品状态智能体/状态模型/商品状态快照.schema.json"
       - "Agent板块/运营组/Agent-2_商品状态智能体/检测规则/README.md"
   pull_request:
@@ -38,6 +41,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-intake-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s02-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s03-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/s02-context.js"
       - "数据板块/08_存储与访问层/cloudflare/s03-conflict.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
@@ -46,6 +50,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-intake-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s02-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s03-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
       - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
@@ -54,6 +59,7 @@ on:
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S01_事件校验/执行程序/runtime.js"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/执行程序/runtime.js"
       - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S03_冲突检测/执行程序/runtime.js"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/统一接口/执行程序/decision-item-builder.runtime.js"
       - "Agent板块/运营组/Agent-2_商品状态智能体/状态模型/商品状态快照.schema.json"
       - "Agent板块/运营组/Agent-2_商品状态智能体/检测规则/README.md"
   workflow_dispatch:
@@ -90,3 +96,6 @@ jobs:
 
       - name: Verify Agent-2 S02 context reaches S03 conflict detection safely
         run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s03-runtime.contract.test.mjs'
+
+      - name: Verify Agent-2 S03 reaches DecisionItemBuilder safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs'

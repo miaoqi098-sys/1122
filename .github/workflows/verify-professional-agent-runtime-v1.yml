@@ -18,6 +18,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a3-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a3-a1-s04-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-decision-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-task-draft-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-approval-gate-runtime.js"
@@ -45,6 +46,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-s04-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-decision-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-task-draft-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-approval-gate-runtime.contract.test.mjs"
@@ -76,6 +78,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a3-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a3-a1-s04-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-decision-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-task-draft-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-approval-gate-runtime.js"
@@ -103,6 +106,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-s04-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-decision-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-task-draft-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-approval-gate-runtime.contract.test.mjs"
@@ -173,6 +177,9 @@ jobs:
 
       - name: Verify Agent-2 DecisionItem reaches fail-closed S04 ingress/runtime safely
         run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-runtime.contract.test.mjs'
+
+      - name: Verify Agent-3 DecisionItem reaches fail-closed S04 ingress/runtime safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a3-a1-s04-runtime.contract.test.mjs'
 
       - name: Verify Agent-2 S04 reaches read-only priority and decision formation safely
         run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-decision-runtime.contract.test.mjs'

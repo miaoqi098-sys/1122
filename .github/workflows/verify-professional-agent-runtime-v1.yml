@@ -14,6 +14,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-decision-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-task-draft-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/s02-context.js"
       - "数据板块/08_存储与访问层/cloudflare/s03-conflict.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-ingress.js"
@@ -21,6 +22,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-priority.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-priority-policy.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-task-draft.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-product-status-runtime.contract.test.mjs"
@@ -30,6 +32,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-decision-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-task-draft-runtime.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
       - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
@@ -53,6 +56,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-decision-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-task-draft-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/s02-context.js"
       - "数据板块/08_存储与访问层/cloudflare/s03-conflict.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-ingress.js"
@@ -60,6 +64,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/s04-priority.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-priority-policy.js"
       - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-task-draft.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-product-status-runtime.contract.test.mjs"
@@ -69,6 +74,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-decision-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-task-draft-runtime.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
       - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
@@ -123,3 +129,6 @@ jobs:
 
       - name: Verify Agent-2 S04 reaches read-only priority and decision formation safely
         run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-decision-runtime.contract.test.mjs'
+
+      - name: Verify Agent-2 decision reaches draft-only task generation safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-task-draft-runtime.contract.test.mjs'

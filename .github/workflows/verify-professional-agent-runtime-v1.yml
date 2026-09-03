@@ -12,6 +12,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-intake-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a3-a1-intake-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s02-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a3-a1-s02-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s03-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-runtime.js"
@@ -36,6 +37,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-intake-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-intake-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s02-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-s02-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s03-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-runtime.contract.test.mjs"
@@ -64,6 +66,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-intake-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a3-a1-intake-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s02-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a3-a1-s02-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s03-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-decision-item-runtime.js"
       - "数据板块/08_存储与访问层/cloudflare/a2-a1-s04-runtime.js"
@@ -88,6 +91,7 @@ on:
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-intake-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-intake-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s02-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a3-a1-s02-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s03-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-decision-item-runtime.contract.test.mjs"
       - "数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s04-runtime.contract.test.mjs"
@@ -143,6 +147,9 @@ jobs:
 
       - name: Verify Agent-2 A1 intake reaches S02 context safely
         run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s02-runtime.contract.test.mjs'
+
+      - name: Verify Agent-3 A1 intake reaches S02 context safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a3-a1-s02-runtime.contract.test.mjs'
 
       - name: Verify Agent-2 S02 context reaches S03 conflict detection safely
         run: node '数据板块/08_存储与访问层/cloudflare/tests/a2-a1-s03-runtime.contract.test.mjs'

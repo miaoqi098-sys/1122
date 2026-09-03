@@ -117,7 +117,7 @@ assert.equal(ready.s04Result.eligible, true);
 assert.equal(ready.s04Result.nextAction, 'continue_to_S04');
 assert.equal(ready.s04Result.eventId, ready.canonicalEvent.event_id);
 assert.equal(ready.s04Result.decisionItemId, ready.decisionItem.decision_item_id);
-assert.equal(ready.decisionItem.scope.product_id, 'OUR-PROD-001');
+assert.ok(ready.decisionItem.source_event_refs.includes(ready.canonicalEvent.event_id));
 
 const missingSourceEvent = await runAgent3ToS04(makeInput(), {
   ...baseOptions,

@@ -7,24 +7,30 @@ on:
       - ".github/workflows/verify-professional-agent-runtime-v1.yml"
       - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
+      - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
       - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/智能事件包.schema.json"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/专业Agent结果.schema.json"
   pull_request:
     paths:
       - ".github/workflows/verify-professional-agent-runtime-v1.yml"
       - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
       - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs"
       - "Agent板块/运营组/公共协议/ProfessionalAgentEventHandoff.schema.json"
       - "Agent板块/运营组/公共协议/事件字段映射表.md"
+      - "Agent板块/运营组/公共协议/专业Agent响应协议.md"
       - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/智能事件包.schema.json"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/输入规范/专业Agent结果.schema.json"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  r16-event-normalizer:
+  r16-normalizers:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,3 +43,6 @@ jobs:
 
       - name: Verify fail-closed R16 professional agent event normalizer
         run: node '数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-event-normalizer.contract.test.mjs'
+
+      - name: Verify fail-closed R16 professional agent response normalizer
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/r16-professional-agent-response-normalizer.contract.test.mjs'

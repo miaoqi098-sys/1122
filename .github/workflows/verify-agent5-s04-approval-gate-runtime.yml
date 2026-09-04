@@ -1,0 +1,49 @@
+name: Verify Agent-5 S04 Approval Gate Runtime
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent5-s04-approval-gate-runtime.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a5-traffic-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-intake-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-s02-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-s03-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-decision-item-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-s04-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-s04-decision-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-s04-task-draft-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-s04-approval-gate-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-priority.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-priority-policy.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-task-draft.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-approval-gate.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a5-a1-s04-approval-gate-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-response-normalizer.js"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-agent5-s04-approval-gate-runtime.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a5-a1-s04-approval-gate-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a5-a1-s04-approval-gate-runtime.contract.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent5-s04-approval-gate-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify Agent-5 TaskDraft reaches pending human Approval Gate safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a5-a1-s04-approval-gate-runtime.contract.test.mjs'

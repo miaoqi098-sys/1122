@@ -1,0 +1,25 @@
+name: Verify Agent-7 Inventory Supply Runtime V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-agent7-inventory-supply-runtime.yml'
+      - '数据板块/08_存储与访问层/cloudflare/a7-inventory-supply-runtime.js'
+      - '数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js'
+      - '数据板块/08_存储与访问层/cloudflare/tests/a7-inventory-supply-runtime.contract.test.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Agent-7 simulated/trusted read-only inventory supply runtime and stop before A1 intake
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a7-inventory-supply-runtime.contract.test.mjs'

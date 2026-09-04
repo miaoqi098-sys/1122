@@ -6,7 +6,7 @@ import {
   S02_RUNTIME_VERSION,
 } from '../../../Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/执行程序/runtime.js';
 
-export const A6_A1_S02_RUNTIME_VERSION = 'A6-A1-S02-runtime-v1.0.0';
+export const A6_A1_S02_RUNTIME_VERSION = 'A6-A1-S02-runtime-v1.0.1';
 const PRIVILEGE_KEYS = new Set(['executionAuthorized','dispatchAuthorized','permissionGranted','stateTransitionAuthorized','productionWriteAuthorized','approvalGranted','taskAuthorized','finalDecision','task']);
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const text = (v) => typeof v === 'string' && v.trim().length > 0;
@@ -19,7 +19,7 @@ function validateLineage(input, intakeResult) {
   const reasons=[];
   const event=intakeResult?.canonicalEvent;
   const normalized=intakeResult?.agent6Result?.normalizedEvent;
-  const domainEvent=intakeResult?.agent6Result?.domainEvent;
+  const domainEvent=intakeResult?.agent6Result?.financialEvent;
   if (!isObject(event)) return ['missing_a1_normalized_event'];
   if (!isObject(normalized?.canonicalEvent) || !isObject(domainEvent)) return ['missing_agent6_r16_lineage'];
   if (event.source_type !== 'professional_agent' || event.source_agent !== 'Agent-6') reasons.push('a1_event_source_lineage_mismatch');

@@ -1,0 +1,34 @@
+name: Verify Agent-6 Financial Runtime V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent6-financial-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a6-financial-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a6-financial-runtime.contract.test.mjs"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-agent6-financial-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a6-financial-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a6-financial-runtime.contract.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent6-financial-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify Agent-6 margin compression reaches R16 safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a6-financial-runtime.contract.test.mjs'

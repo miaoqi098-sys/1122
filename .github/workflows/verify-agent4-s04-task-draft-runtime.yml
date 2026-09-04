@@ -1,0 +1,30 @@
+name: Verify Agent-4 S04 Task Draft Runtime
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent4-s04-task-draft-runtime.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a4-a1-s04-task-draft-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a4-a1-s04-decision-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-task-draft.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a4-a1-s04-task-draft-runtime.contract.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent4-s04-task-draft-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify Agent-4 decision candidate reaches draft-only TaskDraft safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a4-a1-s04-task-draft-runtime.contract.test.mjs'

@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0.0",
+  "registry_type": "AMAZON_POLICY_SOURCE_REGISTRY",
+  "mode": "read_only_fail_closed",
+  "marketplace_default": "US",
+  "source_priority": [
+    "AMAZON_OFFICIAL_POLICY",
+    "AMAZON_OFFICIAL_HELP",
+    "AMAZON_OFFICIAL_API_DOCS",
+    "AMAZON_OFFICIAL_ADS_POLICY",
+    "AMAZON_OFFICIAL_ANNOUNCEMENT",
+    "AMAZON_OFFICIAL_CASE_OR_ENFORCEMENT"
+  ],
+  "non_authoritative_sources": [
+    "seller_community_posts",
+    "third_party_blogs",
+    "agency_interpretations",
+    "model_inference"
+  ],
+  "domains": [
+    {"id":"review","name":"Review","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"variation","name":"Variation","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"catalog","name":"Catalog","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"offer","name":"Offer","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"featured_offer","name":"Featured Offer","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"pricing","name":"Pricing","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"promotion","name":"Promotion","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"advertising","name":"Advertising","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"search","name":"Search","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"bsr","name":"BSR","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"brand","name":"Brand","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"content","name":"Content","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"inventory","name":"Inventory","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"logistics","name":"Logistics","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"returns","name":"Returns","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"account","name":"Account","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"compliance","name":"Compliance","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"},
+    {"id":"enforcement","name":"Enforcement","status":"SOURCE_DISCOVERY_STARTED","expected_state":"VERSIONED_POLICY_EVIDENCE","observed_state":"CONTROLLED_READ_ONLY_OBSERVATION"}
+  ],
+  "promotion_subdomains": ["Deals","Coupons","PrimeExclusiveDiscounts","PriceDiscounts","ReferencePriceInteraction"],
+  "pricing_subdomains": ["ListPrice","WasPriceOrTypicalPrice","ReferencePrice","PriceHistory","FeaturedOfferPrice"],
+  "advertising_subdomains": ["SponsoredProducts","SponsoredBrands","SponsoredDisplay","DSP","CreativeAcceptance","RestrictedAndProhibitedCategories"],
+  "evidence_requirements": {
+    "source_url_required": true,
+    "source_owner_required": true,
+    "marketplace_required": true,
+    "retrieved_at_required": true,
+    "effective_at_when_known": true,
+    "version_or_snapshot_required": true,
+    "provenance_required": true,
+    "confidence_required": true
+  },
+  "authority": {
+    "policy_allowed_implies_execution_authorized": false,
+    "production_write_authorized": false,
+    "approval_granted": false,
+    "permission_granted": false,
+    "execution_authorized": false
+  }
+}

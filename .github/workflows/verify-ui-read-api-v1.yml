@@ -62,3 +62,5 @@ jobs:
           code=$(curl -sS -o /tmp/post.json -w '%{http_code}' -X POST -H 'Origin: https://1122-web-agent.pages.dev' "$URL")
           test "$code" = '405'
           grep -q 'read_only' /tmp/post.json
+
+# rerun marker: after-0091-data-layer-green

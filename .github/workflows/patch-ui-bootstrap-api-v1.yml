@@ -67,3 +67,5 @@ jobs:
           git add '数据板块/08_存储与访问层/cloudflare/worker.js'
           git commit -m 'feat(ui-api): expose read-only UI bootstrap endpoint'
           git push origin HEAD:main
+
+# trigger: 2026-09-05-ui-bootstrap-v1

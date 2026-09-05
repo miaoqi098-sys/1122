@@ -7,6 +7,7 @@ on:
       - 'UI界面设计板块/亚马逊政策边界中心/**'
       - 'UI界面设计板块/产品状态卡/ProductStateAggregatorV0/**'
       - 'UI界面设计板块/经营指挥中心/HomeCommandCenterAggregatorV0/**'
+      - '数据板块/09_数据库迁移与版本/migrations/0090_amazon_policy_boundary.sql'
       - '.github/workflows/verify-amazon-policy-boundary-v1.yml'
   workflow_dispatch:
 
@@ -28,6 +29,12 @@ jobs:
         run: node '亚马逊政策边界/runtime/policy-boundary-engine.test.js'
       - name: UI aggregator tests
         run: node 'UI界面设计板块/亚马逊政策边界中心/policy-boundary-view-aggregator.test.js'
+      - name: Persistence migration parse test
+        run: |
+          sqlite3 /tmp/apb.db < '数据板块/09_数据库迁移与版本/migrations/0090_amazon_policy_boundary.sql'
+          sqlite3 /tmp/apb.db ".tables" | grep amazon_policy_evidence
+          sqlite3 /tmp/apb.db ".tables" | grep amazon_observed_state_evidence
+          sqlite3 /tmp/apb.db ".tables" | grep amazon_boundary_result_case
       - name: Fail-closed authority assertion
         run: |
           node - <<'NODE'

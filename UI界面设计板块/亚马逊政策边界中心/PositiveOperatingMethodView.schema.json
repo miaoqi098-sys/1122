@@ -1,0 +1,32 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"PositiveOperatingMethodView V1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["generated_at","marketplace","method_cards","view_status"],
+  "properties":{
+    "generated_at":{"type":"string","format":"date-time"},
+    "marketplace":{"type":"string"},
+    "objective_filter":{"type":["string","null"]},
+    "method_cards":{"type":"array","items":{"type":"object","required":["method_id","domain_no","method_name_cn","policy_status","risk_level","execution_mode","expected_impact_summary"],"properties":{
+      "method_id":{"type":"string"},
+      "domain_no":{"type":"string"},
+      "domain_name_cn":{"type":"string"},
+      "method_name_cn":{"type":"string"},
+      "objective":{"type":"string"},
+      "policy_status":{"type":"string"},
+      "risk_level":{"type":"string"},
+      "execution_mode":{"type":"string"},
+      "applicable_now":{"type":"boolean"},
+      "applicable_reason":{"type":["string","null"]},
+      "expected_impact_summary":{"type":"string"},
+      "cost_summary":{"type":["string","null"]},
+      "measurement":{"type":"array","items":{"type":"string"}},
+      "evidence_count":{"type":"integer","minimum":0},
+      "last_verified_at":{"type":["string","null"]}
+    },"additionalProperties":false}},
+    "blocked_method_patterns":{"type":"array","items":{"type":"string"}},
+    "view_status":{"enum":["complete","degraded","unavailable"]},
+    "execution_authorized":{"const":false}
+  }
+}

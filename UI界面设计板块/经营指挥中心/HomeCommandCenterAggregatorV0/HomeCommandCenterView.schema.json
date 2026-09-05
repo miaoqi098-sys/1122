@@ -10,6 +10,16 @@
     "agent_activities":{"type":"array","items":{"type":"object"}},
     "product_status_cards":{"type":"array","items":{"type":"object"}},
     "important_events":{"type":"array","items":{"type":"object"}},
+    "amazon_policy_boundary_alerts":{"type":"array","items":{"type":"object","properties":{
+      "case_id":{"type":"string"},
+      "domain_no":{"type":"string"},
+      "result_type":{"type":"string"},
+      "status":{"type":"string"},
+      "title_cn":{"type":["string","null"]},
+      "affected_product_count":{"type":"integer","minimum":0},
+      "requires_human_review":{"type":"boolean"},
+      "confidence":{"type":"string"}
+    },"additionalProperties":false}},
     "section_status":{"type":"object","additionalProperties":{"enum":["fresh","lagged","partial","stale","error","unknown"]}},
     "missing_sections":{"type":"array","items":{"type":"string"},"uniqueItems":true},
     "view_status":{"enum":["complete","degraded","unavailable"]},

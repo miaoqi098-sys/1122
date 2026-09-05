@@ -1,0 +1,17 @@
+{
+  "schema_version":"1.0.0",
+  "routing_type":"AMAZON_POLICY_BOUNDARY_UI_ROUTING",
+  "routes":[
+    {"result_type":"POLICY_EVIDENCE","primary_ui":"UI界面设计板块/亚马逊政策边界中心","home_visible":false,"product_visible":false},
+    {"result_type":"POLICY_DIFF","primary_ui":"UI界面设计板块/亚马逊政策边界中心","home_visible":"material_or_high_confidence_only","product_visible":"when_product_affected"},
+    {"result_type":"BOUNDARY_SIGNAL","primary_ui":"UI界面设计板块/亚马逊政策边界中心","home_visible":"material_only","product_visible":"when_product_affected"},
+    {"result_type":"BOUNDARY_CANDIDATE","primary_ui":"UI界面设计板块/亚马逊政策边界中心","home_visible":"high_risk_or_human_review","product_visible":"when_product_affected"},
+    {"result_type":"CONFIRMED_BOUNDARY_RESULT","primary_ui":"UI界面设计板块/亚马逊政策边界中心","home_visible":true,"product_visible":"when_product_affected"},
+    {"result_type":"PRODUCT_IMPACT","primary_ui":"UI界面设计板块/产品状态卡/ProductStateAggregatorV0","home_visible":"high_risk_or_human_review","product_visible":true}
+  ],
+  "home_target_field":"amazon_policy_boundary_alerts",
+  "product_target_view":"ProductPolicyImpactView",
+  "sorting":["domain_no_asc","result_severity_desc","last_verified_at_desc"],
+  "dedupe_key":"case_id",
+  "execution_authorized":false
+}

@@ -1,128 +1,128 @@
-# 亚马逊政策边界中心 UI
+# 亚马逊政策边界与正向运营方法中心 UI
 
 ## 定位
 
-本页面是 1122 `亚马逊政策边界/` 的正式 UI 展示入口。UI 只消费政策边界板块产出的结构化结果，不在前端自行判断 Amazon 政策，也不直接生成执行权限。
+本页面的最终目的不是给运营看政策条款，而是把 Amazon 政策、真实观测和经营经验转化成**能带来正向经营结果的方法**。
 
-## 一级页面目标
+政策边界是约束层；正向运营方法（Positive Operating Method）才是运营层的主要输出。
 
-用户进入后应立即回答：
+用户进入页面首先应该看到：
 
-1. Amazon 18 个政策域当前覆盖到什么程度；
-2. 最近哪些官方政策发生变化；
-3. 哪些 Expected State 与 Observed State 出现差异；
-4. 哪些差异只是 Observation，哪些已经成为 Signal / Candidate / Confirmed Result；
-5. 哪些边界结果影响到我方商品、ASIN、广告、价格、促销、账户或合规；
-6. 每一项结论的官方证据、Marketplace、版本、更新时间和置信度是什么。
+- 现在有什么方法可以帮助增加 Review、提高转化、提高 Featured Offer、提升广告效率、稳定参考价、改善库存周转等；
+- 哪些商品现在适用；
+- 方法的适用条件、成本、步骤、预期作用和衡量指标；
+- Amazon 是否明确允许；
+- 有哪些风险边界不能碰；
+- 方法依据哪些 Policy Evidence / Boundary Result。
 
-## 固定分类编号
+## 两类编号
 
-页面按 `APB-01` 至 `APB-18` 排列：
+### 正向运营方法
 
-01 评论与评价 Review
-02 变体 Variation
-03 目录 Catalog
-04 报价与 Offer
-05 Featured Offer
-06 定价与参考价 Pricing
-07 促销与活动 Promotion
-08 广告政策 Advertising
-09 搜索与索引 Search
-10 BSR 与排名
-11 品牌 Brand
-12 Listing 与内容 Content
-13 库存 Inventory
-14 FBA 与物流 Logistics
-15 退货与退款 Returns
-16 账户健康 Account
-17 商品合规 Compliance
-18 违规处置与申诉 Enforcement
+`AOM-{DomainNo}-{Sequence}`
 
-## 结果编号
+例如：
 
-每条结果统一使用：
+- `AOM-01-0001` Amazon Vine 新品评价加速
+- `AOM-01-0002` Seller Central Request a Review 标准邀评
+- `AOM-01-0003` Review主题驱动的产品体验修复循环
+
+AOM 是运营界面的主要编号。
+
+### 政策/边界证据
 
 `APB-{DomainNo}-{Type}-{Sequence}`
 
-Type：
+APB 用来支撑方法的合规性和边界判断，不作为运营首页的主要内容。
 
-- PE = Policy Evidence
-- PD = Policy Diff
-- BS = Boundary Signal
-- BC = Boundary Candidate
-- BR = Confirmed Boundary Result
-- PI = Product Impact
+## 18 个经营域
 
-示例：`APB-06-PD-0001` 表示 Pricing 域第一条 Policy Diff。
+01 Review 评论与评价
+02 Variation 变体
+03 Catalog 目录
+04 Offer 报价
+05 Featured Offer 购物车
+06 Pricing 定价与参考价
+07 Promotion 促销与活动
+08 Advertising 广告
+09 Search 搜索与索引
+10 BSR 排名
+11 Brand 品牌
+12 Content Listing与内容
+13 Inventory 库存
+14 Logistics FBA与物流
+15 Returns 退货与退款
+16 Account 账户健康
+17 Compliance 商品合规
+18 Enforcement 违规处置与申诉
 
-## 页面结构
+## 页面主结构
 
 ```text
-亚马逊政策边界中心
-├── 顶部总览
-│   ├── 18域覆盖率
-│   ├── VERIFIED数量
-│   ├── CONFLICT数量
-│   ├── 新Policy Diff
-│   ├── Boundary Signal
-│   └── Confirmed Result
+正向运营方法中心
+├── 我现在能做什么
+│   ├── 增加 Review
+│   ├── 提高转化
+│   ├── 提高 Featured Offer
+│   ├── 提高广告效率
+│   ├── 优化价格/促销
+│   ├── 降低退货
+│   └── 其他经营目标
 │
-├── 18域分类导航 APB-01 ~ APB-18
+├── 推荐方法 AOM
+│   ├── 方法编号
+│   ├── 方法名称
+│   ├── 适用商品
+│   ├── 适用条件
+│   ├── 操作步骤
+│   ├── 预期作用
+│   ├── 成本
+│   ├── 衡量指标
+│   ├── Policy Status
+│   └── Risk Level
 │
-├── 政策变化流 Policy Change
+├── 对应商品/ASIN
 │
-├── 边界探索结果表
-│   ├── 编号
-│   ├── 分类
-│   ├── Marketplace
-│   ├── 结果类型
-│   ├── 状态
-│   ├── 标题/结果摘要
-│   ├── Expected State
-│   ├── Observed State
-│   ├── Confidence
-│   ├── 影响商品数
-│   ├── 最后验证时间
-│   └── 证据入口
+├── 政策与边界证据 APB
 │
-├── 商品影响视图
-│   └── Product/ASIN → 关联 APB 结果
-│
-└── 详情抽屉
-    ├── 官方政策证据
-    ├── Policy Diff
-    ├── 重复观测
-    ├── Alternative Explanation Review
-    ├── 四分法状态
-    └── Agent-12 / Sandbox / Decision 引用
+└── 禁止方式 / 红线
 ```
 
-## 固定状态展示
+## Review 示例
 
-覆盖状态：`DISCOVERY / SEEDED / VERIFIED / CONFLICT / UNKNOWN`
+运营选择“增加 Review”后，页面应该优先显示：
 
-边界生命周期：`OBSERVATION / NEEDS_RECHECK / SIGNAL / CANDIDATE / CONFIRMED / SUPERSEDED`
+1. `AOM-01-0001` Amazon Vine
+2. `AOM-01-0002` Request a Review
+3. `AOM-01-0003` Review主题驱动的产品体验修复循环
 
-Confidence：`HIGH / MEDIUM / LOW / UNVERIFIED`
+而不是要求运营先阅读 Review Policy。
 
-UI 不得把 DISCOVERY/SEEDED 显示成“政策已确认”。
+## 推荐逻辑
 
-## 商品级联动
-
-当 BoundaryResultCase 包含 `affected_product_refs` 时：
-
-- 在本中心显示受影响商品；
-- 在对应产品状态卡显示“Amazon政策/边界影响”摘要；
-- CONFIRMED 或高风险 CONFLICT 可进入首页“重点异常与机会”；
-- 需要人工处理的政策冲突/合规事项才可进入“今日需要我处理”。
+```text
+经营目标
+   ↓
+商品当前状态
+   ↓
+筛选可适用 AOM
+   ↓
+Policy Evidence / Boundary Check
+   ↓
+成本 × 预期收益 × 风险 × 可逆性
+   ↓
+推荐方法
+   ↓
+Agent-1 / TaskDraft
+```
 
 ## 权限边界
 
-本 UI 永远只读展示政策边界事实：
+本页面本身只提供事实与方法推荐：
 
 - execution_authorized=false
 - amazon_write=false
 - ads_write=false
 - permission_mutation=false
 
-任何真实动作必须继续进入 Agent-1 → Task → Approval → Permission Boundary。
+真实执行仍必须经过 Agent-1 → Task → Approval → Permission Boundary。

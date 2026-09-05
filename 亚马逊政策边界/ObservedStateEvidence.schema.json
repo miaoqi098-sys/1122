@@ -1,0 +1,26 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"AmazonObservedStateEvidence",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["observation_id","domain_no","domain","marketplace","observed_at","source_class","evidence_ref","observed_state","freshness","read_only"],
+  "properties":{
+    "observation_id":{"type":"string","minLength":1},
+    "domain_no":{"type":"string","pattern":"^(0[1-9]|1[0-8])$"},
+    "domain":{"type":"string"},
+    "subdomain":{"type":["string","null"]},
+    "marketplace":{"type":"string","minLength":2},
+    "product_ref":{"type":["string","null"]},
+    "asin":{"type":["string","null"]},
+    "observed_at":{"type":"string","format":"date-time"},
+    "source_class":{"enum":["AMAZON_AUTHENTICATED_READ","SELLER_CENTRAL_OBSERVATION","AMAZON_ADS_AUTHENTICATED_READ","AMAZON_OFFICIAL_CASE_STATE","OWNER_VERIFIED_OBSERVATION"]},
+    "evidence_ref":{"type":"string","minLength":1},
+    "observed_state":{},
+    "freshness":{"enum":["FRESH","LAGGED","STALE","UNKNOWN"]},
+    "repeat_group_id":{"type":["string","null"]},
+    "read_only":{"const":true},
+    "amazon_write":{"const":false},
+    "ads_write":{"const":false},
+    "execution_authorized":{"const":false}
+  }
+}

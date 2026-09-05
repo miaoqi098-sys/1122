@@ -1,0 +1,31 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"AmazonAdversarialPatternReference",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["apr_id","domain_no","domain","pattern_name_cn","business_goal","marketplace","observation_status","evidence_refs","exploration_scope","ui_visibility","execution_authorized"],
+  "properties":{
+    "apr_id":{"type":"string","pattern":"^APR-(0[1-9]|1[0-8])-[0-9]{4}$"},
+    "domain_no":{"type":"string","pattern":"^(0[1-9]|1[0-8])$"},
+    "domain":{"type":"string"},
+    "pattern_name_cn":{"type":"string"},
+    "pattern_name_en":{"type":["string","null"]},
+    "business_goal":{"type":"string"},
+    "marketplace":{"type":"string"},
+    "observed_structure":{"type":["object","string","array","null"]},
+    "observed_effect":{"type":["object","string","array","null"]},
+    "observed_duration":{"type":["object","string","null"]},
+    "detection_signals":{"type":"array","items":{"type":"string"}},
+    "evidence_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "source_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "observation_status":{"enum":["DISCOVERED","REPEATED","PERSISTENT","DECLINING","DISAPPEARED","UNKNOWN"]},
+    "policy_relation":{"enum":["ALLOWED","CONDITIONAL","NONCOMPLIANT","UNKNOWN","CONFLICTING"]},
+    "business_value_signal":{"enum":["POSITIVE","NEGATIVE","MIXED","UNKNOWN"]},
+    "confidence":{"enum":["HIGH","MEDIUM","LOW","UNVERIFIED"]},
+    "exploration_scope":{"const":"BROAD_DISCOVERY"},
+    "ui_visibility":{"const":true},
+    "operationalization_mode":{"const":"NON_EXECUTABLE_REFERENCE"},
+    "execution_authorized":{"const":false},
+    "production_write_authorized":{"const":false}
+  }
+}

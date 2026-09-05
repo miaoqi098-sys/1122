@@ -1,0 +1,42 @@
+name: Verify Agent-7 A1 S03 Runtime V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent7-a1-s03-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a7-inventory-supply-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a7-a1-intake-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a7-a1-s02-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a7-a1-s03-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-response-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/s02-context.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a7-a1-s03-runtime.contract.test.mjs"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S01_事件校验/执行程序/runtime.js"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S02_上下文装载/执行程序/runtime.js"
+      - "Agent板块/运营组/Agent-1_运营总控智能体/技能模块/S03_冲突检测/执行程序/runtime.js"
+  pull_request:
+    paths:
+      - ".github/workflows/verify-agent7-a1-s03-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a7-a1-s03-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a7-a1-s03-runtime.contract.test.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent7-a1-s03-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Verify Agent-7 S02 reaches read-only S03 conflict detection safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a7-a1-s03-runtime.contract.test.mjs'

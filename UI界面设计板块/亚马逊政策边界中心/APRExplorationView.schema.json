@@ -1,0 +1,30 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"APRExplorationView V1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["generated_at","marketplace","apr_rows","view_status"],
+  "properties":{
+    "generated_at":{"type":"string","format":"date-time"},
+    "marketplace":{"type":"string"},
+    "apr_rows":{"type":"array","items":{"type":"object","required":["apr_id","domain_no","pattern_name_cn","business_goal","observation_status","policy_relation","business_value_signal","confidence"],"properties":{
+      "apr_id":{"type":"string"},
+      "domain_no":{"type":"string"},
+      "domain_name_cn":{"type":"string"},
+      "pattern_name_cn":{"type":"string"},
+      "business_goal":{"type":"string"},
+      "observation_status":{"type":"string"},
+      "policy_relation":{"type":"string"},
+      "business_value_signal":{"type":"string"},
+      "confidence":{"type":"string"},
+      "observed_effect_summary":{"type":["string","null"]},
+      "sustainability_summary":{"type":["string","null"]},
+      "countermeasure_opportunity":{"type":["string","null"]},
+      "compliant_alternative_ref":{"type":["string","null"]},
+      "evidence_count":{"type":"integer","minimum":0},
+      "last_observed_at":{"type":["string","null"]}
+    },"additionalProperties":false}},
+    "view_status":{"enum":["complete","degraded","unavailable"]},
+    "execution_authorized":{"const":false}
+  }
+}

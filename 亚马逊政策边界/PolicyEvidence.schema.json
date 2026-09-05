@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "PolicyEvidence.schema.json",
+  "title": "AmazonPolicyEvidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidence_id","domain","marketplace","source_class","source_owner","source_url","retrieved_at","policy_state","provenance","confidence"],
+  "properties": {
+    "evidence_id": {"type":"string","minLength":1},
+    "domain": {"enum":["Review","Variation","Catalog","Offer","Featured Offer","Pricing","Promotion","Advertising","Search","BSR","Brand","Content","Inventory","Logistics","Returns","Account","Compliance","Enforcement"]},
+    "subdomain": {"type":["string","null"]},
+    "marketplace": {"type":"string","minLength":2},
+    "source_class": {"enum":["AMAZON_OFFICIAL_POLICY","AMAZON_OFFICIAL_HELP","AMAZON_OFFICIAL_API_DOCS","AMAZON_OFFICIAL_ADS_POLICY","AMAZON_OFFICIAL_ANNOUNCEMENT","AMAZON_OFFICIAL_CASE_OR_ENFORCEMENT"]},
+    "source_owner": {"const":"Amazon"},
+    "source_url": {"type":"string","pattern":"^https://"},
+    "source_title": {"type":["string","null"]},
+    "published_at": {"type":["string","null"]},
+    "effective_at": {"type":["string","null"]},
+    "retrieved_at": {"type":"string"},
+    "last_verified_at": {"type":["string","null"]},
+    "version": {"type":["string","null"]},
+    "supersedes": {"type":["string","null"]},
+    "policy_state": {"enum":["ACTIVE","UPCOMING","SUPERSEDED","UNKNOWN","CONFLICTING_EVIDENCE"]},
+    "applicability": {"type":["object","null"]},
+    "expected_state": {"type":["object","string","array","null"]},
+    "policy_summary": {"type":["string","null"]},
+    "provenance": {"type":"object"},
+    "confidence": {"enum":["HIGH","MEDIUM","LOW","UNVERIFIED"]},
+    "requires_human_review": {"type":"boolean","default":false},
+    "execution_authorized": {"const":false}
+  }
+}

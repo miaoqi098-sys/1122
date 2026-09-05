@@ -1,0 +1,23 @@
+name: Verify Agent-8 Market Trend Runtime V1
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent8-market-trend-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a8-market-trend-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/r16-professional-agent-response-normalizer.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a8-market-trend-runtime.contract.test.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  agent8-market-trend-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify Agent-8 read-only market trend event and R16 normalization
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a8-market-trend-runtime.contract.test.mjs'

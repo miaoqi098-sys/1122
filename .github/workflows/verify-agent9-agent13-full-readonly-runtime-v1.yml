@@ -1,0 +1,30 @@
+name: Verify Agent-9 Through Agent-13 Full Readonly Runtime V1
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent9-agent13-full-readonly-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a9-a13-readonly-domain-runtimes.js"
+      - "数据板块/08_存储与访问层/cloudflare/a9-a13-full-readonly-runtimes.js"
+      - "数据板块/08_存储与访问层/cloudflare/professional-agent-full-readonly-chain.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a9-a13-full-readonly-runtimes.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/s04-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-priority.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-priority-policy.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-task-draft.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-approval-gate.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-permission-decision.js"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  agent9-agent13-full-readonly-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify Agent-9 through Agent-13 full read-only chains safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a9-a13-full-readonly-runtimes.contract.test.mjs'

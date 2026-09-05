@@ -1,0 +1,29 @@
+{
+  "snapshot_version":"1.0.0",
+  "marketplace":"US",
+  "source":"亚马逊政策边界/PolicyCoverageMatrix.v1.md",
+  "truth_class":"SOURCE_ONLY",
+  "domain_cards":[
+    {"domain_no":"01","domain_code":"REVIEW","name_cn":"评论与评价","coverage_status":"SEEDED"},
+    {"domain_no":"02","domain_code":"VARIATION","name_cn":"变体","coverage_status":"SEEDED"},
+    {"domain_no":"03","domain_code":"CATALOG","name_cn":"目录","coverage_status":"DISCOVERY"},
+    {"domain_no":"04","domain_code":"OFFER","name_cn":"报价与Offer","coverage_status":"DISCOVERY"},
+    {"domain_no":"05","domain_code":"FEATURED_OFFER","name_cn":"Featured Offer","coverage_status":"DISCOVERY"},
+    {"domain_no":"06","domain_code":"PRICING","name_cn":"定价与参考价","coverage_status":"SEEDED"},
+    {"domain_no":"07","domain_code":"PROMOTION","name_cn":"促销与活动","coverage_status":"SEEDED"},
+    {"domain_no":"08","domain_code":"ADVERTISING","name_cn":"广告政策","coverage_status":"SEEDED"},
+    {"domain_no":"09","domain_code":"SEARCH","name_cn":"搜索与索引","coverage_status":"DISCOVERY"},
+    {"domain_no":"10","domain_code":"BSR","name_cn":"BSR与排名","coverage_status":"DISCOVERY"},
+    {"domain_no":"11","domain_code":"BRAND","name_cn":"品牌","coverage_status":"DISCOVERY"},
+    {"domain_no":"12","domain_code":"CONTENT","name_cn":"Listing与内容","coverage_status":"DISCOVERY"},
+    {"domain_no":"13","domain_code":"INVENTORY","name_cn":"库存","coverage_status":"DISCOVERY"},
+    {"domain_no":"14","domain_code":"LOGISTICS","name_cn":"FBA与物流","coverage_status":"DISCOVERY"},
+    {"domain_no":"15","domain_code":"RETURNS","name_cn":"退货与退款","coverage_status":"DISCOVERY"},
+    {"domain_no":"16","domain_code":"ACCOUNT","name_cn":"账户健康","coverage_status":"DISCOVERY"},
+    {"domain_no":"17","domain_code":"COMPLIANCE","name_cn":"商品合规","coverage_status":"DISCOVERY"},
+    {"domain_no":"18","domain_code":"ENFORCEMENT","name_cn":"违规处置与申诉","coverage_status":"DISCOVERY"}
+  ],
+  "runtime_verified":false,
+  "live_data_verified":false,
+  "execution_authorized":false
+}

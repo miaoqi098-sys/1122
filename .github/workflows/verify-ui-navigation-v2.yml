@@ -1,0 +1,60 @@
+name: Verify UI Navigation V2
+
+on:
+  push:
+    paths:
+      - 'UI界面设计板块/**'
+      - '.github/workflows/verify-ui-navigation-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Parse UI contracts
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const files=[
+            'UI界面设计板块/NavigationRegistry.v2.json',
+            'UI界面设计板块/经营指挥中心/HomeCommandCenterAggregatorV0/HomeCommandCenterView.schema.json',
+            'UI界面设计板块/产品状态卡/ProductStateAggregatorV0/ProductStatusCardView.schema.json',
+            'UI界面设计板块/产品状态卡/ProductStateAggregatorV0/ProductPolicyImpactView.schema.json',
+            'UI界面设计板块/亚马逊政策边界中心/AmazonPolicyBoundaryView.schema.json',
+            'UI界面设计板块/亚马逊政策边界中心/APRExplorationView.schema.json',
+            'UI界面设计板块/亚马逊政策边界中心/PositiveOperatingMethodView.schema.json'
+          ];
+          for(const f of files) JSON.parse(fs.readFileSync(f,'utf8'));
+          console.log('UI JSON contracts: PASS');
+          NODE
+      - name: Validate navigation coverage
+        run: |
+          node - <<'NODE'
+          const n=require('./UI界面设计板块/NavigationRegistry.v2.json');
+          if(n.architecture!=='12+1+1') throw new Error('architecture mismatch');
+          if(n.primary_navigation.length!==12) throw new Error('expected 12 primary navigation entries');
+          const amazon=n.primary_navigation.find(x=>x.id==='amazon-boundary');
+          if(!amazon) throw new Error('amazon-boundary missing');
+          const ids=(amazon.children||[]).map(x=>x.id);
+          for(const id of ['apr','aom','apb']) if(!ids.includes(id)) throw new Error(id+' missing');
+          if(n.execution_authorized!==false) throw new Error('navigation execution boundary missing');
+          console.log('Navigation coverage: PASS');
+          NODE
+      - name: Validate linked contracts exist
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const n=require('./UI界面设计板块/NavigationRegistry.v2.json');
+          const refs=[];
+          for(const x of n.primary_navigation){for(const c of (x.children||[])) if(c.view_contract) refs.push(c.view_contract);}
+          for(const x of (n.product_routes||[])) if(x.view_contract) refs.push(x.view_contract);
+          for(const f of refs) if(!fs.existsSync(f)) throw new Error('missing linked UI contract: '+f);
+          console.log('Linked contracts: PASS');
+          NODE

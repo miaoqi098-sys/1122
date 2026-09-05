@@ -27,9 +27,12 @@ jobs:
           grep -q 'Web Console V1.3' /tmp/index.html
           grep -q './home-live.js' /tmp/index.html
           grep -q './live-pages.js' /tmp/index.html
-          curl -fsS --retry 8 --retry-delay 3 "$BASE/home-live.js" | grep -q 'renderHomeLive'
-          curl -fsS --retry 8 --retry-delay 3 "$BASE/live-pages.js" | grep -q 'renderProducts'
-          curl -fsS --retry 8 --retry-delay 3 "$BASE/data/data-source.js" | grep -q '1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap'
+          curl -fsS --retry 8 --retry-delay 3 "$BASE/home-live.js" -o /tmp/home-live.js
+          grep -q 'renderHomeLive' /tmp/home-live.js
+          curl -fsS --retry 8 --retry-delay 3 "$BASE/live-pages.js" -o /tmp/live-pages.js
+          grep -q 'renderProducts' /tmp/live-pages.js
+          curl -fsS --retry 8 --retry-delay 3 "$BASE/data/data-source.js" -o /tmp/data-source.js
+          grep -q '1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap' /tmp/data-source.js
       - name: Verify public read API and D1 facts
         shell: bash
         run: |
@@ -50,8 +53,6 @@ jobs:
           if(x.read_only !== true) throw new Error('read_only boundary missing');
           if(x.execution_authorized !== false) throw new Error('execution boundary missing');
           if(x.production_write_authorized !== false) throw new Error('write boundary missing');
-          // APB records remain source-only in meaning until Observed State/runtime verification,
-          // even though their persistence source is now live D1.
           if(x.live_data_verified !== false) throw new Error('aggregate truth boundary must remain false');
           if(!x.apr.some(v=>v.apr_id==='APR-01-0001')) throw new Error('APR persistence missing');
           for(const id of ['AOM-01-0001','AOM-01-0002','AOM-01-0003']) if(!x.aom.some(v=>v.method_id===id)) throw new Error(id+' missing');

@@ -1,0 +1,32 @@
+{
+  "index_version":"1.0.0",
+  "registry_type":"APR_CURRENT_INDEX",
+  "marketplace":"US",
+  "results":[
+    {
+      "apr_id":"APR-01-0001",
+      "domain_no":"01",
+      "domain":"Review",
+      "pattern_name_cn":"跨商品身份/变体关系的评论聚合模式",
+      "business_goal":"快速提升主卖商品的可见Review数量与社会证明",
+      "marketplace":"US",
+      "observed_structure":"市场中存在通过不匹配的商品身份、目录关系或变体关系使原有Review显示到另一主卖商品上的现象。",
+      "observed_effect":"短期可能出现Review数量集中、社会证明增强和转化表现变化；实际效果、持续性和后续平台处理需要持续观测。",
+      "observed_duration":{"status":"UNKNOWN","note":"需要重复观测与案例时间线验证"},
+      "detection_signals":["商品历史与当前商品身份明显不一致","变体成员在核心功能/商品类型上不一致","Review内容与当前商品存在明显语义错位","目录属性历史出现异常跨度变化"],
+      "evidence_refs":[],
+      "source_refs":[],
+      "observation_status":"DISCOVERED",
+      "policy_relation":"NONCOMPLIANT",
+      "business_value_signal":"POSITIVE",
+      "confidence":"LOW",
+      "exploration_scope":"BROAD_DISCOVERY",
+      "ui_visibility":true,
+      "operationalization_mode":"NON_EXECUTABLE_REFERENCE",
+      "execution_authorized":false,
+      "production_write_authorized":false
+    }
+  ],
+  "ui_visibility":true,
+  "execution_authorized":false
+}

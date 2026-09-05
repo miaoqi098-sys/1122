@@ -1,0 +1,13 @@
+{
+  "schema_version":"1.0.0",
+  "registry_type":"APR_CLASSIFICATION",
+  "id_format":"APR-{domain_no}-{sequence}",
+  "purpose":"Explore market-observed tactics, patterns and boundary behaviors that may affect operating outcomes, including noncompliant or ambiguous patterns, without turning observations into executable violation playbooks.",
+  "domains":[
+    {"no":"01","name":"Review"},{"no":"02","name":"Variation"},{"no":"03","name":"Catalog"},{"no":"04","name":"Offer"},{"no":"05","name":"Featured Offer"},{"no":"06","name":"Pricing"},{"no":"07","name":"Promotion"},{"no":"08","name":"Advertising"},{"no":"09","name":"Search"},{"no":"10","name":"BSR"},{"no":"11","name":"Brand"},{"no":"12","name":"Content"},{"no":"13","name":"Inventory"},{"no":"14","name":"Logistics"},{"no":"15","name":"Returns"},{"no":"16","name":"Account"},{"no":"17","name":"Compliance"},{"no":"18","name":"Enforcement"}
+  ],
+  "exploration_dimensions":["business_goal","observed_structure","observed_effect","duration","repeatability","detection_signals","policy_relation","sustainability","countermeasure_opportunity","compliant_alternative"],
+  "ui":{"visible":true,"primary_surface":"UI界面设计板块/亚马逊政策边界中心","sort":["domain_no","business_value_signal","confidence","last_observed_at_desc"]},
+  "operationalization_mode":"NON_EXECUTABLE_REFERENCE",
+  "execution_authorized":false
+}

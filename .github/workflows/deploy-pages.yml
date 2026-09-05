@@ -1,10 +1,10 @@
-name: Deploy 1122 Web Agent
+name: Deploy 1122 Web Console
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "index.html"
+      - "web-console/**"
       - "amazon-sp-api.html"
       - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
@@ -42,17 +42,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -f web-console/index.html
+          test -f web-console/styles.css
+          test -f web-console/app.js
+          test -f web-console/data/snapshots.js
+          node --check web-console/app.js
+          node --check web-console/data/snapshots.js
+
           rm -rf dist
           mkdir -p dist
-          cp index.html dist/index.html
+          cp -R web-console/. dist/
+
           if [ -f amazon-sp-api.html ]; then
             cp amazon-sp-api.html dist/amazon-sp-api.html
           fi
-          printf 'User-agent: *\nDisallow:\n' > dist/robots.txt
-          echo "Frontend artifact contains only approved web files:"
-          find dist -maxdepth 1 -type f -printf '%f\n' | sort
 
-      - name: Deploy latest 1122
+          printf 'User-agent: *\nDisallow:\n' > dist/robots.txt
+          printf '/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Frame-Options: SAMEORIGIN\n' > dist/_headers
+
+          echo "Approved frontend artifact:"
+          find dist -type f -maxdepth 3 -printf '%P\n' | sort
+
+      - name: Deploy latest 1122 Web Console
         shell: bash
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -61,4 +72,18 @@ jobs:
           npx --yes wrangler@4 pages deploy dist --project-name=1122-web-agent --branch=main --commit-dirty=true
           echo "Stable URL: https://1122-web-agent.pages.dev"
 
-# deployment marker: data-layer-ui-v1-direct-pages-deploy
+      - name: Verify deployed homepage
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS --retry 2 --retry-delay 2 https://1122-web-agent.pages.dev/ | grep -q '1122 亚马逊智能经营系统'; then
+              echo "Deployment smoke test: PASS"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Deployment smoke test failed" >&2
+          exit 1
+
+# deployment marker: web-console-v1

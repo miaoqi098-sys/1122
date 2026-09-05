@@ -1,0 +1,25 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"1122 UI Bootstrap Response V1",
+  "type":"object",
+  "additionalProperties":true,
+  "required":["generated_at","marketplace","apr","aom","apb","domains","live_data_verified","execution_authorized"],
+  "properties":{
+    "generated_at":{"type":"string","format":"date-time"},
+    "marketplace":{"type":"string"},
+    "navigation":{"type":"array"},
+    "apr":{"type":"array"},
+    "aom":{"type":"array"},
+    "apb":{"type":"array"},
+    "domains":{"type":"array"},
+    "products":{"type":"array"},
+    "agents":{"type":"array"},
+    "tasks":{"type":"array"},
+    "sandbox_runs":{"type":"array"},
+    "source_status":{"type":"object"},
+    "live_data_verified":{"type":"boolean"},
+    "read_only":{"const":true},
+    "execution_authorized":{"const":false},
+    "production_write_authorized":{"const":false}
+  }
+}

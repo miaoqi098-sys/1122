@@ -4,7 +4,12 @@ const DOMAIN_NUMBERS = new Set(Array.from({length:18}, (_,i)=>String(i+1).padSta
 const TYPES = {PE:'POLICY_EVIDENCE',PD:'POLICY_DIFF',BS:'BOUNDARY_SIGNAL',BC:'BOUNDARY_CANDIDATE',BR:'CONFIRMED_BOUNDARY_RESULT',PI:'PRODUCT_IMPACT'};
 
 function fail(reason){ return {ok:false, reason, readOnly:true, executionAuthorized:false, productionWriteAuthorized:false}; }
-function stable(v){ return JSON.stringify(v, Object.keys(v||{}).sort()); }
+function canonical(v){
+  if(Array.isArray(v)) return v.map(canonical);
+  if(v && typeof v === 'object') return Object.keys(v).sort().reduce((o,k)=>{o[k]=canonical(v[k]); return o;},{});
+  return v;
+}
+function stable(v){ return JSON.stringify(canonical(v)); }
 function same(a,b){ return stable(a) === stable(b); }
 
 function validateCommon(policy, observed){
@@ -68,6 +73,7 @@ function confirmBoundaryResult(input){
     stage:'CONFIRMED_BOUNDARY_RESULT',
     caseId:`APB-${no}-BR-${sequence}`,
     resultName:input.result_name || null,
+    confidence:input.confidence,
     policyAllowed:input.policy_allowed,
     technicallyPossible:input.technically_possible,
     notCurrentlyPunished:input.not_currently_punished,

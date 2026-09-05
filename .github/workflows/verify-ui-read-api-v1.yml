@@ -1,0 +1,69 @@
+name: Verify UI Read API V1
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - '.github/workflows/verify-ui-read-api-v1.yml'
+      - '数据板块/08_存储与访问层/cloudflare/ui-worker.js'
+      - '数据板块/08_存储与访问层/cloudflare/ui-bootstrap.js'
+      - '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax check
+        run: |
+          node --check '数据板块/08_存储与访问层/cloudflare/ui-worker.js'
+          node --check '数据板块/08_存储与访问层/cloudflare/ui-bootstrap.js'
+      - name: Verify live bootstrap contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap?marketplace=US'
+          curl -fsS --retry 8 --retry-delay 3 \
+            -H 'Origin: https://1122-web-agent.pages.dev' \
+            -H 'Accept: application/json' \
+            -D /tmp/headers.txt "$URL" -o /tmp/bootstrap.json
+          grep -qi '^access-control-allow-origin: https://1122-web-agent.pages.dev' /tmp/headers.txt
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/bootstrap.json','utf8'));
+          for(const k of ['apr','aom','apb','domains','products','agents','tasks']) if(!Array.isArray(x[k])) throw new Error(k+' must be array');
+          if(x.read_only!==true) throw new Error('read_only must be true');
+          if(x.execution_authorized!==false) throw new Error('execution_authorized must be false');
+          if(x.production_write_authorized!==false) throw new Error('production_write_authorized must be false');
+          if(!x.source_status || x.source_status.d1!=='LIVE_D1_READ') throw new Error('D1 live read not verified');
+          console.log(JSON.stringify({
+            marketplace:x.marketplace,
+            products:x.products.length,
+            agents:x.agents.length,
+            tasks:x.tasks.length,
+            apr:x.apr.length,
+            aom:x.aom.length,
+            apb:x.apb.length,
+            domains:x.domains.length,
+            d1:x.source_status.d1,
+            apr_source:x.source_status.apr,
+            aom_source:x.source_status.aom,
+            apb_source:x.source_status.apb,
+            live_data_verified:x.live_data_verified
+          },null,2));
+          NODE
+      - name: Reject write methods on UI endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap'
+          code=$(curl -sS -o /tmp/post.json -w '%{http_code}' -X POST -H 'Origin: https://1122-web-agent.pages.dev' "$URL")
+          test "$code" = '405'
+          grep -q 'read_only' /tmp/post.json

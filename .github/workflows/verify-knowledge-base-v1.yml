@@ -9,6 +9,7 @@ on:
       - '数据板块/08_存储与访问层/cloudflare/knowledge-store.js'
       - '数据板块/08_存储与访问层/cloudflare/ui-worker.js'
       - '数据板块/09_数据库迁移与版本/migrations/0092_knowledge_base.sql'
+      - '数据板块/09_数据库迁移与版本/migrations/0093_user_operating_experience_seed.sql'
   workflow_dispatch:
 
 permissions:
@@ -28,9 +29,13 @@ jobs:
           set -euo pipefail
           node -e "JSON.parse(require('fs').readFileSync('知识板块/KnowledgeItem.schema.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('知识板块/KnowledgeTaxonomy.v1.json','utf8'))"
+          node -e "const x=JSON.parse(require('fs').readFileSync('知识板块/用户运营经验/UserOperatingExperienceIndex.v1.json','utf8')); if(!Array.isArray(x.items)||x.items.length<8) throw new Error('expected >=8 user operating experience items')"
           node --check '数据板块/08_存储与访问层/cloudflare/knowledge-store.js'
           node --check '数据板块/08_存储与访问层/cloudflare/ui-worker.js'
           grep -q 'CREATE TABLE IF NOT EXISTS knowledge_items' '数据板块/09_数据库迁移与版本/migrations/0092_knowledge_base.sql'
+          grep -q 'KB-ADS-0001' '数据板块/09_数据库迁移与版本/migrations/0093_user_operating_experience_seed.sql'
+          grep -q 'KB-PRI-0001' '数据板块/09_数据库迁移与版本/migrations/0093_user_operating_experience_seed.sql'
+          grep -q 'KB-DEC-0001' '数据板块/09_数据库迁移与版本/migrations/0093_user_operating_experience_seed.sql'
           grep -q 'execution_authorized = 0' '数据板块/09_数据库迁移与版本/migrations/0092_knowledge_base.sql'
           grep -q 'production_write_authorized = 0' '数据板块/09_数据库迁移与版本/migrations/0092_knowledge_base.sql'
       - name: Wait for data layer propagation
@@ -43,15 +48,19 @@ jobs:
           curl -fsS --retry 15 --retry-delay 4 \
             -H 'Origin: https://1122-web-agent.pages.dev' \
             -H 'Accept: application/json' \
-            -D /tmp/headers.txt "$BASE?limit=20" -o /tmp/all.json
+            -D /tmp/headers.txt "$BASE?limit=30" -o /tmp/all.json
           grep -qi '^access-control-allow-origin: https://1122-web-agent.pages.dev' /tmp/headers.txt
           node - <<'NODE'
           const fs=require('fs');
           const x=JSON.parse(fs.readFileSync('/tmp/all.json','utf8'));
           if(x.source_status!=='LIVE_D1_READ') throw new Error('knowledge source must be LIVE_D1_READ');
           if(x.read_only!==true || x.execution_authorized!==false || x.production_write_authorized!==false) throw new Error('knowledge permission boundary invalid');
-          if(!Array.isArray(x.items) || x.items.length < 5) throw new Error('expected at least 5 seed knowledge items, got '+x.items?.length);
-          for(const id of ['KB-SYS-0001','KB-SYS-0002','KB-OPS-0001','KB-MKT-0001','KB-POL-0001']) if(!x.items.some(v=>v.knowledge_id===id)) throw new Error(id+' missing');
+          if(!Array.isArray(x.items) || x.items.length < 13) throw new Error('expected at least 13 knowledge items after user experience seed, got '+x.items?.length);
+          for(const id of [
+            'KB-SYS-0001','KB-SYS-0002','KB-OPS-0001','KB-MKT-0001','KB-POL-0001',
+            'KB-ADS-0001','KB-ADS-0002','KB-ADS-0003','KB-PRI-0001','KB-CAS-0001',
+            'KB-DEC-0001','KB-CAS-0002','KB-CON-0001'
+          ]) if(!x.items.some(v=>v.knowledge_id===id)) throw new Error(id+' missing');
           console.log(JSON.stringify({total:x.total,ids:x.items.map(v=>v.knowledge_id)},null,2));
           NODE
       - name: Verify filters and keyword retrieval
@@ -60,14 +69,24 @@ jobs:
           set -euo pipefail
           BASE='https://1122-data-layer.zhangshuaibing01.workers.dev/api/v1/knowledge/search'
           curl -fsS --retry 8 --retry-delay 3 -H 'Origin: https://1122-web-agent.pages.dev' "$BASE?q=Vine" -o /tmp/vine.json
+          curl -fsS --retry 8 --retry-delay 3 -H 'Origin: https://1122-web-agent.pages.dev' "$BASE?q=Broad" -o /tmp/broad.json
+          curl -fsS --retry 8 --retry-delay 3 -H 'Origin: https://1122-web-agent.pages.dev' "$BASE?q=99.99" -o /tmp/price.json
+          curl -fsS --retry 8 --retry-delay 3 -H 'Origin: https://1122-web-agent.pages.dev' "$BASE?q=travel%20mahjong%20set" -o /tmp/mahjong.json
           curl -fsS --retry 8 --retry-delay 3 -H 'Origin: https://1122-web-agent.pages.dev' "$BASE?knowledge_type=SYSTEM_ENGINEERING" -o /tmp/system.json
           curl -fsS --retry 8 --retry-delay 3 -H 'Origin: https://1122-web-agent.pages.dev' "$BASE?domain=Review" -o /tmp/review.json
           node - <<'NODE'
           const fs=require('fs');
-          const vine=JSON.parse(fs.readFileSync('/tmp/vine.json','utf8'));
-          const sys=JSON.parse(fs.readFileSync('/tmp/system.json','utf8'));
-          const review=JSON.parse(fs.readFileSync('/tmp/review.json','utf8'));
+          const read=f=>JSON.parse(fs.readFileSync(f,'utf8'));
+          const vine=read('/tmp/vine.json');
+          const broad=read('/tmp/broad.json');
+          const price=read('/tmp/price.json');
+          const mahjong=read('/tmp/mahjong.json');
+          const sys=read('/tmp/system.json');
+          const review=read('/tmp/review.json');
           if(!vine.items.some(v=>v.knowledge_id==='KB-OPS-0001')) throw new Error('Vine retrieval failed');
+          if(!broad.items.some(v=>v.knowledge_id==='KB-ADS-0002')) throw new Error('Broad experience retrieval failed');
+          if(!price.items.some(v=>v.knowledge_id==='KB-CAS-0001')) throw new Error('pricing case retrieval failed');
+          if(!mahjong.items.some(v=>v.knowledge_id==='KB-CAS-0002')) throw new Error('mahjong case retrieval failed');
           for(const id of ['KB-SYS-0001','KB-SYS-0002']) if(!sys.items.some(v=>v.knowledge_id===id)) throw new Error('system filter missing '+id);
           if(review.items.length < 3) throw new Error('Review domain should return policy/method/market knowledge');
           NODE

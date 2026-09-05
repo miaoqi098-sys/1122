@@ -1,0 +1,23 @@
+name: Verify Agent-7 A1 S04 Decision Runtime V1
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent7-a1-s04-decision-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a7-a1-s04-decision-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a7-a1-s04-priority-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a7-a1-s04-decision-runtime.contract.test.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  agent7-a1-s04-decision-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify Agent-7 Decision Formation safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a7-a1-s04-decision-runtime.contract.test.mjs'

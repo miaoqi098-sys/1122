@@ -24,7 +24,7 @@ jobs:
           node-version: '20'
       - name: Validate JSON contracts
         run: |
-          node -e "for (const f of ['亚马逊政策边界/PolicySourceRegistry.v1.json','亚马逊政策边界/PolicyEvidence.schema.json','亚马逊政策边界/ObservedStateEvidence.schema.json','亚马逊政策边界/BoundaryClassification.v1.json','亚马逊政策边界/BoundaryResultCase.schema.json','亚马逊政策边界/CurrentResultIndex.v1.json','亚马逊政策边界/UIResultRouting.v1.json','UI界面设计板块/亚马逊政策边界中心/AmazonPolicyBoundaryView.schema.json','UI界面设计板块/亚马逊政策边界中心/CurrentCoverageSnapshot.v1.json','UI界面设计板块/产品状态卡/ProductStateAggregatorV0/ProductPolicyImpactView.schema.json']) JSON.parse(require('fs').readFileSync(f,'utf8')); console.log('JSON contracts: PASS')"
+          node -e "for (const f of ['亚马逊政策边界/PolicySourceRegistry.v1.json','亚马逊政策边界/PolicyEvidence.schema.json','亚马逊政策边界/ObservedStateEvidence.schema.json','亚马逊政策边界/BoundaryClassification.v1.json','亚马逊政策边界/BoundaryResultCase.schema.json','亚马逊政策边界/CurrentResultIndex.v1.json','亚马逊政策边界/UIResultRouting.v1.json','亚马逊政策边界/PositiveOperatingMethod.schema.json','亚马逊政策边界/PositiveOperatingMethodIndex.v1.json','亚马逊政策边界/APRPattern.schema.json','亚马逊政策边界/APRClassification.v1.json','亚马逊政策边界/APRCurrentIndex.v1.json','UI界面设计板块/亚马逊政策边界中心/AmazonPolicyBoundaryView.schema.json','UI界面设计板块/亚马逊政策边界中心/PositiveOperatingMethodView.schema.json','UI界面设计板块/亚马逊政策边界中心/APRExplorationView.schema.json','UI界面设计板块/亚马逊政策边界中心/CurrentCoverageSnapshot.v1.json','UI界面设计板块/产品状态卡/ProductStateAggregatorV0/ProductPolicyImpactView.schema.json']) JSON.parse(require('fs').readFileSync(f,'utf8')); console.log('JSON contracts: PASS')"
       - name: Boundary engine tests
         run: node '亚马逊政策边界/runtime/policy-boundary-engine.test.js'
       - name: UI aggregator tests
@@ -39,7 +39,7 @@ jobs:
         run: |
           node - <<'NODE'
           const fs=require('fs');
-          const files=['亚马逊政策边界/PolicySourceRegistry.v1.json','亚马逊政策边界/CurrentResultIndex.v1.json','亚马逊政策边界/UIResultRouting.v1.json','UI界面设计板块/亚马逊政策边界中心/CurrentCoverageSnapshot.v1.json'];
+          const files=['亚马逊政策边界/PolicySourceRegistry.v1.json','亚马逊政策边界/CurrentResultIndex.v1.json','亚马逊政策边界/UIResultRouting.v1.json','亚马逊政策边界/PositiveOperatingMethodIndex.v1.json','亚马逊政策边界/APRCurrentIndex.v1.json','UI界面设计板块/亚马逊政策边界中心/CurrentCoverageSnapshot.v1.json'];
           for(const f of files){const x=JSON.parse(fs.readFileSync(f,'utf8')); if(x.execution_authorized!==false && !(x.authority&&x.authority.execution_authorized===false)) throw new Error('execution boundary missing: '+f);}
           console.log('Fail-closed authority: PASS');
           NODE

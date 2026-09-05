@@ -1,0 +1,30 @@
+name: Verify Agent-8 Full Readonly Runtime V1
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/verify-agent8-full-readonly-runtime-v1.yml"
+      - "数据板块/08_存储与访问层/cloudflare/a8-market-trend-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/a8-full-readonly-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/professional-agent-full-readonly-chain.js"
+      - "数据板块/08_存储与访问层/cloudflare/tests/a8-full-readonly-runtime.contract.test.mjs"
+      - "数据板块/08_存储与访问层/cloudflare/s04-runtime.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-priority.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-priority-policy.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-decision-formation.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-task-draft.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-approval-gate.js"
+      - "数据板块/08_存储与访问层/cloudflare/s04-permission-decision.js"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  agent8-full-readonly-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify Agent-8 full read-only chain safely
+        run: node '数据板块/08_存储与访问层/cloudflare/tests/a8-full-readonly-runtime.contract.test.mjs'

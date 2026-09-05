@@ -1,0 +1,52 @@
+name: Verify Web Console V1
+
+on:
+  push:
+    paths:
+      - 'web-console/**'
+      - '.github/workflows/verify-web-console-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify required files
+        run: |
+          test -f web-console/index.html
+          test -f web-console/styles.css
+          test -f web-console/app.js
+          test -f web-console/data/snapshots.js
+      - name: JavaScript syntax check
+        run: |
+          node --check web-console/app.js
+          node --check web-console/data/snapshots.js
+      - name: Verify core routes and modules
+        run: |
+          grep -q '#/command-center' web-console/data/snapshots.js
+          grep -q '#/amazon-boundary/apr' web-console/data/snapshots.js
+          grep -q '#/amazon-boundary/aom' web-console/data/snapshots.js
+          grep -q '#/amazon-boundary/apb' web-console/data/snapshots.js
+          grep -q 'APR 市场玩法探索' web-console/app.js
+          grep -q 'AOM 正向运营方法' web-console/app.js
+          grep -q 'APB 政策与边界证据' web-console/app.js
+      - name: Verify read-only safety text
+        run: |
+          grep -q 'Read-only / Fail-closed' web-console/index.html
+          grep -q '不拥有生产写权限' web-console/README.md
+      - name: Static server smoke test
+        run: |
+          cd web-console
+          python3 -m http.server 8080 >/tmp/1122-web.log 2>&1 &
+          PID=$!
+          sleep 2
+          curl -fsS http://127.0.0.1:8080/ | grep -q '1122 亚马逊智能经营系统'
+          curl -fsS http://127.0.0.1:8080/app.js | grep -q 'function render'
+          kill $PID

@@ -1,0 +1,46 @@
+{
+  "schema_version":"2.0.0",
+  "registry_type":"1122_UI_NAVIGATION_REGISTRY",
+  "architecture":"12+1+1",
+  "home_route":"/command-center",
+  "primary_navigation":[
+    {"order":1,"id":"selection","name_cn":"选品","route":"/selection","source_path":"选品板块/","enabled":true},
+    {"order":2,"id":"operations","name_cn":"运营","route":"/operations","source_path":"运营板块/","enabled":true,"children":[
+      {"id":"products","name_cn":"产品","route":"/operations/products","source_path":"运营板块/产品板块/"},
+      {"id":"inventory-logistics","name_cn":"库存物流","route":"/operations/inventory-logistics","source_path":"运营板块/库存物流板块/"},
+      {"id":"offsite","name_cn":"站外推广","route":"/operations/offsite","source_path":"运营板块/站外推广板块/"},
+      {"id":"competitors","name_cn":"竞品","route":"/operations/competitors","source_path":"运营板块/竞品板块/"},
+      {"id":"ads","name_cn":"广告","route":"/operations/ads","source_path":"运营板块/广告板块/"}
+    ]},
+    {"order":3,"id":"sandbox","name_cn":"沙盘演练","route":"/sandbox","source_path":"沙盘演练板块/","enabled":true},
+    {"order":4,"id":"internal-policy","name_cn":"系统政策边界","route":"/governance","source_path":"政策边界板块/","enabled":true},
+    {"order":5,"id":"amazon-boundary","name_cn":"亚马逊经营边界探索","route":"/amazon-boundary","source_path":"亚马逊政策边界/","enabled":true,"children":[
+      {"id":"apr","name_cn":"APR 市场玩法探索","route":"/amazon-boundary/apr","view_contract":"UI界面设计板块/亚马逊政策边界中心/APRExplorationView.schema.json","priority":"PRIMARY"},
+      {"id":"aom","name_cn":"AOM 正向运营方法","route":"/amazon-boundary/aom","view_contract":"UI界面设计板块/亚马逊政策边界中心/PositiveOperatingMethodView.schema.json","priority":"PRIMARY"},
+      {"id":"apb","name_cn":"APB 政策与边界证据","route":"/amazon-boundary/apb","view_contract":"UI界面设计板块/亚马逊政策边界中心/AmazonPolicyBoundaryView.schema.json","priority":"SECONDARY"}
+    ]},
+    {"order":6,"id":"agents","name_cn":"Agent","route":"/agents","source_path":"Agent板块/","enabled":true},
+    {"order":7,"id":"skills","name_cn":"技能","route":"/skills","source_path":"技能板块/","enabled":true},
+    {"order":8,"id":"connectors","name_cn":"对外连接","route":"/connectors","source_path":"对外连接板块/","enabled":true},
+    {"order":9,"id":"tasks","name_cn":"任务中心","route":"/tasks","source_path":"任务中心板块/","enabled":true},
+    {"order":10,"id":"knowledge","name_cn":"知识","route":"/knowledge","source_path":"知识板块/","enabled":true},
+    {"order":11,"id":"memory","name_cn":"记忆","route":"/memory","source_path":"记忆板块/","enabled":true},
+    {"order":12,"id":"data","name_cn":"数据","route":"/data","source_path":"数据板块/","enabled":true}
+  ],
+  "support_navigation":[
+    {"id":"ui-design","name_cn":"UI设计与契约","route":"/system/ui-design","source_path":"UI界面设计板块/","terminal_user_primary":false},
+    {"id":"conflicts","name_cn":"系统冲突问题库","route":"/system/conflicts","source_path":"系统冲突问题库/","terminal_user_primary":false}
+  ],
+  "product_routes":[
+    {"route":"/products/:product_id","name_cn":"产品状态卡","view_contract":"UI界面设计板块/产品状态卡/ProductStateAggregatorV0/ProductStatusCardView.schema.json"},
+    {"route":"/products/:product_id/policy-impact","name_cn":"Amazon政策与APR影响","view_contract":"UI界面设计板块/产品状态卡/ProductStateAggregatorV0/ProductPolicyImpactView.schema.json"}
+  ],
+  "global_shortcuts":[
+    {"id":"needs-me","name_cn":"今日需要我处理","route":"/command-center#human-tasks"},
+    {"id":"agent-activity","name_cn":"Agent今日动态","route":"/command-center#agent-activity"},
+    {"id":"apr-latest","name_cn":"最新APR探索","route":"/amazon-boundary/apr"},
+    {"id":"aom-recommended","name_cn":"推荐运营方法","route":"/amazon-boundary/aom"},
+    {"id":"policy-changes","name_cn":"Amazon政策变化","route":"/amazon-boundary/apb"}
+  ],
+  "execution_authorized":false
+}

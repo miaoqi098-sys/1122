@@ -29,7 +29,7 @@ function validateLineage(input, intakeResult) {
   const reasons = [];
   const event = intakeResult?.canonicalEvent;
   const normalized = intakeResult?.agent7Result?.normalizedEvent;
-  const domainEvent = intakeResult?.agent7Result?.domainEvent;
+  const domainEvent = intakeResult?.agent7Result?.inventorySupplyEvent;
   if (!isObject(event)) return ['missing_a1_normalized_event'];
   if (!isObject(normalized?.canonicalEvent) || !isObject(domainEvent)) return ['missing_agent7_r16_lineage'];
   if (event.source_type !== 'professional_agent' || event.source_agent !== 'Agent-7') reasons.push('a1_event_source_lineage_mismatch');

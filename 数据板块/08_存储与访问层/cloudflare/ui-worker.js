@@ -1,5 +1,6 @@
 import baseWorker from './worker.js';
 import { buildUiBootstrap } from './ui-bootstrap.js';
+import { loadOperatingIntelligence } from './ui-intelligence.js';
 
 const ALLOWED_ORIGINS = new Set([
   'https://1122-web-agent.pages.dev',
@@ -40,6 +41,29 @@ export default {
 
       const marketplace = String(url.searchParams.get('marketplace') || 'US').toUpperCase();
       const payload = await buildUiBootstrap(env, { marketplace });
+      const intelligence = await loadOperatingIntelligence(env.CORE_DB, marketplace);
+
+      if (intelligence && !intelligence.error) {
+        payload.apr = intelligence.apr;
+        payload.aom = intelligence.aom;
+        payload.apb = intelligence.apb;
+        payload.source_status = {
+          ...(payload.source_status || {}),
+          apr:'LIVE_D1_READ',
+          aom:'LIVE_D1_READ',
+          apb:'LIVE_D1_READ',
+        };
+        // D1 persistence is live, but APB records remain SOURCE_ONLY evidence/result records;
+        // live_data_verified therefore stays false until observed-state/runtime truth is verified.
+        payload.live_data_verified = false;
+      } else if (intelligence?.error) {
+        payload.source_status = {
+          ...(payload.source_status || {}),
+          intelligence_d1:'READ_ERROR',
+          intelligence_error:intelligence.error,
+        };
+      }
+
       return json(payload, 200, origin);
     }
 

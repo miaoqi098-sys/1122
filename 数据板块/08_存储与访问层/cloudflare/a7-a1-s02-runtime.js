@@ -93,6 +93,10 @@ export function runAgent7ToS02(input, options = {}) {
   if (!['ready', 'ready_with_gaps'].includes(s02Result.status) || s02Result.next_action !== 'continue_analysis') return failClosed(['s02_route_not_allowed'], intakeResult, s02Result);
   if (!isObject(s02Result.context_package) || Object.keys(s02Result.context_package).length === 0) return failClosed(['empty_s02_context_package'], intakeResult, s02Result);
   if (s02Result.scope?.product_id !== event.product_id) return failClosed(['s02_product_lineage_mismatch'], intakeResult, s02Result);
+  const productIdentity = s02Result.context_package.C01_product_identity;
+  if (!isObject(productIdentity) || productIdentity.product_id !== event.product_id || (text(event.asin) && productIdentity.asin !== event.asin)) {
+    return failClosed(['s02_product_identity_context_mismatch'], intakeResult, s02Result);
+  }
 
   return {
     status: 'ready_for_S03', nextAction: 'continue_to_S03', reasons: [],

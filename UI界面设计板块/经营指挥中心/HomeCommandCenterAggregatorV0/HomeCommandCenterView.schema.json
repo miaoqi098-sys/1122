@@ -1,10 +1,11 @@
 {
   "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "title":"HomeCommandCenterView V0",
+  "title":"HomeCommandCenterView V1",
   "type":"object",
   "required":["business_date","generated_at","view_status"],
   "properties":{
     "business_date":{"type":"string"},
+    "navigation_ref":{"type":["string","null"]},
     "operating_snapshot":{"type":"object"},
     "human_tasks":{"type":"array","items":{"type":"object"}},
     "agent_activities":{"type":"array","items":{"type":"object"}},
@@ -18,7 +19,35 @@
       "title_cn":{"type":["string","null"]},
       "affected_product_count":{"type":"integer","minimum":0},
       "requires_human_review":{"type":"boolean"},
-      "confidence":{"type":"string"}
+      "confidence":{"type":"string"},
+      "target_route":{"type":["string","null"]}
+    },"additionalProperties":false}},
+    "apr_latest":{"type":"array","items":{"type":"object","properties":{
+      "apr_id":{"type":"string"},
+      "domain_no":{"type":"string"},
+      "pattern_name_cn":{"type":"string"},
+      "business_goal":{"type":"string"},
+      "business_value_signal":{"type":"string"},
+      "policy_relation":{"type":"string"},
+      "confidence":{"type":"string"},
+      "affected_product_count":{"type":"integer","minimum":0},
+      "target_route":{"type":"string","default":"/amazon-boundary/apr"}
+    },"additionalProperties":false}},
+    "aom_recommendations":{"type":"array","items":{"type":"object","properties":{
+      "method_id":{"type":"string"},
+      "domain_no":{"type":"string"},
+      "method_name_cn":{"type":"string"},
+      "objective":{"type":"string"},
+      "policy_status":{"type":"string"},
+      "risk_level":{"type":"string"},
+      "applicable_product_count":{"type":"integer","minimum":0},
+      "target_route":{"type":"string","default":"/amazon-boundary/aom"}
+    },"additionalProperties":false}},
+    "quick_links":{"type":"array","items":{"type":"object","required":["id","label_cn","route"],"properties":{
+      "id":{"type":"string"},
+      "label_cn":{"type":"string"},
+      "route":{"type":"string"},
+      "badge_count":{"type":["integer","null"],"minimum":0}
     },"additionalProperties":false}},
     "section_status":{"type":"object","additionalProperties":{"enum":["fresh","lagged","partial","stale","error","unknown"]}},
     "missing_sections":{"type":"array","items":{"type":"string"},"uniqueItems":true},

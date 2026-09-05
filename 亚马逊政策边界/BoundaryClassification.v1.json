@@ -1,0 +1,29 @@
+{
+  "schema_version":"1.0.0",
+  "registry_type":"AMAZON_POLICY_BOUNDARY_CLASSIFICATION",
+  "id_prefix":"APB",
+  "case_id_format":"APB-{domain_no}-{type}-{sequence}",
+  "result_types":{"PE":"POLICY_EVIDENCE","PD":"POLICY_DIFF","BS":"BOUNDARY_SIGNAL","BC":"BOUNDARY_CANDIDATE","BR":"CONFIRMED_BOUNDARY_RESULT","PI":"PRODUCT_IMPACT"},
+  "domains":[
+    {"no":"01","code":"REVIEW","name_cn":"评论与评价","name_en":"Review"},
+    {"no":"02","code":"VARIATION","name_cn":"变体","name_en":"Variation"},
+    {"no":"03","code":"CATALOG","name_cn":"目录","name_en":"Catalog"},
+    {"no":"04","code":"OFFER","name_cn":"报价与Offer","name_en":"Offer"},
+    {"no":"05","code":"FEATURED_OFFER","name_cn":"购物车/Featured Offer","name_en":"Featured Offer"},
+    {"no":"06","code":"PRICING","name_cn":"定价与参考价","name_en":"Pricing"},
+    {"no":"07","code":"PROMOTION","name_cn":"促销与活动","name_en":"Promotion"},
+    {"no":"08","code":"ADVERTISING","name_cn":"广告政策","name_en":"Advertising"},
+    {"no":"09","code":"SEARCH","name_cn":"搜索与索引","name_en":"Search"},
+    {"no":"10","code":"BSR","name_cn":"BSR与排名","name_en":"BSR"},
+    {"no":"11","code":"BRAND","name_cn":"品牌","name_en":"Brand"},
+    {"no":"12","code":"CONTENT","name_cn":"Listing与内容","name_en":"Content"},
+    {"no":"13","code":"INVENTORY","name_cn":"库存","name_en":"Inventory"},
+    {"no":"14","code":"LOGISTICS","name_cn":"FBA与物流","name_en":"Logistics"},
+    {"no":"15","code":"RETURNS","name_cn":"退货与退款","name_en":"Returns"},
+    {"no":"16","code":"ACCOUNT","name_cn":"账户健康","name_en":"Account"},
+    {"no":"17","code":"COMPLIANCE","name_cn":"商品合规","name_en":"Compliance"},
+    {"no":"18","code":"ENFORCEMENT","name_cn":"违规处置与申诉","name_en":"Enforcement"}
+  ],
+  "ui_sort":["domain_no","result_type","updated_at_desc"],
+  "execution_authorized":false
+}

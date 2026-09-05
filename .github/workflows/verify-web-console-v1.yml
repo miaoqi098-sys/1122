@@ -24,10 +24,12 @@ jobs:
           test -f web-console/styles.css
           test -f web-console/app.js
           test -f web-console/data/snapshots.js
+          test -f web-console/data/data-source.js
       - name: JavaScript syntax check
         run: |
           node --check web-console/app.js
           node --check web-console/data/snapshots.js
+          node --check web-console/data/data-source.js
       - name: Verify core routes and modules
         run: |
           grep -q '#/command-center' web-console/data/snapshots.js
@@ -37,6 +39,13 @@ jobs:
           grep -q 'APR 市场玩法探索' web-console/app.js
           grep -q 'AOM 正向运营方法' web-console/app.js
           grep -q 'APB 政策与边界证据' web-console/app.js
+      - name: Verify read-only data-source behavior
+        run: |
+          grep -q "const endpoint = '/api/v1/ui/bootstrap'" web-console/data/data-source.js
+          grep -q "method:'GET'" web-console/data/data-source.js
+          grep -q 'SNAPSHOT_FALLBACK' web-console/data/data-source.js
+          grep -q 'live_data_verified:false' web-console/data/data-source.js
+          ! grep -Eqi "method:['\"](POST|PUT|PATCH|DELETE)['\"]" web-console/data/data-source.js
       - name: Verify read-only safety text
         run: |
           grep -q 'Read-only / Fail-closed' web-console/index.html
@@ -49,4 +58,5 @@ jobs:
           sleep 2
           curl -fsS http://127.0.0.1:8080/ | grep -q '1122 亚马逊智能经营系统'
           curl -fsS http://127.0.0.1:8080/app.js | grep -q 'function render'
+          curl -fsS http://127.0.0.1:8080/data/data-source.js | grep -q '/api/v1/ui/bootstrap'
           kill $PID

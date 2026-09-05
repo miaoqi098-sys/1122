@@ -1,0 +1,30 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"AmazonPositiveOperatingMethod",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["method_id","domain_no","domain","method_name_cn","objective","marketplace","policy_status","execution_mode","expected_impact","evidence_refs","execution_authorized"],
+  "properties":{
+    "method_id":{"type":"string","pattern":"^AOM-(0[1-9]|1[0-8])-[0-9]{4}$"},
+    "domain_no":{"type":"string","pattern":"^(0[1-9]|1[0-8])$"},
+    "domain":{"type":"string"},
+    "method_name_cn":{"type":"string"},
+    "method_name_en":{"type":["string","null"]},
+    "objective":{"type":"string"},
+    "marketplace":{"type":"string"},
+    "applicable_conditions":{"type":"array","items":{"type":"string"}},
+    "not_applicable_conditions":{"type":"array","items":{"type":"string"}},
+    "steps":{"type":"array","items":{"type":"string"}},
+    "policy_status":{"enum":["VERIFIED_ALLOWED","CONDITIONAL","NEEDS_RECHECK","NOT_ALLOWED"]},
+    "risk_level":{"enum":["LOW","MEDIUM","HIGH","BLOCKED"]},
+    "execution_mode":{"enum":["MANUAL","SELLER_CENTRAL_FEATURE","AMAZON_PROGRAM","SYSTEM_RECOMMENDATION_ONLY"]},
+    "cost_model":{"type":["object","null"]},
+    "expected_impact":{"type":"object"},
+    "measurement":{"type":"array","items":{"type":"string"}},
+    "evidence_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "source_urls":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "last_verified_at":{"type":["string","null"]},
+    "affected_product_refs":{"type":"array","items":{"type":"string"},"uniqueItems":true},
+    "execution_authorized":{"const":false}
+  }
+}

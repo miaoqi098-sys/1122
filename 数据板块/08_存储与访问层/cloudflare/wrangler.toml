@@ -1,5 +1,5 @@
 name = "1122-data-layer"
-main = "worker.js"
+main = "ui-worker.js"
 compatibility_date = "2026-09-01"
 workers_dev = true
 

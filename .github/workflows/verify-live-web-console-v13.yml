@@ -1,0 +1,66 @@
+name: Verify Live Web Console V1.3
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - '.github/workflows/verify-live-web-console-v13.yml'
+      - 'web-console/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for Pages propagation
+        run: sleep 20
+      - name: Verify public Web Console assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://1122-web-agent.pages.dev'
+          curl -fsS --retry 12 --retry-delay 5 "$BASE/" -o /tmp/index.html
+          grep -q 'Web Console V1.3' /tmp/index.html
+          grep -q './home-live.js' /tmp/index.html
+          grep -q './live-pages.js' /tmp/index.html
+          curl -fsS --retry 8 --retry-delay 3 "$BASE/home-live.js" | grep -q 'renderHomeLive'
+          curl -fsS --retry 8 --retry-delay 3 "$BASE/live-pages.js" | grep -q 'renderProducts'
+          curl -fsS --retry 8 --retry-delay 3 "$BASE/data/data-source.js" | grep -q '1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap'
+      - name: Verify public read API and D1 facts
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap?marketplace=US'
+          curl -fsS --retry 8 --retry-delay 3 \
+            -H 'Origin: https://1122-web-agent.pages.dev' \
+            -H 'Accept: application/json' \
+            -D /tmp/api-headers.txt "$URL" -o /tmp/bootstrap.json
+          grep -qi '^access-control-allow-origin: https://1122-web-agent.pages.dev' /tmp/api-headers.txt
+          node - <<'NODE'
+          const fs=require('fs');
+          const x=JSON.parse(fs.readFileSync('/tmp/bootstrap.json','utf8'));
+          if(!Array.isArray(x.products) || x.products.length < 1) throw new Error('no live products');
+          if(!Array.isArray(x.agents)) throw new Error('agents missing');
+          if(!Array.isArray(x.tasks)) throw new Error('tasks missing');
+          if(x.source_status?.d1 !== 'LIVE_D1_READ') throw new Error('D1 not live');
+          if(x.source_status?.products !== 'LIVE_D1_READ') throw new Error('products not live');
+          if(x.read_only !== true) throw new Error('read_only boundary missing');
+          if(x.execution_authorized !== false) throw new Error('execution boundary missing');
+          if(x.production_write_authorized !== false) throw new Error('write boundary missing');
+          if(x.live_data_verified !== false) throw new Error('whole bundle must remain false until APR/AOM/APB are live');
+          if(x.source_status?.apr !== 'SOURCE_SNAPSHOT') throw new Error('APR truth boundary changed unexpectedly');
+          if(x.source_status?.aom !== 'SOURCE_SNAPSHOT') throw new Error('AOM truth boundary changed unexpectedly');
+          if(x.source_status?.apb !== 'SOURCE_SNAPSHOT') throw new Error('APB truth boundary changed unexpectedly');
+          console.log(JSON.stringify({products:x.products.length,agents:x.agents.length,tasks:x.tasks.length,apr:x.apr.length,aom:x.aom.length,apb:x.apb.length,domains:x.domains.length,d1:x.source_status.d1},null,2));
+          NODE
+      - name: Verify UI endpoint remains read only
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL='https://1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap'
+          code=$(curl -sS -o /tmp/post.json -w '%{http_code}' -X POST -H 'Origin: https://1122-web-agent.pages.dev' "$URL")
+          test "$code" = '405'

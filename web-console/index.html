@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1122 亚马逊智能经营系统</title>
+  <meta name="description" content="1122 Amazon Intelligent Operations Console" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">11</div>
+        <div>
+          <div class="brand-title">1122</div>
+          <div class="brand-subtitle">Amazon Ops OS</div>
+        </div>
+      </div>
+      <nav id="primary-nav" class="nav"></nav>
+      <div class="sidebar-footer">
+        <div class="system-state"><span class="dot dot-ok"></span> Read-only / Fail-closed</div>
+        <div class="system-version">Web Console V1</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button id="menu-toggle" class="icon-button" aria-label="切换导航">☰</button>
+        <div>
+          <div id="breadcrumb" class="breadcrumb">经营指挥中心</div>
+          <h1 id="page-title">经营指挥中心</h1>
+        </div>
+        <div class="topbar-actions">
+          <label class="search-box">
+            <span>⌕</span>
+            <input id="global-search" type="search" placeholder="搜索 APR / AOM / APB / 产品" />
+          </label>
+          <button class="status-pill">US Marketplace</button>
+        </div>
+      </header>
+
+      <section id="view" class="view" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <template id="empty-template">
+    <div class="empty-state">
+      <div class="empty-icon">◌</div>
+      <h3>当前暂无可展示数据</h3>
+      <p>页面契约已经建立，等待只读数据源接入。</p>
+    </div>
+  </template>
+
+  <script src="./data/snapshots.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

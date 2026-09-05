@@ -1,0 +1,20 @@
+{
+  "index_version":"1.0.0",
+  "truth_class":"SOURCE_ONLY",
+  "marketplace":"US",
+  "results":[
+    {"case_id":"APB-01-PE-0001","domain_no":"01","domain":"Review","result_type":"POLICY_EVIDENCE","status":"SEEDED","title_cn":"评论操纵与激励评价官方政策入口已建立","confidence":"MEDIUM","execution_authorized":false},
+    {"case_id":"APB-02-PE-0001","domain_no":"02","domain":"Variation","result_type":"POLICY_EVIDENCE","status":"SEEDED","title_cn":"变体创建与更新官方政策入口已建立","confidence":"MEDIUM","execution_authorized":false},
+    {"case_id":"APB-06-PD-0001","domain_no":"06","domain":"Pricing","result_type":"POLICY_DIFF","status":"SEEDED","title_cn":"2026 List Price 验证规则变化已进入政策变化中心","confidence":"MEDIUM","execution_authorized":false},
+    {"case_id":"APB-06-PD-0002","domain_no":"06","domain":"Pricing","result_type":"POLICY_DIFF","status":"SEEDED","title_cn":"2026 Typical/Was Price 计算变化已进入政策变化中心","confidence":"MEDIUM","execution_authorized":false},
+    {"case_id":"APB-07-PE-0001","domain_no":"07","domain":"Promotion","result_type":"POLICY_EVIDENCE","status":"SEEDED","title_cn":"促销质量与历史价格相互作用入口已建立","confidence":"MEDIUM","execution_authorized":false},
+    {"case_id":"APB-08-PE-0001","domain_no":"08","domain":"Advertising","result_type":"POLICY_EVIDENCE","status":"SEEDED","title_cn":"Amazon Ads 全球广告政策与禁限投入口已建立","confidence":"MEDIUM","execution_authorized":false}
+  ],
+  "boundary_signal_count":0,
+  "boundary_candidate_count":0,
+  "confirmed_boundary_result_count":0,
+  "note":"当前记录为政策源/政策变化发现结果，不代表已完成Observed State验证或Confirmed Boundary Result。",
+  "runtime_verified":false,
+  "live_data_verified":false,
+  "execution_authorized":false
+}

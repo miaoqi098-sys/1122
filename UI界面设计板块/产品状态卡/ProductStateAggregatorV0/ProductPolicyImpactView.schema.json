@@ -1,0 +1,30 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"ProductPolicyImpactView V1",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["product_id","policy_impacts","view_status","generated_at"],
+  "properties":{
+    "product_id":{"type":"string"},
+    "asin":{"type":["string","null"]},
+    "marketplace":{"type":["string","null"]},
+    "policy_impacts":{"type":"array","items":{"type":"object","required":["case_id","domain_no","status","confidence"],"properties":{
+      "case_id":{"type":"string"},
+      "domain_no":{"type":"string"},
+      "domain_name_cn":{"type":"string"},
+      "result_type":{"type":"string"},
+      "status":{"type":"string"},
+      "title_cn":{"type":["string","null"]},
+      "impact_summary_cn":{"type":["string","null"]},
+      "confidence":{"enum":["HIGH","MEDIUM","LOW","UNVERIFIED"]},
+      "last_verified_at":{"type":["string","null"]},
+      "requires_human_review":{"type":"boolean"}
+    },"additionalProperties":false}},
+    "confirmed_count":{"type":"integer","minimum":0},
+    "conflict_count":{"type":"integer","minimum":0},
+    "human_review_count":{"type":"integer","minimum":0},
+    "view_status":{"enum":["complete","degraded","unavailable"]},
+    "generated_at":{"type":"string","format":"date-time"},
+    "execution_authorized":{"const":false}
+  }
+}

@@ -7,7 +7,9 @@ on:
       - '.github/workflows/verify-ui-read-api-v1.yml'
       - '数据板块/08_存储与访问层/cloudflare/ui-worker.js'
       - '数据板块/08_存储与访问层/cloudflare/ui-bootstrap.js'
+      - '数据板块/08_存储与访问层/cloudflare/ui-intelligence.js'
       - '数据板块/08_存储与访问层/cloudflare/wrangler.toml'
+      - '数据板块/09_数据库迁移与版本/migrations/0091_amazon_operating_intelligence.sql'
   workflow_dispatch:
 
 permissions:
@@ -25,12 +27,13 @@ jobs:
         run: |
           node --check '数据板块/08_存储与访问层/cloudflare/ui-worker.js'
           node --check '数据板块/08_存储与访问层/cloudflare/ui-bootstrap.js'
+          node --check '数据板块/08_存储与访问层/cloudflare/ui-intelligence.js'
       - name: Verify live bootstrap contract
         shell: bash
         run: |
           set -euo pipefail
           URL='https://1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap?marketplace=US'
-          curl -fsS --retry 8 --retry-delay 3 \
+          curl -fsS --retry 12 --retry-delay 4 \
             -H 'Origin: https://1122-web-agent.pages.dev' \
             -H 'Accept: application/json' \
             -D /tmp/headers.txt "$URL" -o /tmp/bootstrap.json
@@ -42,22 +45,14 @@ jobs:
           if(x.read_only!==true) throw new Error('read_only must be true');
           if(x.execution_authorized!==false) throw new Error('execution_authorized must be false');
           if(x.production_write_authorized!==false) throw new Error('production_write_authorized must be false');
-          if(!x.source_status || x.source_status.d1!=='LIVE_D1_READ') throw new Error('D1 live read not verified');
-          console.log(JSON.stringify({
-            marketplace:x.marketplace,
-            products:x.products.length,
-            agents:x.agents.length,
-            tasks:x.tasks.length,
-            apr:x.apr.length,
-            aom:x.aom.length,
-            apb:x.apb.length,
-            domains:x.domains.length,
-            d1:x.source_status.d1,
-            apr_source:x.source_status.apr,
-            aom_source:x.source_status.aom,
-            apb_source:x.source_status.apb,
-            live_data_verified:x.live_data_verified
-          },null,2));
+          for(const k of ['d1','products','agents','tasks','apr','aom','apb']) if(x.source_status?.[k]!=='LIVE_D1_READ') throw new Error(k+' must be LIVE_D1_READ, got '+x.source_status?.[k]);
+          if(!x.apr.some(v=>v.apr_id==='APR-01-0001')) throw new Error('persisted APR seed missing');
+          for(const id of ['AOM-01-0001','AOM-01-0002','AOM-01-0003']) if(!x.aom.some(v=>v.method_id===id)) throw new Error(id+' missing');
+          for(const id of ['APB-01-PE-0001','APB-02-PE-0001','APB-06-PD-0001','APB-06-PD-0002','APB-07-PE-0001','APB-08-PE-0001']) if(!x.apb.some(v=>v.case_id===id)) throw new Error(id+' missing');
+          // D1 persistence is live. APB meaning remains SOURCE_ONLY until observed-state/runtime verification,
+          // so the aggregate truth flag remains fail-closed.
+          if(x.live_data_verified!==false) throw new Error('aggregate live_data_verified must remain false');
+          console.log(JSON.stringify({marketplace:x.marketplace,products:x.products.length,agents:x.agents.length,tasks:x.tasks.length,apr:x.apr.length,aom:x.aom.length,apb:x.apb.length,domains:x.domains.length,sources:{d1:x.source_status.d1,apr:x.source_status.apr,aom:x.source_status.aom,apb:x.source_status.apb},live_data_verified:x.live_data_verified},null,2));
           NODE
       - name: Reject write methods on UI endpoint
         shell: bash

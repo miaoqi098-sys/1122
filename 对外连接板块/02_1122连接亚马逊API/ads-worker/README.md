@@ -12,7 +12,7 @@
 
 `AMAZON_ADS_REDIRECT_URI` 应设为 `https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/oauth/callback`，以便部署域名变更时仍能严格匹配 Amazon 已登记的 callback。
 
-首次部署后，先应用 D1 migration，再通过 `/oauth/start` 发起授权。当前只开放 GET `/profiles` 与 GET `/campaigns?profile_id=...`；后续 ad-groups、keywords、targets、reports 保持同一授权与区域路由层。
+首次部署后，先应用 D1 migration，再通过 `/oauth/start` 发起授权。当前开放 GET `/profiles`、GET `/campaigns?profile_id=...` 与 GET `/ad-groups?profile_id=...&campaign_id=...`；后续 keywords、targets、reports 保持同一授权与区域路由层。
 
 ## 紫鸟手工回跳授权
 
@@ -28,4 +28,4 @@
 
 ## 当前 API 规范
 
-NA 的 LWA 授权与 token 端点分别为 `https://www.amazon.com/ap/oa` 和 `https://api.amazon.com/auth/o2/token`；Ads API 基址为 `https://advertising-api.amazon.com`。Profiles 使用 `/v2/profiles`。Sponsored Products Campaigns 使用当前 v3 列表规范：`POST /sp/campaigns/list`，请求与响应媒体类型均为 `application/vnd.spCampaign.v3+json`；仓库旧用法 `GET /v2/sp/campaigns` 已从本 Worker 移除。请求按 Amazon 要求附带 `Authorization`、`Amazon-Advertising-API-ClientId` 和（Campaigns）`Amazon-Advertising-API-Scope`。这与仓库中 SP-API Worker 的 `sellingpartnerapi-na.amazon.com` 体系不同，两个 token/endpoint 不能混用。
+NA 的 LWA 授权与 token 端点分别为 `https://www.amazon.com/ap/oa` 和 `https://api.amazon.com/auth/o2/token`；Ads API 基址为 `https://advertising-api.amazon.com`。Profiles 使用 `/v2/profiles`。Sponsored Products Campaigns 使用当前 v3 列表规范：`POST /sp/campaigns/list` 与 `application/vnd.spCampaign.v3+json`；广告组使用 `POST /sp/adGroups/list` 与 `application/vnd.spAdGroup.v3+json`。仓库旧用法 `GET /v2/sp/campaigns` 已从本 Worker 移除。请求按 Amazon 要求附带 `Authorization`、`Amazon-Advertising-API-ClientId` 和广告 Profile 对应的 `Amazon-Advertising-API-Scope`。这与仓库中 SP-API Worker 的 `sellingpartnerapi-na.amazon.com` 体系不同，两个 token/endpoint 不能混用。

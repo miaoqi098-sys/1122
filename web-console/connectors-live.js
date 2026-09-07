@@ -1,20 +1,19 @@
 (() => {
-  // Add connectors here; endpoints and contracts do not belong in view code.
-  const registry = Object.freeze({
-    cloudflare: {
-      connector_id: 'cloudflare',
-      label: 'Cloudflare',
-      endpoint: 'https://1122-cloudflare-bridge.zhangshuaibing01.workers.dev/cloudflare-status',
-      timeoutMs: 5000,
-      retries: 1
-    }
-  });
+  const registry = Object.freeze(Object.fromEntries((window.__1122_REGISTRY__?.connectors || []).map(x => [x.connector_id, x])));
 
   const states = new Set(['LIVE','DEGRADED','FALLBACK','ERROR']);
   function validHealth(x){
     return x && typeof x === 'object' && typeof x.connector_id === 'string' &&
       states.has(x.status) && typeof x.checked_at === 'string' &&
       typeof x.source === 'string' && x.details && typeof x.details === 'object';
+  }
+  function normalize(config, payload){
+    if (validHealth(payload)) return payload;
+    if (payload?.success === true || payload?.service) return {
+      connector_id: config.connector_id, status:'LIVE', checked_at:new Date().toISOString(),
+      source:'bridge-readonly', capabilities:[], details:{service:payload.service || config.label}, error:null
+    };
+    return null;
   }
   function classify(error){
     const message = String(error?.message || error || 'REQUEST_FAILED');
@@ -26,8 +25,10 @@
   async function read(connectorId){
     const config = registry[connectorId];
     if(!config) return {connector_id:connectorId,status:'ERROR',checked_at:new Date().toISOString(),source:'registry',capabilities:[],details:{},error:{code:'NOT_REGISTERED',message:'Connector 未注册'}};
+    if (!config.endpoint) return {connector_id:config.connector_id,status:'DEGRADED',checked_at:new Date().toISOString(),source:'registry',capabilities:[],details:{mode:config.healthPath},error:{code:'HEALTH_ENDPOINT_NOT_CONFIGURED',message:'连接器已登记，但尚未配置可公开读取的健康端点。'}};
     try {
-      return await window.__1122_FETCH_JSON__(config.endpoint, {timeoutMs:config.timeoutMs,retries:config.retries,validate:validHealth});
+      const payload = await window.__1122_FETCH_JSON__(config.endpoint, {timeoutMs:config.timeoutMs,retries:config.retries,validate:x=>Boolean(normalize(config,x))});
+      return normalize(config,payload);
     } catch(error) {
       return {connector_id:config.connector_id,status:'ERROR',checked_at:new Date().toISOString(),latency_ms:null,source:'browser-readonly',capabilities:[],details:{bridge:'offline'},error:classify(error)};
     }

@@ -1,4 +1,4 @@
-const ALLOWED_ORIGINS = new Set(["https://1122-web-agent.pages.dev", "https://miaoqi098-sys.github.io"]);
+const ALLOWED_ORIGINS = new Set(["https://1122.sorilo-uk.com", "https://1122-web-agent.pages.dev", "https://miaoqi098-sys.github.io"]);
 const PRIMARY_WEB_ORIGIN = "https://1122-web-agent.pages.dev";
 const LWA_TOKEN_URL = "https://api.amazon.com/auth/o2/token";
 const US_MARKETPLACE_ID = "ATVPDKIKX0DER";

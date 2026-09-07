@@ -1,12 +1,13 @@
 import { connect } from "cloudflare:sockets";
 
-const ALLOWED_ORIGIN = "https://miaoqi098-sys.github.io";
+const ALLOWED_ORIGINS = new Set(["https://1122.sorilo-uk.com", "https://1122-web-agent.pages.dev", "https://miaoqi098-sys.github.io"]);
+const PRIMARY_WEB_ORIGIN = "https://1122.sorilo-uk.com";
 const IMAP_HOST = "imap.163.com";
 const IMAP_PORT = 993;
 
 function cors(origin = "") {
   return {
-    "Access-Control-Allow-Origin": origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
+    "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_WEB_ORIGIN,
     "Access-Control-Allow-Methods": "GET,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
@@ -132,7 +133,7 @@ export default {
       return new Response(null, { status: 204, headers: cors(origin) });
     }
 
-    if (origin && origin !== ALLOWED_ORIGIN) {
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
       return json({ success: false, message: "Origin not allowed" }, 403, origin);
     }
 

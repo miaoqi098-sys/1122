@@ -21,7 +21,14 @@
   const go = r => { location.hash = r.startsWith('#') ? r.slice(1) : r; };
 
   function renderNav(){
-    nav.innerHTML = (data.navigation||[]).map(item => {
+    // Prefer the committed route registry. Snapshot navigation remains a safe
+    // fallback only when the registry asset cannot be loaded.
+    const registered = window.__1122_REGISTRY__?.modules || [];
+    const roots = [
+      ...registered.filter(x=>!x.parent && !x.route.startsWith('/connectors/')),
+    ].map(x => ({...x, route:'#'+x.route, children:registered.filter(c=>c.parent===x.id).map(c=>({...c,route:'#'+c.route}))}));
+    const navigation = roots.length ? roots : (data.navigation||[]);
+    nav.innerHTML = navigation.map(item => {
       const children = (item.children||[]).map(c => `<button class="nav-child" data-route="${esc(c.route)}">${esc(c.label)}</button>`).join('');
       return `<div class="nav-group"><button class="nav-item" data-route="${esc(item.route)}"><span class="nav-icon">${esc(item.icon||'•')}</span><span class="nav-label">${esc(item.label)}</span>${item.badge?`<span class="nav-badge">${esc(item.badge)}</span>`:''}</button>${children}</div>`;
     }).join('');
@@ -97,7 +104,10 @@
       connectorCard('R2', d.r2?.credentialsConfigured ? '已配置' : '未配置/未知', '只检查配置状态，不暴露访问凭证。', d.r2?.credentialsConfigured ? 'ok' : 'warn'),
       connectorCard('最后检查', health.checked_at || '未知', health.status === 'ERROR' ? `失败阶段：${health.error?.stage || health.failedAt || '请求/响应'}；原因：${error}` : '状态由既有 Cloudflare Status Bridge 实时返回。', statusKind)
     ];
-    view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>Cloudflare 状态直连既有 Status Bridge，不通过业务 bootstrap 聚合；未知或部分成功会明确标记。</p></div></div>${section('Cloudflare 对接状态',`实时只读检查 · ${statusText}`, `<div class="grid grid-3">${cards.join('')}</div>`)}<div class="notice ${health.status === 'LIVE' ? '' : 'warn'} section">连接状态：${tag(statusText,statusKind)}。部署链路：GitHub main → GitHub Actions → Wrangler → Cloudflare Workers / Pages。</div>`;
+    const otherIds = Object.keys(window.__1122_CONNECTORS__.registry).filter(id=>id !== 'cloudflare');
+    const other = await Promise.all(otherIds.map(id=>window.__1122_CONNECTORS__.read(id)));
+    const otherCards = other.map(x=>connectorCard(window.__1122_CONNECTORS__.registry[x.connector_id]?.label || x.connector_id, x.status, x.error?.message || x.details?.service || x.details?.mode || '只读健康检查', x.status === 'LIVE' ? 'ok' : x.status === 'ERROR' ? 'bad' : 'warn'));
+    view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>所有连接器均统一登记、统一错误分类、超时重试与 fail-closed；不会读取或显示 Secret。</p></div></div>${section('Cloudflare 对接状态',`实时只读检查 · ${statusText}`, `<div class="grid grid-3">${cards.join('')}</div>`)}${section('已登记连接器','连接端点不可用或尚未配置时明确降级，不会伪造连接成功。', `<div class="grid grid-3">${otherCards.join('')}</div>`)}<div class="notice ${health.status === 'LIVE' ? '' : 'warn'} section">连接状态：${tag(statusText,statusKind)}。写操作始终经受控 Worker、GitHub Actions 或人工审批；前端只读。</div>`;
   }
 
   function render(){
@@ -118,7 +128,7 @@
     if(r==='/data') return generic('数据中心','HOT / WARM / COLD 事实层、数据新鲜度与来源追溯。',[['HOT / KV','Current State Cache'],['WARM / D1','长期经营事实'],['COLD / R2','原始档案与历史报告'],['Freshness','数据新鲜度与质量'],['Provenance','来源追溯'],['Migration','Schema / Migration 状态']]);
     if(r==='/selection') return generic('选品中心','市场机会、容量、竞争、利润与新品机会评估。');
     if(r==='/skills') return generic('技能中心','Agent 可调用的标准化能力和工具契约。');
-    if(r==='/connectors') return renderConnectors();
+    if(r==='/connectors'||r==='/connectors/amazon-sp-api') return renderConnectors();
     if(r==='/knowledge') return generic('知识中心','可复用经营知识、规则、方法与经验。');
     if(r==='/memory') return generic('记忆中心','产品、任务、决策、结果与经营历史。');
     return generic('页面未找到','该逻辑路由尚未实现。');

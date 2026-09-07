@@ -23,12 +23,13 @@
     { id:'knowledge', label:'知识', route:'/knowledge', icon:'◇', kind:'module', summary:'可复用经营知识、规则、方法与经验。' },
     { id:'memory', label:'记忆', route:'/memory', icon:'◫', kind:'module', summary:'产品、任务、决策、结果与经营历史。' },
     { id:'data', label:'数据', route:'/data', icon:'▤', kind:'module', summary:'HOT、WARM、COLD 事实层、数据质量与来源追溯。' },
-    { id:'amazon-sp-api-console', label:'Amazon SP-API 连接中心', route:'/connectors/amazon-sp-api', parent:'connectors', kind:'connector', summary:'Amazon SP-API 的只读健康状态与安全接入边界。', connectors:['amazon-sp-api'], legacy_source:'amazon-sp-api.html' }
+    { id:'amazon-sp-api-console', label:'Amazon SP-API 连接中心', route:'/connectors/amazon-sp-api', parent:'connectors', kind:'connector', summary:'Amazon SP-API 的只读健康状态与安全接入边界。', connectors:['amazon-sp-api'], legacy_source:'amazon-sp-api.html' },
+    { id:'amazon-ads-console', label:'Amazon Ads 连接中心', route:'/connectors/amazon-ads', parent:'connectors', kind:'connector', summary:'Amazon Ads OAuth、Profiles 与只读 Campaigns。', connectors:['amazon-ads'] }
   ]);
   const connectors = Object.freeze([
     { connector_id:'cloudflare', label:'Cloudflare', endpoint:'https://1122-cloudflare-bridge.zhangshuaibing01.workers.dev/cloudflare-status', healthPath:'cloudflare', timeoutMs:5000, retries:1, writeMode:'approval-only' },
     { connector_id:'amazon-sp-api', label:'Amazon SP-API', endpoint:'https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/', healthPath:'service', timeoutMs:5000, retries:1, writeMode:'worker-only' },
-    { connector_id:'amazon-ads', label:'Amazon Ads', endpoint:null, healthPath:'unconfigured', timeoutMs:0, retries:0, writeMode:'approval-only' },
+    { connector_id:'amazon-ads', label:'Amazon Ads', endpoint:'https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/connection-status', healthPath:'connection-status', timeoutMs:5000, retries:1, writeMode:'readonly-mvp' },
     { connector_id:'sif', label:'SIF MCP', endpoint:'https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status', healthPath:'service', timeoutMs:5000, retries:1, writeMode:'worker-only' },
     { connector_id:'email', label:'Email Bridge', endpoint:'https://1122-email-bridge.zhangshuaibing01.workers.dev/', healthPath:'service', timeoutMs:5000, retries:1, writeMode:'worker-only' },
     { connector_id:'codex', label:'Codex / GitHub Task Bridge', endpoint:null, healthPath:'local-gateway', timeoutMs:0, retries:0, writeMode:'human-or-gateway' }

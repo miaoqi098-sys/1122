@@ -110,6 +110,23 @@
     view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>所有连接器均统一登记、统一错误分类、超时重试与 fail-closed；不会读取或显示 Secret。</p></div></div>${section('Cloudflare 对接状态',`实时只读检查 · ${statusText}`, `<div class="grid grid-3">${cards.join('')}</div>`)}${section('已登记连接器','连接端点不可用或尚未配置时明确降级，不会伪造连接成功。', `<div class="grid grid-3">${otherCards.join('')}</div>`)}<div class="notice ${health.status === 'LIVE' ? '' : 'warn'} section">连接状态：${tag(statusText,statusKind)}。写操作始终经受控 Worker、GitHub Actions 或人工审批；前端只读。</div>`;
   }
 
+  async function renderAds(){
+    pageTitle.textContent='广告中心'; breadcrumb.textContent='运营 / 广告';
+    view.innerHTML=`<div class="hero"><div><h2>Amazon Ads</h2><p>只读 MVP：先完成账户授权，再读取 Profiles 与 Campaigns。不会在浏览器保存或显示任何凭据。</p></div><div class="hero-actions"><a class="btn btn-primary" href="https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/oauth/start">开始或重新授权</a></div></div><div class="empty-state"><div class="empty-icon">◌</div><h3>正在读取连接状态</h3><p>请求有超时与有限重试；失败会明确显示，而不会无限等待。</p></div>`;
+    const health=await window.__1122_CONNECTORS__.read('amazon-ads');
+    const detail=health.details||{}; const isConnected=health.status==='CONNECTED';
+    const badgeKind=isConnected?'ok':health.status==='ERROR'?'bad':'warn';
+    let body=`<div class="hero"><div><h2>Amazon Ads</h2><p>当前仅开放 Profiles 与 Campaigns 只读查询；写入操作仍未开放。</p></div><div class="hero-actions"><a class="btn btn-primary" href="https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/oauth/start">${isConnected?'重新授权':'开始授权'}</a></div></div><div class="grid grid-4 section">${metric('连接状态',health.status,health.error?.message||'真实后端状态')}${metric('区域',detail.region||'NA','可扩展 EU / FE')}${metric('Profiles',detail.profiles_count??'—','仅在真实授权后显示')}${metric('最近检查',detail.last_token_refresh||health.checked_at||'—','不会显示 Token')}</div>`;
+    if(!isConnected){ view.innerHTML=body+`<div class="notice warn section">${esc(health.error?.message||'尚未完成 Amazon Ads OAuth。')} 配置完成后点击“开始授权”；未授权不会被显示为已连接。</div>`; return; }
+    try {
+      const profiles=await window.__1122_FETCH_JSON__('https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/profiles',{timeoutMs:5000,retries:1,validate:x=>x&&x.ok===true&&Array.isArray(x.profiles)});
+      const rows=profiles.profiles;
+      body+=section('Profiles',`${rows.length} 个已授权广告账户`, `<div class="table-wrap"><table><thead><tr><th>Profile ID</th><th>Country</th><th>Currency</th><th>Timezone</th><th>Account</th><th></th></tr></thead><tbody>${rows.map(p=>`<tr><td class="code">${esc(p.profileId)}</td><td>${esc(p.countryCode)}</td><td>${esc(p.currencyCode)}</td><td>${esc(p.timezone)}</td><td>${esc(p.accountId||'—')}</td><td><button class="btn" data-profile="${esc(p.profileId)}">读取 Campaigns</button></td></tr>`).join('')}</tbody></table></div>`);
+      body+=`<section class="section" id="ads-campaign-results"></section>`; view.innerHTML=body;
+      view.querySelectorAll('[data-profile]').forEach(button=>button.addEventListener('click',async()=>{ const target=document.getElementById('ads-campaign-results'); target.innerHTML='<div class="notice">正在读取只读 Campaigns…</div>'; try { const result=await window.__1122_FETCH_JSON__(`https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/campaigns?profile_id=${encodeURIComponent(button.dataset.profile)}`,{timeoutMs:7000,retries:1,validate:x=>x&&x.ok===true&&Array.isArray(x.campaigns)}); target.innerHTML=section('Campaigns',`${result.campaigns.length} 条 · Profile ${button.dataset.profile}`,`<div class="table-wrap"><table><thead><tr><th>Name</th><th>State</th><th>Daily budget</th><th>Targeting</th></tr></thead><tbody>${result.campaigns.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.state)}</td><td>${esc(c.budget??'—')}</td><td>${esc(c.targetingType||'—')}</td></tr>`).join('')}</tbody></table></div>`); }catch(error){target.innerHTML=`<div class="notice warn">Campaigns 读取失败：${esc(error?.message||'REQUEST_FAILED')}</div>`;} }));
+    } catch(error){ view.innerHTML=body+`<div class="notice warn section">Profiles 读取失败：${esc(error?.message||'REQUEST_FAILED')}。连接状态未被伪造为成功。</div>`; }
+  }
+
   function render(){
     setActive(); const r=route();
     if(r==='/command-center'||r==='/') return home();
@@ -117,7 +134,7 @@
     if(r==='/amazon-boundary/aom') return aom();
     if(r==='/amazon-boundary/apb') return apb();
     if(r==='/operations'||r==='/operations/products') return generic('产品经营中心','全局产品视角与单品经营入口。',[['产品状态卡','当前阶段、目标、今日操作、任务、政策/APR影响'],['流量与转化','Session、CVR、自然流量与转化诊断'],['价格与促销','List Price、Was Price、Coupon、Deal 与历史价格'],['利润与经营','收入、广告费、贡献利润与利润率'],['消费者体验','Review、退货、差评主题与产品体验'],['关联业务','广告、库存、竞品与站外推广摘要']]);
-    if(r==='/operations/ads') return generic('广告中心','SP / SB / SD 广告分析、诊断与任务入口。');
+    if(r==='/operations/ads'||r==='/connectors/amazon-ads') return renderAds();
     if(r==='/operations/inventory-logistics') return generic('库存物流','库存覆盖、补货、FBA 与物流风险。');
     if(r==='/operations/competitors') return generic('竞品中心','竞品池、价格、Review、排名与 APR 信号。');
     if(r==='/operations/offsite') return generic('站外推广','TikTok、红人、站外活动与归因。');

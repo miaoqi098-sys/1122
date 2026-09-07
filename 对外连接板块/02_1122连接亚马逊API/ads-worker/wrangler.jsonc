@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "1122-amazon-ads-bridge",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "d1_databases": [
+    {
+      "binding": "CORE_DB",
+      "database_name": "1122-core",
+      "database_id": "00076b01-471f-40e6-bf49-57cfc07facc8",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}

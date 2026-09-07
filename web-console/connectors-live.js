@@ -1,7 +1,7 @@
 (() => {
   const registry = Object.freeze(Object.fromEntries((window.__1122_REGISTRY__?.connectors || []).map(x => [x.connector_id, x])));
 
-  const states = new Set(['LIVE','DEGRADED','FALLBACK','ERROR']);
+  const states = new Set(['LIVE','CONNECTED','AUTH_REQUIRED','DEGRADED','FALLBACK','ERROR']);
   function validHealth(x){
     return x && typeof x === 'object' && typeof x.connector_id === 'string' &&
       states.has(x.status) && typeof x.checked_at === 'string' &&

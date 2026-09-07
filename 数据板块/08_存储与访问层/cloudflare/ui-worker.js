@@ -5,13 +5,12 @@ import { searchKnowledge, getKnowledgeStats } from './knowledge-store.js';
 
 const ALLOWED_ORIGINS = new Set([
   'https://1122-web-agent.pages.dev',
+  'https://1122.sorilo-uk.com',
   'https://miaoqi098-sys.github.io',
 ]);
-const PRIMARY_ORIGIN = 'https://1122-web-agent.pages.dev';
 
 function uiCors(origin = '') {
-  return {
-    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_ORIGIN,
+  const headers = {
     'Access-Control-Allow-Methods': 'GET,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'no-store',
@@ -20,6 +19,8 @@ function uiCors(origin = '') {
     'Referrer-Policy': 'no-referrer',
     'Vary': 'Origin',
   };
+  if (origin && ALLOWED_ORIGINS.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
 }
 
 function json(data, status = 200, origin = '') {

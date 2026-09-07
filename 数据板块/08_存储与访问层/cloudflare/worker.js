@@ -27,20 +27,22 @@ import { DECISION_ITEM_BUILDER_RUNTIME_VERSION } from '../../../Agent板块/运�
 
 const ALLOWED_ORIGINS = new Set([
   'https://1122-web-agent.pages.dev',
+  'https://1122.sorilo-uk.com',
   'https://miaoqi098-sys.github.io',
 ]);
-const PRIMARY_ORIGIN = 'https://1122-web-agent.pages.dev';
 
 function cors(origin = '') {
-  return {
-    'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_ORIGIN,
+  const headers = {
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Cache-Control': 'no-store',
     'Content-Type': 'application/json; charset=UTF-8',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'no-referrer',
+    'Vary': 'Origin',
   };
+  if (origin && ALLOWED_ORIGINS.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
 }
 
 function json(data, status = 200, origin = '') {

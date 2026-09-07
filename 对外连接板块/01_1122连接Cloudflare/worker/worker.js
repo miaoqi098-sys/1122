@@ -1,12 +1,17 @@
-const ALLOWED_ORIGIN = "https://miaoqi098-sys.github.io";
+const ALLOWED_ORIGINS = new Set([
+  "https://1122-web-agent.pages.dev",
+  "https://miaoqi098-sys.github.io",
+]);
 const TARGET_ZONE = "sorilo-uk.com";
 const TARGET_PAGES_PROJECT = "sorilo-uk";
 
 function corsHeaders(origin = "") {
+  const allowedOrigin = ALLOWED_ORIGINS.has(origin)
+    ? origin
+    : "https://1122-web-agent.pages.dev";
   return {
-    "Access-Control-Allow-Origin":
-      origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
     "Content-Type": "application/json; charset=UTF-8",
@@ -97,7 +102,7 @@ export default {
       );
     }
 
-    if (origin && origin !== ALLOWED_ORIGIN) {
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
       return json({ success: false, message: "Origin not allowed" }, 403, origin);
     }
 

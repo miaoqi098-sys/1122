@@ -76,6 +76,39 @@
     view.innerHTML = `<div class="hero"><div><h2>${esc(name)}</h2><p>${esc(desc)}</p></div></div>${items.length?`<div class="grid grid-3 section">${items.map(i=>`<div class="card"><div class="item-title">${esc(i[0])}</div><div class="item-meta">${esc(i[1])}</div></div>`).join('')}</div>`:`<div class="empty-state"><div class="empty-icon">◌</div><h3>界面入口已就绪</h3><p>等待对应只读聚合器和真实数据接入。</p></div>`}${sourceBanner()}`;
   }
 
+  function connectorCard(name, state, detail, kind='neutral'){
+    return `<div class="card"><div class="split-title"><div class="item-title">${esc(name)}</div>${tag(state,kind)}</div><div class="item-meta" style="margin-top:10px">${esc(detail)}</div></div>`;
+  }
+
+  async function renderConnectors(){
+    pageTitle.textContent='对外连接'; breadcrumb.textContent='系统 / 对外连接';
+    view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>只读展示已部署服务与存储层的当前连通状态。此页面不提供凭证编辑、部署或生产写操作。</p></div></div><section class="section"><div class="section-head"><div><h2>Cloudflare</h2><div class="section-sub">正在读取现有 Cloudflare Status Bridge 与 Data Layer</div></div></div><div class="grid grid-3"><div class="card"><div class="item-title">正在检查…</div><div class="item-meta">不会读取或显示任何 Secret。</div></div></div></section>`;
+    const get = async (url) => {
+      const response = await fetch(url, {method:'GET', mode:'cors', credentials:'omit', headers:{Accept:'application/json'}, cache:'no-store'});
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    };
+    try {
+      const [bridge, dataLayer] = await Promise.all([
+        get('https://1122-cloudflare-bridge.zhangshuaibing01.workers.dev/cloudflare-status'),
+        get('https://1122-data-layer.zhangshuaibing01.workers.dev/status')
+      ]);
+      const storage = dataLayer.storage || {};
+      const bridgeOk = bridge.success === true && bridge.connection === 'connected';
+      const cards = [
+        connectorCard('Cloudflare API 状态桥', bridgeOk ? '已连通' : '检查失败', bridgeOk ? `Zone：${bridge.zone?.name || '—'}（${bridge.zone?.status || '—'}）；Pages：${bridge.pages?.projectName || '未识别'}` : (bridge.error || bridge.message || '未返回有效状态'), bridgeOk ? 'ok' : 'bad'),
+        connectorCard('1122 Data Layer Worker', dataLayer.success === true ? '已连通' : '检查失败', `服务：${dataLayer.service || '—'}；版本：${dataLayer.version || '—'}`, dataLayer.success === true ? 'ok' : 'bad'),
+        connectorCard('D1 / 1122-core', storage.d1?.ready ? '已连通' : '未就绪', storage.d1?.ready ? `${storage.d1.tableCount ?? '—'} 张表，永久经营事实层` : (storage.d1?.status || '等待绑定'), storage.d1?.ready ? 'ok' : 'warn'),
+        connectorCard('KV / Current State', storage.kv?.ready ? '已连通' : '未就绪', storage.kv?.ready ? '当前状态缓存已绑定' : (storage.kv?.status || '等待绑定'), storage.kv?.ready ? 'ok' : 'warn'),
+        connectorCard('R2 / 1122-data-archive', storage.r2?.ready ? '已连通' : '待启用', storage.r2?.ready ? '归档存储已就绪' : (storage.r2?.status || '尚未启用'), storage.r2?.ready ? 'ok' : 'warn'),
+        connectorCard('1122 Web Console', '已部署', 'Cloudflare Pages：1122-web-agent.pages.dev；页面仅以只读方式调用状态接口。', 'ok')
+      ];
+      view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>状态来自既有 Cloudflare Status Bridge 与 Data Layer。凭证只保留在 Worker / GitHub Actions Secrets。</p></div></div>${section('Cloudflare 对接状态','实时只读检查', `<div class="grid grid-3">${cards.join('')}</div>`)}<div class="notice section">部署链路：GitHub main → GitHub Actions → Wrangler → Cloudflare Workers / Pages。界面不会调用 Cloudflare 写入 API。</div>`;
+    } catch (error) {
+      view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>无法完成实时状态检查。</p></div></div><div class="notice warn section">${esc(String(error && error.message || error))}。当前页面不会把“不可达”误报为已连接。</div>`;
+    }
+  }
+
   function render(){
     setActive(); const r=route();
     if(r==='/command-center'||r==='/') return home();
@@ -94,7 +127,7 @@
     if(r==='/data') return generic('数据中心','HOT / WARM / COLD 事实层、数据新鲜度与来源追溯。',[['HOT / KV','Current State Cache'],['WARM / D1','长期经营事实'],['COLD / R2','原始档案与历史报告'],['Freshness','数据新鲜度与质量'],['Provenance','来源追溯'],['Migration','Schema / Migration 状态']]);
     if(r==='/selection') return generic('选品中心','市场机会、容量、竞争、利润与新品机会评估。');
     if(r==='/skills') return generic('技能中心','Agent 可调用的标准化能力和工具契约。');
-    if(r==='/connectors') return generic('对外连接','Amazon / Ads / Sif / Cloudflare / Codex 等外部连接状态。');
+    if(r==='/connectors') return renderConnectors();
     if(r==='/knowledge') return generic('知识中心','可复用经营知识、规则、方法与经验。');
     if(r==='/memory') return generic('记忆中心','产品、任务、决策、结果与经营历史。');
     return generic('页面未找到','该逻辑路由尚未实现。');

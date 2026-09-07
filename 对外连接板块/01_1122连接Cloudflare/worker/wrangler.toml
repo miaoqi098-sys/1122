@@ -1,0 +1,7 @@
+name = "1122-cloudflare-bridge"
+main = "worker.js"
+compatibility_date = "2026-09-07"
+workers_dev = true
+
+# All credentials are provisioned as Cloudflare Worker Secrets. Do not add
+# CLOUDFLARE_API_TOKEN or R2 credentials to this file.

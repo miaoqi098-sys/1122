@@ -1,0 +1,44 @@
+name: Deploy Cloudflare Status Bridge
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "对外连接板块/01_1122连接Cloudflare/worker/**"
+      - ".github/workflows/deploy-cloudflare-bridge.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 对外连接板块/01_1122连接Cloudflare/worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify Cloudflare token
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is missing" >&2; exit 2; }
+      - name: Deploy status bridge
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx --yes wrangler@4 deploy
+      - name: Verify production status endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 5 --retry-delay 3 \
+            -H 'Origin: https://1122-web-agent.pages.dev' \
+            -H 'Accept: application/json' \
+            'https://1122-cloudflare-bridge.zhangshuaibing01.workers.dev/cloudflare-status' \
+            -o /tmp/cloudflare-status.json
+          node -e "const x=require('/tmp/cloudflare-status.json'); if(x.success!==true || x.connection!=='connected') process.exit(1); console.log(JSON.stringify({connection:x.connection,zone:x.zone?.status,pages:x.pages?.projectFound,r2:x.r2?.credentialsConfigured}))"

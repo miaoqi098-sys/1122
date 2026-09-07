@@ -12,16 +12,16 @@
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const res = await fetch(url, {method,body,mode:'cors',credentials:'omit',headers:{Accept:'application/json',...headers},cache:'no-store',signal:controller.signal});
-        let body;
-        try { body = await res.json(); } catch { throw new Error('INVALID_JSON'); }
+        let payload;
+        try { payload = await res.json(); } catch { throw new Error('INVALID_JSON'); }
         if(!res.ok){
-          const requestError = new Error(typeof body?.error?.message === 'string' ? body.error.message : `HTTP_${res.status}`);
+          const requestError = new Error(typeof payload?.error?.message === 'string' ? payload.error.message : `HTTP_${res.status}`);
           requestError.httpStatus = res.status;
-          requestError.code = body?.error?.code || `HTTP_${res.status}`;
+          requestError.code = payload?.error?.code || `HTTP_${res.status}`;
           throw requestError;
         }
-        if(!validate(body)) throw new Error('INVALID_SHAPE');
-        return body;
+        if(!validate(payload)) throw new Error('INVALID_SHAPE');
+        return payload;
       } catch(error) {
         lastError = error?.name === 'AbortError' ? new Error('TIMEOUT') : error;
         const retryable = /^(TIMEOUT|INVALID_JSON|HTTP_5)/.test(String(lastError?.message || '')) || Number(lastError?.httpStatus) >= 500 || lastError instanceof TypeError;

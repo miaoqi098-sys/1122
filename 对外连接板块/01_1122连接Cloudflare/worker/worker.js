@@ -4,7 +4,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://miaoqi098-sys.github.io",
 ];
 const TARGET_ZONE = "sorilo-uk.com";
-const TARGET_PAGES_PROJECT = "sorilo-uk";
+const DEFAULT_PAGES_PROJECT = "1122-web-agent";
 
 function splitList(value) {
   return String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
@@ -147,6 +147,7 @@ export default {
       const checkedAt = new Date().toISOString();
       let step = "初始化";
       try {
+        const targetPagesProject = env.TARGET_PAGES_PROJECT || DEFAULT_PAGES_PROJECT;
         const token = env.CLOUDFLARE_API_TOKEN?.trim();
         if (!token) throw new Error("没有读取到 CLOUDFLARE_API_TOKEN");
 
@@ -183,7 +184,7 @@ export default {
           token
         );
         const project =
-          pages.result?.find((p) => p.name === TARGET_PAGES_PROJECT) || null;
+          pages.result?.find((p) => p.name === targetPagesProject) || null;
 
         const details = {
           bridge: "online",

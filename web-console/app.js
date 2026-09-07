@@ -112,19 +112,55 @@
 
   async function renderAds(){
     pageTitle.textContent='广告中心'; breadcrumb.textContent='运营 / 广告';
-    view.innerHTML=`<div class="hero"><div><h2>Amazon Ads</h2><p>只读 MVP：先完成账户授权，再读取 Profiles 与 Campaigns。不会在浏览器保存或显示任何凭据。</p></div><div class="hero-actions"><a class="btn btn-primary" href="https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/oauth/start">开始或重新授权</a></div></div><div class="empty-state"><div class="empty-icon">◌</div><h3>正在读取连接状态</h3><p>请求有超时与有限重试；失败会明确显示，而不会无限等待。</p></div>`;
+    const bridge='https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev';
+    view.innerHTML=`<div class="hero"><div><h2>Amazon Ads</h2><p>正在读取真实连接状态。授权令牌不会在浏览器中显示或保存。</p></div></div><div class="empty-state"><div class="empty-icon">◌</div><h3>正在读取连接状态</h3><p>请求有超时与有限重试；失败会明确显示，而不会无限等待。</p></div>`;
     const health=await window.__1122_CONNECTORS__.read('amazon-ads');
     const detail=health.details||{}; const isConnected=health.status==='CONNECTED';
-    const badgeKind=isConnected?'ok':health.status==='ERROR'?'bad':'warn';
-    let body=`<div class="hero"><div><h2>Amazon Ads</h2><p>当前仅开放 Profiles 与 Campaigns 只读查询；写入操作仍未开放。</p></div><div class="hero-actions"><a class="btn btn-primary" href="https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/oauth/start">${isConnected?'重新授权':'开始授权'}</a></div></div><div class="grid grid-4 section">${metric('连接状态',health.status,health.error?.message||'真实后端状态')}${metric('区域',detail.region||'NA','可扩展 EU / FE')}${metric('Profiles',detail.profiles_count??'—','仅在真实授权后显示')}${metric('最近检查',detail.last_token_refresh||health.checked_at||'—','不会显示 Token')}</div>`;
-    if(!isConnected){ view.innerHTML=body+`<div class="notice warn section">${esc(health.error?.message||'尚未完成 Amazon Ads OAuth。')} 配置完成后点击“开始授权”；未授权不会被显示为已连接。</div>`; return; }
+    let body=`<div class="hero"><div><h2>Amazon Ads</h2><p>紫鸟手工回跳授权 · Profiles 与 Campaigns 只读查询；广告写入仍未开放。</p></div></div><div class="grid grid-4 section">${metric('连接状态',health.status,health.error?.message||'真实后端状态')}${metric('区域',detail.region||'NA','可扩展 EU / FE')}${metric('Profiles',detail.profiles_count??'—','仅在真实 API 校验后显示')}${metric('最近检查',detail.last_token_refresh||health.checked_at||'—','不会显示 Token')}</div>`;
+    body+=section('通过紫鸟重新授权','授权码有效时间很短；生成链接后请连续完成下面三步。',`<div class="oauth-steps"><div class="notice warn"><strong>准备：</strong>先在 Amazon LWA 的 1122 Ads Integration → Web设置中新增 Allowed Return URL：<span class="code">https://amazon.com</span>。原有 Worker callback 请保留。</div><div><strong>1. 生成并复制授权链接</strong><p class="muted">在这里生成后，把链接粘贴到已登录亚马逊广告账户的紫鸟浏览器地址栏。</p><div class="oauth-actions"><button class="btn btn-primary" id="ads-manual-start">生成紫鸟授权链接</button><button class="btn" id="ads-manual-copy" disabled>复制链接</button></div><textarea class="oauth-field code" id="ads-manual-url" rows="4" readonly placeholder="生成后会显示授权链接"></textarea><div class="muted" id="ads-manual-expiry"></div></div><div><strong>2. 在紫鸟中点击 Allow</strong><p class="muted">授权后停留在 Amazon 页面即可，不需要紫鸟访问 1122。</p></div><div><strong>3. 复制紫鸟地址栏的完整 Amazon 地址</strong><p class="muted">地址必须以 amazon.com 开头并同时含有 code 和 state。请勿把它发到聊天中。</p><textarea class="oauth-field code" id="ads-manual-return" rows="4" autocomplete="off" spellcheck="false" placeholder="把紫鸟授权后的完整 Amazon 地址粘贴到这里"></textarea><div class="oauth-actions"><button class="btn btn-primary" id="ads-manual-complete">验证并完成重新授权</button></div></div><div id="ads-manual-status"></div></div>`);
+    if(!isConnected) body+=`<div class="notice warn section">${esc(health.error?.message||'尚未完成 Amazon Ads OAuth。')} 未通过真实 Profiles 校验时不会显示为已连接。</div>`;
+    let profiles=[];
     try {
-      const profiles=await window.__1122_FETCH_JSON__('https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/profiles',{timeoutMs:5000,retries:1,validate:x=>x&&x.ok===true&&Array.isArray(x.profiles)});
-      const rows=profiles.profiles;
-      body+=section('Profiles',`${rows.length} 个已授权广告账户`, `<div class="table-wrap"><table><thead><tr><th>Profile ID</th><th>Country</th><th>Currency</th><th>Timezone</th><th>Account</th><th></th></tr></thead><tbody>${rows.map(p=>`<tr><td class="code">${esc(p.profileId)}</td><td>${esc(p.countryCode)}</td><td>${esc(p.currencyCode)}</td><td>${esc(p.timezone)}</td><td>${esc(p.accountId||'—')}</td><td><button class="btn" data-profile="${esc(p.profileId)}">读取 Campaigns</button></td></tr>`).join('')}</tbody></table></div>`);
-      body+=`<section class="section" id="ads-campaign-results"></section>`; view.innerHTML=body;
-      view.querySelectorAll('[data-profile]').forEach(button=>button.addEventListener('click',async()=>{ const target=document.getElementById('ads-campaign-results'); target.innerHTML='<div class="notice">正在读取只读 Campaigns…</div>'; try { const result=await window.__1122_FETCH_JSON__(`https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/campaigns?profile_id=${encodeURIComponent(button.dataset.profile)}`,{timeoutMs:7000,retries:1,validate:x=>x&&x.ok===true&&Array.isArray(x.campaigns)}); target.innerHTML=section('Campaigns',`${result.campaigns.length} 条 · Profile ${button.dataset.profile}`,`<div class="table-wrap"><table><thead><tr><th>Name</th><th>State</th><th>Daily budget</th><th>Targeting</th></tr></thead><tbody>${result.campaigns.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.state)}</td><td>${esc(c.budget??'—')}</td><td>${esc(c.targetingType||'—')}</td></tr>`).join('')}</tbody></table></div>`); }catch(error){target.innerHTML=`<div class="notice warn">Campaigns 读取失败：${esc(error?.message||'REQUEST_FAILED')}</div>`;} }));
-    } catch(error){ view.innerHTML=body+`<div class="notice warn section">Profiles 读取失败：${esc(error?.message||'REQUEST_FAILED')}。连接状态未被伪造为成功。</div>`; }
+      if(isConnected){
+        const result=await window.__1122_FETCH_JSON__(`${bridge}/profiles`,{timeoutMs:5000,retries:1,validate:x=>x&&x.ok===true&&Array.isArray(x.profiles)});
+        profiles=result.profiles;
+        body+=section('Profiles',`${profiles.length} 个已授权广告账户`, `<div class="table-wrap"><table><thead><tr><th>Profile ID</th><th>Country</th><th>Currency</th><th>Timezone</th><th>Account</th><th></th></tr></thead><tbody>${profiles.map(p=>`<tr><td class="code">${esc(p.profileId)}</td><td>${esc(p.countryCode)}</td><td>${esc(p.currencyCode)}</td><td>${esc(p.timezone)}</td><td>${esc(p.accountId||'—')}</td><td><button class="btn" data-profile="${esc(p.profileId)}">读取 Campaigns</button></td></tr>`).join('')}</tbody></table></div>`);
+        body+=`<section class="section" id="ads-campaign-results"></section>`;
+      }
+    } catch(error){ body+=`<div class="notice warn section">Profiles 读取失败：${esc(error?.message||'REQUEST_FAILED')}。连接状态未被伪造为成功。</div>`; }
+    view.innerHTML=body;
+
+    const startButton=document.getElementById('ads-manual-start');
+    const copyButton=document.getElementById('ads-manual-copy');
+    const authUrl=document.getElementById('ads-manual-url');
+    const expiry=document.getElementById('ads-manual-expiry');
+    const returnUrl=document.getElementById('ads-manual-return');
+    const completeButton=document.getElementById('ads-manual-complete');
+    const statusBox=document.getElementById('ads-manual-status');
+    startButton.addEventListener('click',async()=>{
+      startButton.disabled=true; copyButton.disabled=true; authUrl.value=''; expiry.textContent=''; statusBox.innerHTML='<div class="notice">正在生成一次性授权链接…</div>';
+      try {
+        const result=await window.__1122_FETCH_JSON__(`${bridge}/oauth/manual/start`,{timeoutMs:5000,retries:0,validate:x=>x&&x.ok===true&&typeof x.authorization_url==='string'&&x.redirect_uri==='https://amazon.com'});
+        authUrl.value=result.authorization_url; copyButton.disabled=false; expiry.textContent='请在 5 分钟内完成 Amazon 授权并提交回跳地址。'; statusBox.innerHTML='<div class="notice">链接已生成。复制后到紫鸟浏览器打开。</div>';
+      }catch(error){ statusBox.innerHTML=`<div class="notice warn">授权链接生成失败：${esc(error?.message||'REQUEST_FAILED')}</div>`; }
+      finally{ startButton.disabled=false; }
+    });
+    copyButton.addEventListener('click',async()=>{
+      if(!authUrl.value) return;
+      try { await navigator.clipboard.writeText(authUrl.value); statusBox.innerHTML='<div class="notice">授权链接已复制。</div>'; }
+      catch { authUrl.focus(); authUrl.select(); document.execCommand('copy'); statusBox.innerHTML='<div class="notice">授权链接已复制。</div>'; }
+    });
+    completeButton.addEventListener('click',async()=>{
+      const pasted=returnUrl.value.trim();
+      if(!pasted){ statusBox.innerHTML='<div class="notice warn">请先粘贴紫鸟地址栏中的完整 Amazon 地址。</div>'; return; }
+      returnUrl.value=''; completeButton.disabled=true; statusBox.innerHTML='<div class="notice">正在由 Worker 换取令牌并读取真实 Profiles…</div>';
+      try {
+        const result=await window.__1122_FETCH_JSON__(`${bridge}/oauth/manual/complete`,{method:'POST',body:JSON.stringify({return_url:pasted}),headers:{'Content-Type':'application/json'},timeoutMs:15000,retries:0,validate:x=>x&&x.ok===true&&x.status==='CONNECTED'&&Number.isInteger(x.profiles_count)});
+        statusBox.innerHTML=`<div class="notice">重新授权成功，已验证 ${esc(result.profiles_count)} 个 Profiles。正在刷新页面状态…</div>`;
+        setTimeout(()=>renderAds(),700);
+      }catch(error){ statusBox.innerHTML=`<div class="notice warn">重新授权失败：${esc(error?.message||'REQUEST_FAILED')}。请重新生成链接再试；旧连接未被替换。</div>`; completeButton.disabled=false; }
+    });
+    view.querySelectorAll('[data-profile]').forEach(button=>button.addEventListener('click',async()=>{ const target=document.getElementById('ads-campaign-results'); target.innerHTML='<div class="notice">正在读取只读 Campaigns…</div>'; try { const result=await window.__1122_FETCH_JSON__(`${bridge}/campaigns?profile_id=${encodeURIComponent(button.dataset.profile)}`,{timeoutMs:7000,retries:1,validate:x=>x&&x.ok===true&&Array.isArray(x.campaigns)}); target.innerHTML=section('Campaigns',`${result.campaigns.length} 条 · Profile ${button.dataset.profile}`,`<div class="table-wrap"><table><thead><tr><th>Name</th><th>State</th><th>Daily budget</th><th>Targeting</th></tr></thead><tbody>${result.campaigns.map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.state)}</td><td>${esc(c.budget??'—')}</td><td>${esc(c.targetingType||'—')}</td></tr>`).join('')}</tbody></table></div>`); }catch(error){target.innerHTML=`<div class="notice warn">Campaigns 读取失败：${esc(error?.message||'REQUEST_FAILED')}</div>`;} }));
   }
 
   function render(){

@@ -14,6 +14,18 @@
 
 首次部署后，先应用 D1 migration，再通过 `/oauth/start` 发起授权。当前只开放 GET `/profiles` 与 GET `/campaigns?profile_id=...`；后续 ad-groups、keywords、targets、reports 保持同一授权与区域路由层。
 
+## 紫鸟手工回跳授权
+
+当紫鸟无法打开 1122 或 `workers.dev` 回调页时，可使用 Web Console 中的正式手工回跳流程：
+
+1. 在 LWA Security Profile `1122 Ads Integration` 的 Web 设置中新增 Allowed Return URL `https://amazon.com`，并保留原有 Worker callback。
+2. Web Console 调用 `GET /oauth/manual/start` 生成包含一次性高熵 state 的 Amazon 授权链接。
+3. 用户把链接复制到紫鸟，点击 Allow 后，从紫鸟地址栏复制完整的 `https://amazon.com/...?...code=...&state=...` 地址。
+4. Web Console 仅在内存中接收该地址，通过 TLS 提交给 `POST /oauth/manual/complete`，提交后立即清空输入框且不写入浏览器存储。
+5. Worker 校验 Amazon 主机名和一次性 state，使用与授权请求完全相同的 `redirect_uri=https://amazon.com` 在后端交换 token。只有新 refresh token 成功读取并校验真实 Profiles 后，才用 AES-GCM 密文替换 D1 中的旧 token。
+
+授权码和完整回跳地址不得发送到聊天、日志或 GitHub。access token、refresh token 与 Client Secret 始终不会返回前端。手工 state 最长 10 分钟有效且只能使用一次；Amazon authorization code 应在 5 分钟内提交。
+
 ## 当前 API 规范
 
-NA 的 LWA 授权与 token 端点分别为 `https://www.amazon.com/ap/oa` 和 `https://api.amazon.com/auth/o2/token`；Ads API 基址为 `https://advertising-api.amazon.com`。Profiles 使用 `/v2/profiles`，Sponsored Products Campaigns 的只读 MVP 使用 `/v2/sp/campaigns`，并按 Amazon 要求附带 `Authorization`、`Amazon-Advertising-API-ClientId` 和（Campaigns）`Amazon-Advertising-API-Scope`。这与仓库中 SP-API Worker 的 `sellingpartnerapi-na.amazon.com` 体系不同，两个 token/endpoint 不能混用。
+NA 的 LWA 授权与 token 端点分别为 `https://www.amazon.com/ap/oa` 和 `https://api.amazon.com/auth/o2/token`；Ads API 基址为 `https://advertising-api.amazon.com`。Profiles 使用 `/v2/profiles`。Sponsored Products Campaigns 使用当前 v3 列表规范：`POST /sp/campaigns/list`，请求与响应媒体类型均为 `application/vnd.spCampaign.v3+json`；仓库旧用法 `GET /v2/sp/campaigns` 已从本 Worker 移除。请求按 Amazon 要求附带 `Authorization`、`Amazon-Advertising-API-ClientId` 和（Campaigns）`Amazon-Advertising-API-Scope`。这与仓库中 SP-API Worker 的 `sellingpartnerapi-na.amazon.com` 体系不同，两个 token/endpoint 不能混用。

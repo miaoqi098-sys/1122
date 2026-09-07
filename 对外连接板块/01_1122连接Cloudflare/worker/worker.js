@@ -1,21 +1,53 @@
-const ALLOWED_ORIGINS = new Set([
+const DEFAULT_ALLOWED_ORIGINS = [
   "https://1122-web-agent.pages.dev",
   "https://miaoqi098-sys.github.io",
-]);
+];
 const TARGET_ZONE = "sorilo-uk.com";
 const TARGET_PAGES_PROJECT = "sorilo-uk";
 
+function splitList(value) {
+  return String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+// Exact origins are the safe default.  Optional suffixes support an explicitly
+// configured Pages preview/custom-domain family without opening CORS to everyone.
+function isAllowedOrigin(origin, env) {
+  if (!origin) return true; // server-to-server checks do not send Origin
+  const allowed = new Set([...DEFAULT_ALLOWED_ORIGINS, ...splitList(env.ALLOWED_ORIGINS)]);
+  if (allowed.has(origin)) return true;
+  try {
+    const hostname = new URL(origin).hostname;
+    return splitList(env.ALLOWED_ORIGIN_HOST_SUFFIXES).some((suffix) =>
+      hostname === suffix || hostname.endsWith(`.${suffix}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function corsHeaders(origin = "") {
-  const allowedOrigin = ALLOWED_ORIGINS.has(origin)
-    ? origin
-    : "https://1122-web-agent.pages.dev";
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
+  const headers = {
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
     "Content-Type": "application/json; charset=UTF-8",
     "Cache-Control": "no-store",
+    "Vary": "Origin",
+  };
+  if (origin) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
+
+function health({ status, checkedAt, latencyMs, details = {}, error = null }) {
+  return {
+    connector_id: "cloudflare",
+    status,
+    checked_at: checkedAt,
+    latency_ms: latencyMs,
+    source: "1122-cloudflare-bridge",
+    capabilities: ["token_verify", "zone_read", "dns_read", "pages_read", "r2_configuration_check"],
+    details,
+    error,
   };
 }
 
@@ -73,6 +105,13 @@ export default {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
 
+    if (origin && !isAllowedOrigin(origin, env)) {
+      return new Response(JSON.stringify({ success: false, message: "Origin not allowed" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json; charset=UTF-8", "Cache-Control": "no-store", "Vary": "Origin" },
+      });
+    }
+
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -102,11 +141,9 @@ export default {
       );
     }
 
-    if (origin && !ALLOWED_ORIGINS.has(origin)) {
-      return json({ success: false, message: "Origin not allowed" }, 403, origin);
-    }
-
     if (request.method === "GET" && url.pathname === "/cloudflare-status") {
+      const startedAt = Date.now();
+      const checkedAt = new Date().toISOString();
       let step = "初始化";
       try {
         const token = env.CLOUDFLARE_API_TOKEN?.trim();
@@ -147,30 +184,36 @@ export default {
         const project =
           pages.result?.find((p) => p.name === TARGET_PAGES_PROJECT) || null;
 
-        return json(
-          {
+        const details = {
+          bridge: "online",
+          token: { status: verify.result?.status || "active" },
+          zone: {
+            name: zone.name,
+            status: zone.status,
+            paused: zone.paused,
+          },
+          dns: { recordCount: dns.result?.length || 0 },
+          pages: {
+            projectFound: Boolean(project),
+            projectName: project?.name || null,
+            subdomain: project?.subdomain || null,
+            productionBranch: project?.production_branch || null,
+          },
+          r2: {
+            credentialsConfigured:
+              Boolean(env.CLOUDFLARE_R2_ACCESS_KEY_ID) &&
+              Boolean(env.CLOUDFLARE_R2_SECRET_ACCESS_KEY) &&
+              Boolean(env.CLOUDFLARE_R2_S3_ENDPOINT),
+          },
+        };
+        const status = details.pages.projectFound && details.zone.status === "active" ? "LIVE" : "DEGRADED";
+        return json({
+            ...health({ status, checkedAt, latencyMs: Date.now() - startedAt, details }),
             success: true,
             message: "1122 已成功连接 Cloudflare",
-            connection: "connected",
-            token: { status: verify.result?.status || "active" },
-            zone: {
-              name: zone.name,
-              status: zone.status,
-              paused: zone.paused,
-            },
-            dns: { recordCount: dns.result?.length || 0 },
-            pages: {
-              projectFound: Boolean(project),
-              projectName: project?.name || null,
-              subdomain: project?.subdomain || null,
-              productionBranch: project?.production_branch || null,
-            },
-            r2: {
-              credentialsConfigured:
-                Boolean(env.CLOUDFLARE_R2_ACCESS_KEY_ID) &&
-                Boolean(env.CLOUDFLARE_R2_SECRET_ACCESS_KEY) &&
-                Boolean(env.CLOUDFLARE_R2_S3_ENDPOINT),
-            },
+            connection: status === "LIVE" ? "connected" : "degraded",
+            // Compatibility fields for existing consumers; new consumers use details.
+            ...details,
           },
           200,
           origin
@@ -178,10 +221,11 @@ export default {
       } catch (error) {
         return json(
           {
+            ...health({ status: "ERROR", checkedAt, latencyMs: Date.now() - startedAt, details: { bridge: "online" }, error: { stage: step, message: error.message } }),
             success: false,
             message: "Cloudflare 连接检查失败",
             failedAt: step,
-            error: error.message,
+            error_message: error.message,
           },
           500,
           origin

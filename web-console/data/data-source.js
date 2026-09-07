@@ -2,25 +2,39 @@
   const fallback = window.__1122_DATA__ || {navigation:[],apr:[],aom:[],apb:[],domains:[]};
   const endpoint = 'https://1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap';
 
+  // Shared, read-only transport for every external connector. It intentionally
+  // has a bounded retry budget and never converts an unknown response to success.
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  async function fetchJson(url, {timeoutMs=4500, retries=1, validate=() => true}={}){
+    let lastError;
+    for(let attempt=0; attempt<=retries; attempt++){
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, {method:'GET',mode:'cors',credentials:'omit',headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal});
+        let body;
+        try { body = await res.json(); } catch { throw new Error('INVALID_JSON'); }
+        if(!res.ok) throw new Error(`HTTP_${res.status}`);
+        if(!validate(body)) throw new Error('INVALID_SHAPE');
+        return body;
+      } catch(error) {
+        lastError = error?.name === 'AbortError' ? new Error('TIMEOUT') : error;
+        const retryable = /^(TIMEOUT|INVALID_JSON|HTTP_5)/.test(String(lastError?.message || '')) || lastError instanceof TypeError;
+        if(!retryable || attempt === retries) break;
+        await sleep(250 * (attempt + 1));
+      } finally { clearTimeout(timeout); }
+    }
+    throw lastError || new Error('REQUEST_FAILED');
+  }
+  window.__1122_FETCH_JSON__ = fetchJson;
+
   function isValidShape(x){
     return x && typeof x === 'object' && Array.isArray(x.apr) && Array.isArray(x.aom) && Array.isArray(x.apb) && Array.isArray(x.domains);
   }
 
   async function load(){
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3500);
     try {
-      const res = await fetch(endpoint, {
-        method:'GET',
-        mode:'cors',
-        credentials:'omit',
-        headers:{'Accept':'application/json'},
-        cache:'no-store',
-        signal:controller.signal
-      });
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      const remote = await res.json();
-      if(!isValidShape(remote)) throw new Error('invalid bootstrap shape');
+      const remote = await fetchJson(endpoint, {timeoutMs:3500,retries:1,validate:isValidShape});
       return {
         ...fallback,
         ...remote,
@@ -38,8 +52,6 @@
         ...fallback,
         __source:{mode:'SNAPSHOT_FALLBACK',endpoint,live_data_verified:false,loaded_at:new Date().toISOString(),reason:String(error && error.message || error)}
       };
-    } finally {
-      clearTimeout(timeout);
     }
   }
 

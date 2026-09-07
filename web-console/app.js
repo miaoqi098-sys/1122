@@ -82,31 +82,22 @@
 
   async function renderConnectors(){
     pageTitle.textContent='对外连接'; breadcrumb.textContent='系统 / 对外连接';
-    view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>只读展示已部署服务与存储层的当前连通状态。此页面不提供凭证编辑、部署或生产写操作。</p></div></div><section class="section"><div class="section-head"><div><h2>Cloudflare</h2><div class="section-sub">正在读取现有 Cloudflare Status Bridge 与 Data Layer</div></div></div><div class="grid grid-3"><div class="card"><div class="item-title">正在检查…</div><div class="item-meta">不会读取或显示任何 Secret。</div></div></div></section>`;
-    const get = async (url) => {
-      const response = await fetch(url, {method:'GET', mode:'cors', credentials:'omit', headers:{Accept:'application/json'}, cache:'no-store'});
-      if(!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    };
-    try {
-      const [bridge, dataLayer] = await Promise.all([
-        get('https://1122-cloudflare-bridge.zhangshuaibing01.workers.dev/cloudflare-status'),
-        get('https://1122-data-layer.zhangshuaibing01.workers.dev/status')
-      ]);
-      const storage = dataLayer.storage || {};
-      const bridgeOk = bridge.success === true && bridge.connection === 'connected';
-      const cards = [
-        connectorCard('Cloudflare API 状态桥', bridgeOk ? '已连通' : '检查失败', bridgeOk ? `Zone：${bridge.zone?.name || '—'}（${bridge.zone?.status || '—'}）；Pages：${bridge.pages?.projectName || '未识别'}` : (bridge.error || bridge.message || '未返回有效状态'), bridgeOk ? 'ok' : 'bad'),
-        connectorCard('1122 Data Layer Worker', dataLayer.success === true ? '已连通' : '检查失败', `服务：${dataLayer.service || '—'}；版本：${dataLayer.version || '—'}`, dataLayer.success === true ? 'ok' : 'bad'),
-        connectorCard('D1 / 1122-core', storage.d1?.ready ? '已连通' : '未就绪', storage.d1?.ready ? `${storage.d1.tableCount ?? '—'} 张表，永久经营事实层` : (storage.d1?.status || '等待绑定'), storage.d1?.ready ? 'ok' : 'warn'),
-        connectorCard('KV / Current State', storage.kv?.ready ? '已连通' : '未就绪', storage.kv?.ready ? '当前状态缓存已绑定' : (storage.kv?.status || '等待绑定'), storage.kv?.ready ? 'ok' : 'warn'),
-        connectorCard('R2 / 1122-data-archive', storage.r2?.ready ? '已连通' : '待启用', storage.r2?.ready ? '归档存储已就绪' : (storage.r2?.status || '尚未启用'), storage.r2?.ready ? 'ok' : 'warn'),
-        connectorCard('1122 Web Console', '已部署', 'Cloudflare Pages：1122-web-agent.pages.dev；页面仅以只读方式调用状态接口。', 'ok')
-      ];
-      view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>状态来自既有 Cloudflare Status Bridge 与 Data Layer。凭证只保留在 Worker / GitHub Actions Secrets。</p></div></div>${section('Cloudflare 对接状态','实时只读检查', `<div class="grid grid-3">${cards.join('')}</div>`)}<div class="notice section">部署链路：GitHub main → GitHub Actions → Wrangler → Cloudflare Workers / Pages。界面不会调用 Cloudflare 写入 API。</div>`;
-    } catch (error) {
-      view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>无法完成实时状态检查。</p></div></div><div class="notice warn section">${esc(String(error && error.message || error))}。当前页面不会把“不可达”误报为已连接。</div>`;
-    }
+    view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>正在进行一次有时限、可重试一次的只读检查；不会读取或显示 Secret。</p></div></div>`;
+    const health = await window.__1122_CONNECTORS__.read('cloudflare');
+    const d = health.details || {};
+    const statusKind = health.status === 'LIVE' ? 'ok' : health.status === 'ERROR' ? 'bad' : 'warn';
+    const statusText = health.status === 'LIVE' ? 'LIVE' : health.status === 'DEGRADED' ? 'DEGRADED' : health.status === 'FALLBACK' ? 'FALLBACK' : 'ERROR';
+    const error = health.error?.message || health.error_message || '—';
+    const cards = [
+      connectorCard('Cloudflare Status Bridge', statusText, `来源：${health.source || '—'}；延迟：${health.latency_ms ?? '—'} ms；${d.bridge === 'offline' ? 'Bridge 不可达' : 'Bridge 已响应'}`, statusKind),
+      connectorCard('API Token', d.token?.status || '未知', '仅展示验证状态，不会显示 Token。', d.token?.status ? 'ok' : 'warn'),
+      connectorCard('Zone', d.zone?.status || '未知', `域名：${d.zone?.name || '—'}；${d.zone?.paused ? '已暂停' : '未确认暂停状态'}`, d.zone?.status === 'active' ? 'ok' : 'warn'),
+      connectorCard('DNS', `${d.dns?.recordCount ?? '—'} records`, '只读统计；未知不会被当作 0。', Number.isInteger(d.dns?.recordCount) ? 'ok' : 'warn'),
+      connectorCard('Pages', d.pages?.projectFound ? '已识别' : '未知/未识别', `项目：${d.pages?.projectName || '—'}；生产分支：${d.pages?.productionBranch || '—'}；子域名：${d.pages?.subdomain || '—'}`, d.pages?.projectFound ? 'ok' : 'warn'),
+      connectorCard('R2', d.r2?.credentialsConfigured ? '已配置' : '未配置/未知', '只检查配置状态，不暴露访问凭证。', d.r2?.credentialsConfigured ? 'ok' : 'warn'),
+      connectorCard('最后检查', health.checked_at || '未知', health.status === 'ERROR' ? `失败阶段：${health.error?.stage || health.failedAt || '请求/响应'}；原因：${error}` : '状态由既有 Cloudflare Status Bridge 实时返回。', statusKind)
+    ];
+    view.innerHTML = `<div class="hero"><div><h2>对外连接</h2><p>Cloudflare 状态直连既有 Status Bridge，不通过业务 bootstrap 聚合；未知或部分成功会明确标记。</p></div></div>${section('Cloudflare 对接状态',`实时只读检查 · ${statusText}`, `<div class="grid grid-3">${cards.join('')}</div>`)}<div class="notice ${health.status === 'LIVE' ? '' : 'warn'} section">连接状态：${tag(statusText,statusKind)}。部署链路：GitHub main → GitHub Actions → Wrangler → Cloudflare Workers / Pages。</div>`;
   }
 
   function render(){

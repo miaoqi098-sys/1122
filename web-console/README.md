@@ -35,6 +35,25 @@ python3 -m http.server 8080
 http://localhost:8080
 ```
 
+## 不依赖 GitHub 的 Cloudflare 发布
+
+1122 使用现有 Cloudflare Pages 项目 `1122-web-agent`，可从本地直接部署，不依赖 GitHub Actions。发布前需在本机完成 Cloudflare 登录，并确认项目的自定义域名为 `1122.sorilo-uk.com`。
+
+```bash
+npx wrangler@4 whoami
+npx wrangler@4 pages deploy . --project-name=1122-web-agent --branch=main
+```
+
+部署后访问：
+
+```text
+https://1122.sorilo-uk.com/#/connectors
+```
+
+在 Cloudflare Dashboard 的 **Workers & Pages → 1122-web-agent → Custom domains** 中添加 `1122.sorilo-uk.com`。该域名位于同一 Cloudflare Zone 时，Cloudflare 会管理所需 DNS/HTTPS 配置。不要把 1122 绑定到 `sorilo-uk.com` 根域名，以免覆盖现有主站。
+
+本网页仅直连只读的 Status Bridge 与 Data Layer；Cloudflare Token、R2 凭据、账户密钥都不属于 Pages 产物。
+
 ## 路由
 
 当前使用 Hash Router，避免静态托管环境需要额外 rewrite 配置。

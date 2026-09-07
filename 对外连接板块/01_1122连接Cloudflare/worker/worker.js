@@ -1,5 +1,6 @@
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://1122-web-agent.pages.dev",
+  "https://1122.sorilo-uk.com",
   "https://miaoqi098-sys.github.io",
 ];
 const TARGET_ZONE = "sorilo-uk.com";

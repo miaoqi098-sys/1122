@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "1122-web-agent",
+  "pages_build_output_dir": "./",
+  "compatibility_date": "2026-09-07"
+}

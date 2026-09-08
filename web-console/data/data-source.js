@@ -18,6 +18,7 @@
           const requestError = new Error(typeof payload?.error?.message === 'string' ? payload.error.message : `HTTP_${res.status}`);
           requestError.httpStatus = res.status;
           requestError.code = payload?.error?.code || `HTTP_${res.status}`;
+          requestError.responsePayload = payload;
           throw requestError;
         }
         if(!validate(payload)) throw new Error('INVALID_SHAPE');
@@ -34,7 +35,10 @@
   window.__1122_FETCH_JSON__ = fetchJson;
 
   function isValidShape(x){
-    return x && typeof x === 'object' && Array.isArray(x.apr) && Array.isArray(x.aom) && Array.isArray(x.apb) && Array.isArray(x.domains);
+    const arrays = ['apr','aom','apb','domains','products','agents','tasks','sandbox_runs'];
+    return x && typeof x === 'object' && arrays.every(key => Array.isArray(x[key])) &&
+      x.source_status && typeof x.source_status === 'object' &&
+      x.knowledge && typeof x.knowledge === 'object';
   }
 
   async function load(){

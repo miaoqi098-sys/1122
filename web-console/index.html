@@ -5,61 +5,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>1122 亚马逊智能经营系统</title>
   <meta name="description" content="1122 Amazon Intelligent Operations Console" />
-  <link rel="stylesheet" href="./styles.css?v=20260907-ads-manual-v1" />
+  <meta name="color-scheme" content="light" />
+  <link rel="stylesheet" href="./styles.css?v=20260908-console-v2" />
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
   <div class="app-shell">
-    <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div class="brand-mark">11</div>
-        <div>
-          <div class="brand-title">1122</div>
-          <div class="brand-subtitle">Amazon Ops OS</div>
-        </div>
+    <aside class="sidebar" id="sidebar" aria-label="主导航">
+      <div class="sidebar-head">
+        <a class="brand" href="#/command-center" aria-label="返回经营指挥中心">
+          <span class="brand-mark" aria-hidden="true">11</span>
+          <span>
+            <span class="brand-title">1122</span>
+            <span class="brand-subtitle">Amazon Ops OS</span>
+          </span>
+        </a>
+        <button id="sidebar-close" class="sidebar-close" type="button" aria-label="关闭导航">×</button>
       </div>
       <nav id="primary-nav" class="nav"></nav>
+      <div class="sidebar-support">
+        <a href="#/system/overview" class="sidebar-map-link">
+          <span aria-hidden="true">⌘</span>
+          <span>系统地图与资源盘点</span>
+        </a>
+      </div>
       <div class="sidebar-footer">
-        <div class="system-state"><span class="dot dot-ok"></span> Read-only / Fail-closed</div>
-        <div id="data-source-state" class="system-version">Data: loading…</div>
-        <div class="system-version">Web Console V1.5 · Live-ready</div>
+        <div class="system-state"><span id="system-dot" class="dot dot-warn"></span><span id="system-safety-state">只读边界检查中</span></div>
+        <div id="data-source-state" class="system-version">数据源：加载中…</div>
+        <div class="system-version">Web Console V2 · 2026-09-08</div>
       </div>
     </aside>
+    <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="关闭导航" tabindex="-1"></button>
 
-    <main class="main">
+    <main class="main" id="main-content">
       <header class="topbar">
-        <button id="menu-toggle" class="icon-button" aria-label="切换导航">☰</button>
-        <div>
-          <div id="breadcrumb" class="breadcrumb">经营指挥中心</div>
-          <h1 id="page-title">经营指挥中心</h1>
+        <button id="menu-toggle" class="icon-button" type="button" aria-label="打开导航" aria-controls="sidebar" aria-expanded="false">☰</button>
+        <div class="topbar-title">
+          <nav id="breadcrumb" class="breadcrumb" aria-label="面包屑">首页 / 经营指挥中心</nav>
+          <h1 id="page-title" tabindex="-1">经营指挥中心</h1>
         </div>
         <div class="topbar-actions">
-          <label class="search-box">
-            <span>⌕</span>
-            <input id="global-search" type="search" placeholder="搜索 APR / AOM / APB / 产品 / 知识" />
+          <label class="search-box" for="global-search">
+            <span aria-hidden="true">⌕</span>
+            <input id="global-search" type="search" autocomplete="off" placeholder="搜索模块、产品、APR / AOM / APB" />
+            <kbd>Ctrl K</kbd>
           </label>
-          <button class="status-pill">US Marketplace</button>
+          <span class="scope-pill" title="当前经营数据默认 Marketplace">US</span>
+          <a id="top-health" class="health-pill health-checking" href="#/connectors">
+            <span class="health-dot" aria-hidden="true"></span>
+            <span>连接检查中</span>
+          </a>
         </div>
       </header>
 
-      <section id="view" class="view" aria-live="polite"></section>
+      <div id="route-status" class="sr-only" role="status" aria-live="polite"></div>
+      <section id="view" class="view" aria-busy="true"></section>
     </main>
   </div>
 
   <template id="empty-template">
     <div class="empty-state">
-      <div class="empty-icon">◌</div>
-      <h3>当前暂无可展示数据</h3>
+      <div class="empty-icon" aria-hidden="true">◌</div>
+      <h2>当前暂无可展示数据</h2>
       <p>页面契约已经建立，等待只读数据源接入。</p>
     </div>
   </template>
 
-  <script src="./data/snapshots.js?v=20260907-live-v4"></script>
-  <script src="./registry.js?v=20260907-registry-v2"></script>
-  <script src="./data/data-source.js?v=20260908-ads-manual-v2"></script>
-  <script src="./connectors-live.js?v=20260907-live-v4"></script>
-  <script src="./app.js?v=20260907-ads-manual-v1"></script>
-  <script src="./live-pages.js?v=20260907-live-v4"></script>
-  <script src="./home-live.js?v=20260907-live-v4"></script>
-  <script src="./knowledge-page.js?v=20260907-live-v4"></script>
+  <script src="./data/snapshots.js?v=20260908-console-v2"></script>
+  <script src="./data/system-catalog.js?v=20260908-console-v2"></script>
+  <script src="./registry.js?v=20260908-console-v2"></script>
+  <script src="./data/data-source.js?v=20260908-console-v2"></script>
+  <script src="./connectors-live.js?v=20260908-console-v2"></script>
+  <script src="./home-live.js?v=20260908-console-v2"></script>
+  <script src="./live-pages.js?v=20260908-console-v2"></script>
+  <script src="./knowledge-page.js?v=20260908-console-v2"></script>
+  <script src="./boundary-pages.js?v=20260908-console-v2"></script>
+  <script src="./system-pages.js?v=20260908-console-v2"></script>
+  <script src="./connector-pages.js?v=20260908-console-v2"></script>
+  <script src="./ads-page.js?v=20260908-console-v2"></script>
+  <script src="./app.js?v=20260908-console-v2"></script>
 </body>
 </html>

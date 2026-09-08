@@ -46,6 +46,7 @@ jobs:
           test -f web-console/styles.css
           test -f web-console/app.js
           test -f web-console/data/snapshots.js
+          test -f web-console/_headers
           node --check web-console/app.js
           node --check web-console/data/snapshots.js
 
@@ -58,7 +59,8 @@ jobs:
           fi
 
           printf 'User-agent: *\nDisallow:\n' > dist/robots.txt
-          printf '/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n  X-Frame-Options: SAMEORIGIN\n' > dist/_headers
+          test -f dist/_headers
+          grep -q 'Content-Security-Policy:' dist/_headers
 
           echo "Approved frontend artifact:"
           find dist -type f -maxdepth 3 -printf '%P\n' | sort
@@ -86,4 +88,4 @@ jobs:
           echo "Deployment smoke test failed" >&2
           exit 1
 
-# deployment marker: web-console-v1
+# deployment marker: web-console-v2

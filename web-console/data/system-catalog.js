@@ -92,7 +92,7 @@
   window.__1122_SYSTEM_CATALOG__ = Object.freeze({
     schema_version: '1.0.0',
     scanned_at: '2026-09-10',
-    scan_commit: 'working-tree-20260910',
+    scan_commit: '33aeec7',
     repository: Object.freeze({
       owner: 'miaoqi098-sys', name: '1122', visibility: 'private',
       architecture: '12 + 1 + 1', tracked_files_at_scan: 1189,

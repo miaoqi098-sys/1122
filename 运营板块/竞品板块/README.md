@@ -5,9 +5,33 @@
 ## 当前三级结构
 - 竞品池
 - 价格与 Listing 变化
-- 关键词与流量
+- 关键词与流量（已落地竞品关键词工作台）
 - 竞品广告
 - 评价与市场信号
+
+## 竞品关键词工作台
+
+正式页面：`#/operations/competitors/keywords`
+
+工作流：
+
+```text
+1–10 个竞品 ASIN
+  → SIF 指定周期流量词明细（逐 ASIN 分页）
+  → 原始观察账本
+  → Unicode NFKC 严格去重
+  → KeywordTaxonomy.v1.0 唯一主分类
+  → 1122-core D1 任务快照、规范词与来源 ASIN
+  → 页面筛选和追溯
+```
+
+页面中的“全部”只表示已完成读取的 **SIF 所选周期可见词范围**，不表示 Amazon 全部搜索查询。每个 ASIN 最多读取 20 页、每页 200 行；达到上限必须显示截断状态。
+
+关键词只在规范化后完全一致时自动合并。复数、词序、翻译和近似拼写不自动合并，只标记为待复核。搜索量与 ABA 排名属于市场口径，跨 ASIN 聚合时取当前返回值的最大值或最优排名，不累加；单 ASIN 的流量占比保留在来源证据中。
+
+10 个主分类是：自有品牌、竞品/替代、促销/交易、节日/季节/礼赠、人群、场景/用途、痛点/功能利益、属性/材质/规格、核心/类目、相关泛词。长尾不是互斥主分类，而是 `query_shape`；核心程度另存为 `strategic_tier`。
+
+新建任务和读取经营词库都需要 `SIF_RESEARCH_ACCESS_KEY`。该密钥由操作者自行设置，只在页面内存中使用；SIF MCP 密钥永远不进入网页。任务通过 Cloudflare Queue 按 ASIN、SIF 页和分类批次续跑，即使用户关闭页面仍可继续。
 
 ## 主要数据源
 - Sif MCP
@@ -18,7 +42,7 @@
 Agent-3 竞品情报智能体；跨域最终经营决策由 Agent-1 输出。
 
 ## 当前状态
-Sif MCP 已完成真实 ASIN 数据读取验证，可以开始建设 `CompetitorIdentity / CompetitorSnapshot / CompetitorEvent` 标准链路。
+Sif MCP 已完成真实连接验证。竞品关键词任务、严格去重、10 类分类和 D1 来源追溯已形成独立链路；`CompetitorIdentity / CompetitorSnapshot / CompetitorEvent` 仍需后续建设，不能由关键词任务状态代替。
 
 ## 页面入口
-`运营驾驶舱 → 竞品中心 → 对应三级页面`
+`运营驾驶舱 → 竞品中心 → 关键词工作台`

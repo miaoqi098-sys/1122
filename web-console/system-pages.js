@@ -57,9 +57,18 @@
       </div>
       <section class="section"><div class="section-head"><div><h2>实时连接状态</h2><div class="section-sub">并行、有超时、失败关闭；不读取 Secret 值</div></div></div><div id="system-connector-grid" class="grid grid-3"><div class="card"><div class="skeleton skeleton-line"></div></div><div class="card"><div class="skeleton skeleton-line"></div></div><div class="card"><div class="skeleton skeleton-line"></div></div></div></section>
       <section class="section"><div class="section-head"><div><h2>仓库模块盘点</h2><div class="section-sub">真实只读、部分真实、契约就绪与设计态明确分开</div></div></div><div class="grid grid-3">${(catalog.modules || []).map(moduleCard).join('')}</div></section>
+      <section class="section"><div class="section-head"><div><h2>竞品关键词数据流</h2><div class="section-sub">新能力归属运营 / 竞品，不新增一级架构</div></div><a class="route-link" href="#/operations/competitors/keywords">打开工作台 →</a></div>
+        <div class="flow">
+          <div class="flow-step"><div class="flow-index">01</div><div class="flow-title">批量 ASIN</div><div class="flow-desc">1–10 个竞品</div></div>
+          <div class="flow-step"><div class="flow-index">02</div><div class="flow-title">SIF Queue</div><div class="flow-desc">分 ASIN、有限并发</div></div>
+          <div class="flow-step"><div class="flow-index">03</div><div class="flow-title">Raw Evidence</div><div class="flow-desc">逐页不可变观察</div></div>
+          <div class="flow-step"><div class="flow-index">04</div><div class="flow-title">Dedupe + Taxonomy</div><div class="flow-desc">严格合并、10 类</div></div>
+          <div class="flow-step"><div class="flow-index">05</div><div class="flow-title">D1 Workbench</div><div class="flow-desc">词库与来源追溯</div></div>
+        </div>
+      </section>
       <section class="section"><div class="section-head"><div><h2>存储资源</h2><div class="section-sub">2026-09-08 Cloudflare 只读盘点</div></div></div>
         <div class="grid grid-3">
-          <div class="card"><div class="split-title"><div class="item-title">D1 · ${esc(cf.d1?.name || '1122-core')}</div>${tag('RUNTIME BOUND')}</div><div class="item-meta">Worker 运行绑定可用；账户级清单权限与运行证据分开记录。</div></div>
+          <div class="card"><div class="split-title"><div class="item-title">D1 · ${esc(cf.d1?.name || '1122-core')}</div>${tag('RUNTIME BOUND')}</div><div class="item-meta">事实层新增竞品关键词任务、规范词、分类快照与来源 ASIN 证据；浏览器不承担持久化。</div></div>
           <div class="card"><div class="split-title"><div class="item-title">KV · ${esc((cf.kv || [])[0] || '—')}</div>${tag((cf.kv || []).length ? 'AVAILABLE' : 'UNKNOWN')}</div><div class="item-meta">当前状态缓存；允许覆盖，不作为长期历史真值。</div></div>
           <div class="card"><div class="split-title"><div class="item-title">R2 Archive</div>${tag(cf.r2?.enabled ? 'AVAILABLE' : 'NOT ENABLED')}</div><div class="item-meta">检测到的凭据名称不等于服务已启用；当前 bucket 数 ${cf.r2?.bucket_count ?? '—'}。</div></div>
         </div>
@@ -129,18 +138,32 @@
 
   async function renderCompetitors({ view, setChrome, isCurrent }) {
     setChrome('竞品中心', '经营 / 运营 / 竞品');
-    view.innerHTML = `${hero('COMPETITOR INTELLIGENCE', '竞品中心', 'SIF 连接状态与竞品实体数据分开。连接器在线不代表已经把竞品结果写入当前读模型。')}<div id="competitor-status" class="section"><div class="card"><div class="skeleton skeleton-line"></div></div></div>`;
+    view.innerHTML = `${hero('COMPETITOR INTELLIGENCE', '竞品中心', '竞品池、关键词与流量、价格 Listing、广告和评价信号的统一入口。SIF 连接正常、任务成功和词库完整是三个不同状态。', '<a class="btn btn-primary" href="#/operations/competitors/keywords">打开关键词工作台</a>')}<div id="competitor-status" class="section"><div class="card"><div class="skeleton skeleton-line"></div></div></div>`;
     const health = await window.__1122_CONNECTORS__.read('sif');
     if (!isCurrent()) return;
     const target = document.getElementById('competitor-status');
     if (!target) return;
+    const researchReady = health.details?.research_configured === true;
+    const accessReady = health.details?.research_access_configured === true;
     target.innerHTML = `
       <div class="grid grid-3">
         <div class="card metric-card"><div class="metric-label">SIF 连接</div><div class="metric-value compact-value">${esc(health.status)}</div><div class="metric-meta">${fmtTime(health.checked_at)}</div></div>
         <div class="card metric-card"><div class="metric-label">可发现工具</div><div class="metric-value">${health.details?.tool_count ?? '—'}</div><div class="metric-meta">${esc(health.details?.server || '—')}</div></div>
-        <div class="card metric-card"><div class="metric-label">当前竞品实体</div><div class="metric-value">—</div><div class="metric-meta">尚无 CompetitorEntity 读模型</div></div>
+        <div class="card metric-card"><div class="metric-label">关键词任务能力</div><div class="metric-value compact-value">${researchReady ? 'READY' : accessReady ? 'DEGRADED' : 'AUTH REQUIRED'}</div><div class="metric-meta">Queue ${health.details?.queue_bound ? '已绑定' : '未绑定'} · 单次最多 ${health.details?.research_max_asins ?? 10} ASIN</div></div>
       </div>
-      <div class="notice warn section">下一步需要先确定竞品对象、观察时间、来源与字段契约，再把 SIF 返回写入 D1；本页不会把“34 个工具”误报成“34 个竞品”。</div>`;
+      <div class="flow section">
+        <div class="flow-step"><div class="flow-index">01</div><div class="flow-title">批量 ASIN</div><div class="flow-desc">校验、输入内去重</div></div>
+        <div class="flow-step"><div class="flow-index">02</div><div class="flow-title">SIF 分页</div><div class="flow-desc">所选周期可见流量词</div></div>
+        <div class="flow-step"><div class="flow-index">03</div><div class="flow-title">严格去重</div><div class="flow-desc">近似词只提示</div></div>
+        <div class="flow-step"><div class="flow-index">04</div><div class="flow-title">10 类分类</div><div class="flow-desc">规则与置信度可追溯</div></div>
+        <div class="flow-step"><div class="flow-index">05</div><div class="flow-title">D1 词库</div><div class="flow-desc">任务、词、来源 ASIN</div></div>
+      </div>
+      <div class="grid grid-3 section">
+        <a class="card goal-card" href="#/operations/competitors/keywords"><div class="goal-icon">⌕</div><div class="goal-title">关键词工作台</div><div class="goal-desc">新建批量研究、查看任务进度、分类分布与去重词表。</div></a>
+        <article class="card"><div class="goal-icon">◫</div><div class="goal-title">竞品池</div><div class="goal-desc">待建立 CompetitorIdentity 与“为什么跟踪”关系；不把关键词任务自动冒充竞品实体。</div></article>
+        <article class="card"><div class="goal-icon">◇</div><div class="goal-title">广告与 Listing 联动</div><div class="goal-desc">词库只提供研究证据；后续形成草稿并通过 Task / Approval，不直接修改 Amazon。</div></article>
+      </div>
+      <div class="notice warn section">${accessReady ? '关键词研究操作密钥已配置；进入工作台后仍需在当前会话输入。' : '关键词查询会消耗 SIF 额度。请先为 Worker 配置独立的 SIF_RESEARCH_ACCESS_KEY；不会把 SIF 密钥交给网页。'}</div>`;
   }
 
   async function renderOffsite({ view, setChrome, isCurrent }) {

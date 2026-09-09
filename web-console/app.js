@@ -54,14 +54,24 @@
     sourceState.textContent = `数据源：${source.mode || 'UNKNOWN'} · ${d1}`;
     sourceState.title = `Transport: ${source.endpoint || 'snapshot'} · Semantic: ${data.live_data_verified === true ? 'verified' : 'pending'}`;
     const safe = data.read_only === true && data.production_write_authorized !== true && data.execution_authorized !== true;
+    const researchProtected = (window.__1122_REGISTRY__?.connectors || []).some(connector => connector.writeMode === 'protected-research');
     systemDot.className = `dot ${safe ? 'dot-ok' : 'dot-warn'}`;
-    safetyState.textContent = safe ? '只读 / 未授权写入' : '权限状态待确认';
+    safetyState.textContent = safe ? (researchProtected ? '生产只读 / 研究操作受保护' : '只读 / 未授权写入') : '权限状态待确认';
   }
 
   function stateClass(readiness) {
     if (readiness === 'LIVE_READ' || readiness === 'LIVE_EMPTY') return 'live';
     if (readiness === 'PARTIAL_LIVE') return 'partial';
     return 'design';
+  }
+
+  function renderNavChildren(parentId, depth = 1) {
+    const children = moduleRegistry.filter(child => child.parent === parentId);
+    if (!children.length) return '';
+    return `<div class="nav-children nav-depth-group-${depth}">${children.map(child => `<div>
+      <a class="nav-child nav-depth-${depth}" href="#${esc(child.route)}" data-route="${esc(child.route)}"><span class="nav-label">${esc(child.label)}</span><span class="nav-state ${stateClass(child.readiness)}" title="${esc(child.readiness || 'UNKNOWN')}"></span></a>
+      ${renderNavChildren(child.id, depth + 1)}
+    </div>`).join('')}</div>`;
   }
 
   function renderNav() {
@@ -77,19 +87,22 @@
       const items = roots.filter(item => item.nav_group === groupId);
       if (!items.length) return '';
       return `<details class="nav-section" open><summary>${esc(label)}</summary><div class="nav-group">${items.map(item => {
-        const children = moduleRegistry.filter(child => child.parent === item.id);
-        return `<div><a class="nav-item" href="#${esc(item.route)}" data-route="${esc(item.route)}"><span class="nav-icon" aria-hidden="true">${esc(item.icon || '•')}</span><span class="nav-label">${esc(item.label)}</span><span class="nav-state ${stateClass(item.readiness)}" title="${esc(item.readiness || 'UNKNOWN')}"></span></a>${children.length ? `<div class="nav-children">${children.map(child => `<a class="nav-child" href="#${esc(child.route)}" data-route="${esc(child.route)}"><span class="nav-label">${esc(child.label)}</span><span class="nav-state ${stateClass(child.readiness)}" title="${esc(child.readiness || 'UNKNOWN')}"></span></a>`).join('')}</div>` : ''}</div>`;
+        return `<div><a class="nav-item" href="#${esc(item.route)}" data-route="${esc(item.route)}"><span class="nav-icon" aria-hidden="true">${esc(item.icon || '•')}</span><span class="nav-label">${esc(item.label)}</span><span class="nav-state ${stateClass(item.readiness)}" title="${esc(item.readiness || 'UNKNOWN')}"></span></a>${renderNavChildren(item.id)}</div>`;
       }).join('')}</div></details>`;
     }).join('');
   }
 
   function setActive() {
     const path = routeInfo().path;
-    nav.querySelectorAll('[data-route]').forEach(link => {
+    const links = [...nav.querySelectorAll('[data-route]')];
+    const activeLinks = links.filter(link => path === link.dataset.route || path.startsWith(`${link.dataset.route}/`));
+    const current = activeLinks.sort((left, right) => right.dataset.route.length - left.dataset.route.length)[0] || null;
+    links.forEach(link => {
       const linkRoute = link.dataset.route;
-      const active = path === linkRoute || (link.classList.contains('nav-item') && path.startsWith(`${linkRoute}/`));
+      const active = path === linkRoute || path.startsWith(`${linkRoute}/`);
       link.classList.toggle('active', active);
-      if (active) link.setAttribute('aria-current', 'page');
+      if (link === current) link.setAttribute('aria-current', 'page');
+      else if (active) link.setAttribute('aria-current', 'location');
       else link.removeAttribute('aria-current');
     });
   }

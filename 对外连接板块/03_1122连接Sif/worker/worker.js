@@ -1,12 +1,17 @@
+import {
+  PARSER_VERSION,
+  SIF_MCP_URL,
+  callSifTool,
+  initializeAndListSifTools,
+  publicSifError,
+  startSifSession,
+} from "./sif-client.js";
+import { handleResearchRequest, processResearchQueue, researchCapability } from "./research.js";
+
 const ALLOWED_ORIGINS = new Set(["https://1122.sorilo-uk.com", "https://1122-web-agent.pages.dev", "https://miaoqi098-sys.github.io"]);
-const PRIMARY_WEB_ORIGIN = "https://1122-web-agent.pages.dev";
-const SIF_MCP_URL = "https://mcp.sif.com/mcp";
-const MCP_PROTOCOL_VERSION = "2024-11-05";
-const PARSER_VERSION = "sif-v1.1";
 
 function cors(origin = "") {
-  return {
-    "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_WEB_ORIGIN,
+  const headers = {
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
@@ -15,6 +20,11 @@ function cors(origin = "") {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
   };
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers.Vary = "Origin";
+  }
+  return headers;
 }
 
 function json(data, status = 200, origin = "") {
@@ -24,172 +34,22 @@ function json(data, status = 200, origin = "") {
   });
 }
 
-function parseMcpBody(text, contentType = "") {
-  if (!text) return null;
-
-  if (contentType.includes("text/event-stream") || text.includes("\ndata:")) {
-    const events = text
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith("data:"))
-      .map((line) => line.slice(5).trim())
-      .filter(Boolean);
-
-    for (let i = events.length - 1; i >= 0; i -= 1) {
-      try {
-        return JSON.parse(events[i]);
-      } catch {}
-    }
-    throw new Error("Sif MCP 返回了无法解析的 SSE 数据");
+function fixedTimeEqual(leftValue, rightValue) {
+  const left = new TextEncoder().encode(String(leftValue || ""));
+  const right = new TextEncoder().encode(String(rightValue || ""));
+  let mismatch = left.length ^ right.length;
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    mismatch |= (left[index] || 0) ^ (right[index] || 0);
   }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("Sif MCP 返回了非 JSON 数据");
-  }
-}
-
-async function mcpRequest(payload, secret, sessionId = null) {
-  const headers = {
-    "Content-Type": "application/json",
-    "Accept": "application/json, text/event-stream",
-    "secret-key": secret,
-    "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,
-    "User-Agent": "1122SifBridge/1.3",
-  };
-
-  if (sessionId) headers["Mcp-Session-Id"] = sessionId;
-
-  const response = await fetch(SIF_MCP_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
-
-  const responseSessionId = response.headers.get("Mcp-Session-Id") || sessionId;
-  const text = await response.text();
-  let data = null;
-
-  if (text) data = parseMcpBody(text, response.headers.get("content-type") || "");
-
-  if (!response.ok) {
-    const detail = data?.error?.message || data?.message || `HTTP ${response.status}`;
-    throw new Error(`Sif MCP 请求失败：${detail}`);
-  }
-
-  if (data?.error) {
-    throw new Error(`Sif MCP 错误：${data.error.message || "Unknown MCP error"}`);
-  }
-
-  return { data, sessionId: responseSessionId };
-}
-
-async function startSifSession(secret) {
-  const init = await mcpRequest(
-    {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: MCP_PROTOCOL_VERSION,
-        capabilities: {},
-        clientInfo: {
-          name: "1122-sif-bridge",
-          version: "1.3.0",
-        },
-      },
-    },
-    secret
-  );
-
-  try {
-    await mcpRequest(
-      {
-        jsonrpc: "2.0",
-        method: "notifications/initialized",
-        params: {},
-      },
-      secret,
-      init.sessionId
-    );
-  } catch {
-    // Streamable HTTP notifications may return no JSON body.
-  }
-
-  return {
-    sessionId: init.sessionId,
-    protocolVersion: init.data?.result?.protocolVersion || MCP_PROTOCOL_VERSION,
-    serverInfo: init.data?.result?.serverInfo || null,
-  };
-}
-
-async function initializeAndListSifTools(secret) {
-  const session = await startSifSession(secret);
-  const toolsResult = await mcpRequest(
-    {
-      jsonrpc: "2.0",
-      id: 2,
-      method: "tools/list",
-      params: {},
-    },
-    secret,
-    session.sessionId
-  );
-
-  const tools = Array.isArray(toolsResult.data?.result?.tools) ? toolsResult.data.result.tools : [];
-  return { ...session, tools, toolCount: tools.length };
-}
-
-function parsePotentialJson(text) {
-  const value = String(text || "").trim();
-  if (!value) return null;
-  const stripped = value
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim();
-  try {
-    return JSON.parse(stripped);
-  } catch {
-    return null;
-  }
-}
-
-function extractToolPayload(data) {
-  const result = data?.result;
-  if (!result) return null;
-  if (result.structuredContent && typeof result.structuredContent === "object") {
-    return result.structuredContent;
-  }
-  if (Array.isArray(result.content)) {
-    for (const item of result.content) {
-      if (item?.type === "text") {
-        const parsed = parsePotentialJson(item.text);
-        if (parsed && typeof parsed === "object") return parsed;
-      }
-    }
-  }
-  return result;
-}
-
-async function callSifTool(secret, sessionId, id, name, args) {
-  const response = await mcpRequest(
-    {
-      jsonrpc: "2.0",
-      id,
-      method: "tools/call",
-      params: { name, arguments: args },
-    },
-    secret,
-    sessionId
-  );
-  return extractToolPayload(response.data);
+  return mismatch === 0;
 }
 
 function isInternalAuthorized(request, env) {
   const expected = String(env.SIF_INTERNAL_TOKEN || "").trim();
   if (!expected) return false;
   const value = String(request.headers.get("Authorization") || "");
-  return value === `Bearer ${expected}`;
+  return fixedTimeEqual(value, `Bearer ${expected}`);
 }
 
 function safeToolMetadata(tool) {
@@ -452,6 +312,9 @@ export default {
     const origin = request.headers.get("Origin") || "";
 
     if (request.method === "OPTIONS") {
+      if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+        return json({ success: false, message: "Origin not allowed" }, 403, origin);
+      }
       return new Response(null, { status: 204, headers: cors(origin) });
     }
 
@@ -459,16 +322,17 @@ export default {
       return json({ success: false, message: "Origin not allowed" }, 403, origin);
     }
 
-    if (request.method === "GET" && url.pathname === "/") {
+    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
       return json(
         {
           ok: true,
           service: "1122-sif-bridge",
           status: "online",
-          version: "1.3.0",
-          mode: "MCP+D1",
+          version: "1.4.0",
+          mode: "MCP+D1+QUEUE",
           secretConfigured: Boolean(env.SIF_MCP_SECRET),
           dataLayerBound: Boolean(env.CORE_DB),
+          research: researchCapability(env),
         },
         200,
         origin
@@ -502,20 +366,25 @@ export default {
             },
             dataLayer: {
               d1Bound: Boolean(env.CORE_DB),
-              ingestionMode: "predefined-internal-only",
+              queueBound: Boolean(env.KEYWORD_RESEARCH_QUEUE),
+              ingestionMode: "protected-predefined-queue",
             },
+            research: researchCapability(env),
           },
           200,
           origin
         );
       } catch (error) {
         return json(
-          { success: false, configured: true, message: "Sif MCP 连接检查失败", error: error.message },
+          { success: false, configured: true, message: "Sif MCP 连接检查失败", error: publicSifError(error) },
           502,
           origin
         );
       }
     }
+
+    const researchResponse = await handleResearchRequest(request, env, { json, origin });
+    if (researchResponse) return researchResponse;
 
     if (request.method === "GET" && url.pathname === "/internal/tools") {
       if (!isInternalAuthorized(request, env)) {
@@ -599,5 +468,9 @@ export default {
     }
 
     return json({ success: false, message: "Endpoint（接口地址）不存在" }, 404, origin);
+  },
+
+  async queue(batch, env) {
+    await processResearchQueue(batch, env);
   },
 };

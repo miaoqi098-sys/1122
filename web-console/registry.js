@@ -8,7 +8,8 @@
     { id:'products', label:'产品', route:'/operations/products', parent:'operations', kind:'module', readiness:'LIVE_READ', summary:'产品状态、流量转化、价格、利润与体验。' },
     { id:'ads', label:'广告运营', route:'/operations/ads', parent:'operations', kind:'module', readiness:'LIVE_READ', summary:'Amazon Ads 的 Profiles、Campaigns 与 Ad Groups 只读视图。', connectors:['amazon-ads'] },
     { id:'inventory-logistics', label:'库存物流', route:'/operations/inventory-logistics', parent:'operations', kind:'module', readiness:'PARTIAL_LIVE', summary:'库存覆盖、在途与 FBA 只读状态。', connectors:['amazon-sp-api'] },
-    { id:'competitors', label:'竞品', route:'/operations/competitors', parent:'operations', kind:'module', readiness:'DESIGN_ONLY', summary:'竞品池、价格、评价、排名与市场信号。', connectors:['sif'] },
+    { id:'competitors', label:'竞品', route:'/operations/competitors', parent:'operations', kind:'module', readiness:'PARTIAL_LIVE', summary:'竞品池、SIF 流量词、去重词库、分类与市场信号。', connectors:['sif'] },
+    { id:'competitor-keywords', label:'竞品关键词工作台', route:'/operations/competitors/keywords', parent:'competitors', kind:'module', readiness:'PARTIAL_LIVE', summary:'批量 ASIN → SIF 分页流量词 → 严格去重 → 10 类分类 → D1 可追溯词库。', connectors:['sif'] },
     { id:'offsite', label:'站外推广', route:'/operations/offsite', parent:'operations', kind:'module', readiness:'DESIGN_ONLY', summary:'站外渠道、红人合作、活动与归因。', legacy_source:'运营板块/站外推广板块/01_品牌官网与独立站/01_API资质官网/site/index.html' },
     { id:'sandbox', label:'沙盘演练', route:'/sandbox', icon:'◇', kind:'module', nav_group:'automation', readiness:'DESIGN_ONLY', summary:'经营情景、反事实基线和策略推演。' },
     { id:'agents', label:'Agent', route:'/agents', icon:'✦', kind:'module', nav_group:'automation', readiness:'PARTIAL_LIVE', summary:'运营总控与专业 Agent 的状态、输入与受控工作流。', connectors:['codex'] },
@@ -33,7 +34,7 @@
     { connector_id:'cloudflare', label:'Cloudflare', route:'/connectors', endpoint:'https://1122-cloudflare-bridge.zhangshuaibing01.workers.dev/cloudflare-status', healthPath:'cloudflare', timeoutMs:5000, retries:1, writeMode:'approval-only' },
     { connector_id:'amazon-sp-api', label:'Amazon SP-API', route:'/connectors/amazon-sp-api', endpoint:'https://1122-amazon-sp-api-bridge.zhangshuaibing01.workers.dev/connection-status', healthPath:'connection-status', timeoutMs:6000, retries:1, writeMode:'worker-only' },
     { connector_id:'amazon-ads', label:'Amazon Ads', route:'/connectors/amazon-ads', endpoint:'https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/connection-status', healthPath:'connection-status', timeoutMs:6000, retries:1, writeMode:'readonly-mvp' },
-    { connector_id:'sif', label:'SIF MCP', route:'/connectors', endpoint:'https://1122-sif-bridge.zhangshuaibing01.workers.dev/connection-status', healthPath:'connection-status', timeoutMs:6000, retries:1, writeMode:'worker-only' },
+    { connector_id:'sif', label:'SIF MCP', route:'/connectors', endpoint:'https://sif-api.sorilo-uk.com/connection-status', healthPath:'connection-status', timeoutMs:6000, retries:1, writeMode:'protected-research' },
     { connector_id:'email', label:'Email Bridge', route:'/connectors', endpoint:'https://1122-email-bridge.zhangshuaibing01.workers.dev/connection-status', healthPath:'connection-status', timeoutMs:5000, retries:0, writeMode:'worker-only' },
     { connector_id:'codex', label:'Codex / GitHub Task Bridge', route:'/connectors', endpoint:null, healthPath:'local-gateway', timeoutMs:0, retries:0, writeMode:'human-or-gateway' }
   ]);

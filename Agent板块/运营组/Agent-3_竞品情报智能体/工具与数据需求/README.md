@@ -32,4 +32,4 @@
 - R12 前台商品页状态采集与监控
 - R13 竞品搜索与竞争情报采集（新增）
 
-Agent-3框架只定义需求，不实现采集器、数据库或调度器。
+SIF 连接层已实现独立的竞品关键词研究链，包括批量 ASIN、分页流量词、D1 词库与来源追溯；该链目前是 Agent-3 的事实输入，不代表通用 CompetitorIdentity、CompetitorSnapshot、CompetitorEvent 或 Agent-3 自动投递已经运行。

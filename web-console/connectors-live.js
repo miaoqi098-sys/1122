@@ -46,7 +46,12 @@
           tool_count: Number.isInteger(payload.sif?.toolCount) ? payload.sif.toolCount : null,
           marketplace: payload.sif?.defaultMarketplace || null,
           d1_bound: payload.dataLayer?.d1Bound === true,
-          ingestion_mode: payload.dataLayer?.ingestionMode || null
+          queue_bound: payload.dataLayer?.queueBound === true,
+          ingestion_mode: payload.dataLayer?.ingestionMode || null,
+          research_configured: payload.research?.configured === true,
+          research_access_configured: payload.research?.access_key_configured === true,
+          research_max_asins: Number.isInteger(payload.research?.limits?.max_asins_per_job) ? payload.research.limits.max_asins_per_job : null,
+          research_source_tool: payload.research?.source_tool || null
         },
         error: null
       };

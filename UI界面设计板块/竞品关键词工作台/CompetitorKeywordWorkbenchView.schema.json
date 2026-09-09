@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CompetitorKeywordWorkbenchView V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "generated_at",
+    "view_status",
+    "research_capability",
+    "taxonomy_version",
+    "normalizer_version",
+    "jobs",
+    "selected_job",
+    "asin_results",
+    "category_counts",
+    "keyword_page",
+    "research_execution_protected",
+    "production_write_authorized"
+  ],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "view_status": { "enum": ["complete", "degraded", "unavailable"] },
+    "research_capability": {
+      "type": "object",
+      "required": ["configured", "d1_bound", "queue_bound", "sif_configured", "access_key_configured", "source_scope"],
+      "properties": {
+        "configured": { "type": "boolean" },
+        "d1_bound": { "type": "boolean" },
+        "queue_bound": { "type": "boolean" },
+        "sif_configured": { "type": "boolean" },
+        "access_key_configured": { "type": "boolean" },
+        "source_scope": { "type": "string" },
+        "limits": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "taxonomy_version": { "type": "string", "const": "KeywordTaxonomy.v1.0" },
+    "normalizer_version": { "type": "string", "const": "KeywordNormalizer.v1.0" },
+    "jobs": { "type": "array", "items": { "$ref": "../../数据板块/01_数据模型与契约/CompetitorKeywordResearchRun.schema.json#/$defs/ResearchJob" } },
+    "selected_job": { "oneOf": [{ "type": "null" }, { "$ref": "../../数据板块/01_数据模型与契约/CompetitorKeywordResearchRun.schema.json#/$defs/ResearchJob" }] },
+    "asin_results": { "type": "array", "items": { "$ref": "../../数据板块/01_数据模型与契约/CompetitorKeywordResearchRun.schema.json#/$defs/AsinResult" } },
+    "category_counts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category", "keyword_count", "review_count"],
+        "properties": {
+          "category": { "$ref": "../../数据板块/01_数据模型与契约/CompetitorKeywordResearchRun.schema.json#/$defs/CategoryCode" },
+          "keyword_count": { "type": "integer", "minimum": 0 },
+          "review_count": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "keyword_page": {
+      "type": "object",
+      "required": ["items", "total", "next_cursor"],
+      "properties": {
+        "items": { "type": "array", "items": { "$ref": "../../数据板块/01_数据模型与契约/CompetitorKeywordResearchRun.schema.json#/$defs/KeywordItem" } },
+        "total": { "type": "integer", "minimum": 0 },
+        "next_cursor": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "research_execution_protected": { "const": true },
+    "production_write_authorized": { "const": false },
+    "amazon_write_authorized": { "const": false }
+  }
+}

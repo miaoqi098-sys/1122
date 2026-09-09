@@ -10,7 +10,7 @@
       id: 'operations', label: '运营', route: '/operations', source_path: '运营板块/',
       file_count: 36, readiness: 'PARTIAL_LIVE', owner: '运营工作台',
       summary: '产品、广告、库存、竞品和站外推广的统一经营入口。',
-      live_surfaces: ['21 个产品状态', 'Amazon Ads Profiles / Campaigns / Ad Groups'],
+      live_surfaces: ['21 个产品状态', 'Amazon Ads Profiles / Campaigns / Ad Groups', 'SIF 竞品关键词任务 / 去重词库 / 10 类分类'],
       planned_surfaces: ['库存补货决策', '竞品实体', '站外归因']
     },
     {
@@ -45,7 +45,7 @@
     },
     {
       id: 'connectors', label: '对外连接', route: '/connectors', source_path: '对外连接板块/',
-      file_count: 68, readiness: 'PARTIAL_LIVE', owner: '外部连接层',
+      file_count: 74, readiness: 'PARTIAL_LIVE', owner: '外部连接层',
       summary: 'Cloudflare、Amazon SP-API、Amazon Ads、SIF、Email 与开发通道。',
       live_surfaces: ['Cloudflare', 'Amazon SP-API', 'Amazon Ads', 'SIF'],
       planned_surfaces: ['Email Secret 配置', 'Codex 公共健康端点']
@@ -70,14 +70,14 @@
     },
     {
       id: 'data', label: '数据', route: '/data', source_path: '数据板块/',
-      file_count: 204, readiness: 'LIVE_READ', owner: '系统事实层',
+      file_count: 206, readiness: 'LIVE_READ', owner: '系统事实层',
       summary: 'Canonical Model、D1 事实、KV 当前状态、来源与新鲜度。',
-      live_surfaces: ['1122-core D1', '11 个来源状态', '产品 / Agent / Task / Knowledge 读模型'],
+      live_surfaces: ['1122-core D1', '11 个来源状态', '产品 / Agent / Task / Knowledge / 竞品关键词读模型'],
       planned_surfaces: ['R2 原始档案', '数据质量告警']
     },
     {
       id: 'ui-design', label: 'UI 设计与契约', route: '/system/ui-design', source_path: 'UI界面设计板块/',
-      file_count: 19, readiness: 'CONTRACT_READY', owner: '系统支撑',
+      file_count: 21, readiness: 'CONTRACT_READY', owner: '系统支撑',
       summary: '统一导航、页面路由、读模型与产品视图契约。',
       live_surfaces: ['Navigation Registry V2', 'Web Console'], planned_surfaces: ['更多页面契约落地']
     },
@@ -91,15 +91,15 @@
 
   window.__1122_SYSTEM_CATALOG__ = Object.freeze({
     schema_version: '1.0.0',
-    scanned_at: '2026-09-08',
-    scan_commit: '00b1ebb',
+    scanned_at: '2026-09-10',
+    scan_commit: 'working-tree-20260910',
     repository: Object.freeze({
       owner: 'miaoqi098-sys', name: '1122', visibility: 'private',
-      architecture: '12 + 1 + 1', tracked_files_at_scan: 1172,
-      engineering_support: Object.freeze({ github_files: 84, tools_files: 9, web_console_files: 13 })
+      architecture: '12 + 1 + 1', tracked_files_at_scan: 1189,
+      engineering_support: Object.freeze({ github_files: 84, tools_files: 9, web_console_files: 19 })
     }),
     cloudflare: Object.freeze({
-      observed_at: '2026-09-08',
+      observed_at: '2026-09-10',
       pages: Object.freeze(['1122-web-agent', 'sorilo-uk']),
       workers: Object.freeze([
         '1122-cloudflare-bridge', '1122-amazon-ads-bridge', '1122-amazon-sp-api-bridge',

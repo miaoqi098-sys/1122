@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
 const root = process.cwd();
@@ -21,4 +21,23 @@ if (missing.length) {
   console.error(`Unregistered product UI found:\n${missing.map(p=>` - ${p}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`UI registry verified: ${productPages.length} discovered product page(s) registered.`);
+
+const formalRegistry = JSON.parse(readFileSync(join(root, 'UI界面设计板块', 'NavigationRegistry.v2.json'), 'utf8'));
+const flattenNavigation = items => items.flatMap(item => [item, ...flattenNavigation(item.children || [])]);
+const formalItems = [
+  ...flattenNavigation(formalRegistry.primary_navigation || []),
+  ...flattenNavigation(formalRegistry.support_navigation || []),
+];
+const runtimeRoutes = new Set([...registry.matchAll(/route:\s*'([^']+)'/g)].map(match => match[1]));
+const missingRuntimeRoutes = formalItems.filter(item => item.route && !runtimeRoutes.has(item.route));
+const missingViewContracts = formalItems.filter(item => item.view_contract && !existsSync(join(root, ...item.view_contract.split('/'))));
+if (missingRuntimeRoutes.length || missingViewContracts.length) {
+  if (missingRuntimeRoutes.length) {
+    console.error(`Formal routes missing from runtime registry:\n${missingRuntimeRoutes.map(item => ` - ${item.route}`).join('\n')}`);
+  }
+  if (missingViewContracts.length) {
+    console.error(`Missing registered view contracts:\n${missingViewContracts.map(item => ` - ${item.view_contract}`).join('\n')}`);
+  }
+  process.exit(1);
+}
+console.log(`UI registry verified: ${productPages.length} product page(s), ${formalItems.length} formal navigation route(s).`);

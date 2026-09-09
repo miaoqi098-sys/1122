@@ -1,9 +1,29 @@
 name = "1122-sif-bridge"
 main = "worker.js"
-compatibility_date = "2026-08-31"
+compatibility_date = "2026-09-09"
 workers_dev = true
+
+[[routes]]
+pattern = "sif-api.sorilo-uk.com"
+custom_domain = true
+
+[observability]
+enabled = true
 
 [[d1_databases]]
 binding = "CORE_DB"
 database_name = "1122-core"
 database_id = "00076b01-471f-40e6-bf49-57cfc07facc8"
+
+[[queues.producers]]
+binding = "KEYWORD_RESEARCH_QUEUE"
+queue = "1122-sif-keyword-research"
+
+[[queues.consumers]]
+queue = "1122-sif-keyword-research"
+max_batch_size = 1
+max_batch_timeout = 5
+max_retries = 4
+retry_delay = 30
+dead_letter_queue = "1122-sif-keyword-research-dlq"
+max_concurrency = 2

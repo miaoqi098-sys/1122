@@ -67,10 +67,17 @@ jobs:
           TOKEN: ${{ steps.sif_auth.outputs.token }}
         run: |
           set -euo pipefail
-          curl -fsS \
-            -H "Authorization: Bearer $TOKEN" \
-            "https://1122-sif-bridge.zhangshuaibing01.workers.dev/internal/tools" \
-            -o /tmp/sif-tools.json
+          STATUS=000
+          for attempt in $(seq 1 12); do
+            STATUS=$(curl -sS \
+              -H "Authorization: Bearer $TOKEN" \
+              -o /tmp/sif-tools.json \
+              -w '%{http_code}' \
+              "https://sif-api.sorilo-uk.com/internal/tools" || true)
+            if [ "$STATUS" = "200" ]; then break; fi
+            sleep 5
+          done
+          test "$STATUS" = "200"
           node - <<'NODE'
           const fs = require('fs');
           const d = JSON.parse(fs.readFileSync('/tmp/sif-tools.json', 'utf8'));

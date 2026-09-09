@@ -24,15 +24,18 @@ jobs:
           set -euo pipefail
           BASE='https://1122-web-agent.pages.dev'
           curl -fsS --retry 12 --retry-delay 5 "$BASE/" -o /tmp/index.html
-          grep -q 'Web Console V1.3' /tmp/index.html
+          grep -q 'Web Console V2' /tmp/index.html
           grep -q './home-live.js' /tmp/index.html
           grep -q './live-pages.js' /tmp/index.html
+          grep -q './competitor-keywords-page.js' /tmp/index.html
           curl -fsS --retry 8 --retry-delay 3 "$BASE/home-live.js" -o /tmp/home-live.js
           grep -q 'renderHomeLive' /tmp/home-live.js
           curl -fsS --retry 8 --retry-delay 3 "$BASE/live-pages.js" -o /tmp/live-pages.js
           grep -q 'renderProducts' /tmp/live-pages.js
           curl -fsS --retry 8 --retry-delay 3 "$BASE/data/data-source.js" -o /tmp/data-source.js
           grep -q '1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap' /tmp/data-source.js
+          curl -fsS --retry 8 --retry-delay 3 "$BASE/competitor-keywords-page.js" -o /tmp/competitor-keywords-page.js
+          grep -q 'https://sif-api.sorilo-uk.com' /tmp/competitor-keywords-page.js
       - name: Verify public read API and D1 facts
         shell: bash
         run: |

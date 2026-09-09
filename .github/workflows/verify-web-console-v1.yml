@@ -47,13 +47,13 @@ jobs:
       - name: Verify read-only data-source behavior
         run: |
           grep -q '1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap' web-console/data/data-source.js
-          grep -q "method:'GET'" web-console/data/data-source.js
+          grep -q "method='GET'" web-console/data/data-source.js
           grep -q 'SNAPSHOT_FALLBACK' web-console/data/data-source.js
           grep -q 'live_data_verified:false' web-console/data/data-source.js
           ! grep -Eqi "method:['\"](POST|PUT|PATCH|DELETE)['\"]" web-console/data/data-source.js
       - name: Verify read-only safety text
         run: |
-          grep -q 'Read-only / Fail-closed' web-console/index.html
+          grep -q '只读边界检查中' web-console/index.html
           grep -q '不拥有生产写权限' web-console/README.md
       - name: Static server smoke test
         run: |

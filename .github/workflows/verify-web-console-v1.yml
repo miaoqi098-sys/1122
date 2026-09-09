@@ -38,9 +38,9 @@ jobs:
           grep -q '#/amazon-boundary/apr' web-console/data/snapshots.js
           grep -q '#/amazon-boundary/aom' web-console/data/snapshots.js
           grep -q '#/amazon-boundary/apb' web-console/data/snapshots.js
-          grep -q 'APR 市场玩法探索' web-console/app.js
-          grep -q 'AOM 正向运营方法' web-console/app.js
-          grep -q 'APB 政策与边界证据' web-console/app.js
+          grep -q 'APR 市场玩法探索' web-console/registry.js
+          grep -q 'AOM 正向运营方法' web-console/registry.js
+          grep -q 'APB 政策与边界证据' web-console/registry.js
           grep -q 'renderProducts' web-console/live-pages.js
           grep -q 'renderAgents' web-console/live-pages.js
           grep -q 'renderTasks' web-console/live-pages.js

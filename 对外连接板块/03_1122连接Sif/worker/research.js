@@ -85,6 +85,10 @@ function publicResearchError(error) {
     RESEARCH_ACCESS_NOT_CONFIGURED: "竞品关键词操作密钥尚未配置。",
     UNAUTHORIZED: "操作密钥无效或尚未输入。",
     RESEARCH_RATE_LIMITED: "最近创建的任务较多，请稍后再试。",
+    GROUP_NAME_REQUIRED: "请选择已有产品分组，或填写一个新的分组名称。",
+    GROUP_NOT_FOUND: "所选产品分组不存在，或不属于当前市场。",
+    GROUP_ARCHIVED: "所选产品分组已归档，不能再创建新任务。",
+    GROUP_INVALID: "产品分组信息不符合要求。",
     FETCH_PAGE_BUSY: "同一个 ASIN 的该页正在处理，系统会稍后继续。",
     FETCH_PREDECESSOR_PENDING: "前一页尚未完成，系统会稍后继续。",
     JOB_NOT_FOUND: "未找到这次竞品关键词任务。",
@@ -182,6 +186,22 @@ function normalizeBrands(value) {
   return [...new Set(parts.map((item) => safeText(item, 80)).filter(Boolean))].slice(0, 10);
 }
 
+function normalizeGroupName(value) {
+  return safeText(value, 80).normalize("NFKC").toLocaleLowerCase("en-US");
+}
+
+function validGroupId(value) {
+  return /^[0-9a-f-]{36}$/i.test(String(value || ""));
+}
+
+// Kept deliberately narrow so the request contract can be unit-tested without
+// exposing any storage or queue implementation detail to callers.
+export const researchInputTestApi = Object.freeze({
+  normalizeGroupName,
+  validGroupId,
+  validateCreatePayload,
+});
+
 function validDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   return !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
@@ -225,6 +245,21 @@ function validateCreatePayload(body) {
   if (!validDate(periodStart)) {
     throw new ResearchError("INVALID_INPUT", "Invalid period_start", { stage: "VALIDATION", httpStatus: 400 });
   }
+  const groupId = safeText(body.group_id, 36);
+  const groupName = safeText(body.group_name, 80);
+  const groupDescription = safeText(body.group_description, 300) || null;
+  if (groupId && !validGroupId(groupId)) {
+    throw new ResearchError("GROUP_INVALID", "group_id is invalid", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  if (groupId && groupName) {
+    throw new ResearchError("GROUP_INVALID", "Choose an existing group or provide a new group name, not both", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  if (!groupId && !groupName) {
+    throw new ResearchError("GROUP_NAME_REQUIRED", "A product group is required", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  if (groupName && !normalizeGroupName(groupName)) {
+    throw new ResearchError("GROUP_NAME_REQUIRED", "A product group name is required", { stage: "VALIDATION", httpStatus: 400 });
+  }
   return {
     marketplace,
     language: SUPPORTED_MARKETPLACES[marketplace].language,
@@ -232,6 +267,9 @@ function validateCreatePayload(body) {
     duplicateInputs: parsed.duplicates,
     ownBrands: normalizeBrands(body.own_brands),
     jobName: safeText(body.job_name, 80) || null,
+    groupId: groupId || null,
+    groupName: groupName || null,
+    groupDescription,
     granularity,
     periodStart,
   };
@@ -252,11 +290,165 @@ async function assertRateLimit(db, requestedAsins) {
   }
 }
 
+function serializeGroup(row) {
+  if (!row) return null;
+  return {
+    group_id: row.group_id,
+    group_name: row.group_name,
+    description: row.description || null,
+    marketplace: row.marketplace,
+    language: row.language,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    archived_at: row.archived_at || null,
+    job_count: row.job_count === undefined ? undefined : Number(row.job_count || 0),
+    keyword_count: row.keyword_count === undefined ? undefined : Number(row.keyword_count || 0),
+    asin_count: row.asin_count === undefined ? undefined : Number(row.asin_count || 0),
+  };
+}
+
+async function resolveGroup(db, input) {
+  if (input.groupId) {
+    const row = await db.prepare(
+      `SELECT * FROM competitor_keyword_groups WHERE group_id=?`
+    ).bind(input.groupId).first();
+    if (!row || row.marketplace !== input.marketplace || row.language !== input.language) {
+      throw new ResearchError("GROUP_NOT_FOUND", "Requested group is missing", { stage: "GROUP", httpStatus: 404 });
+    }
+    if (row.status !== "ACTIVE") {
+      throw new ResearchError("GROUP_ARCHIVED", "Requested group is not active", { stage: "GROUP", httpStatus: 409 });
+    }
+    return row;
+  }
+
+  const normalized = normalizeGroupName(input.groupName);
+  const existing = await db.prepare(
+    `SELECT * FROM competitor_keyword_groups
+     WHERE marketplace=? AND language=? AND normalized_name=?`
+  ).bind(input.marketplace, input.language, normalized).first();
+  if (existing) {
+    if (existing.status !== "ACTIVE") {
+      throw new ResearchError("GROUP_ARCHIVED", "A group with this name is archived", { stage: "GROUP", httpStatus: 409 });
+    }
+    return existing;
+  }
+
+  const timestamp = nowIso();
+  const groupId = crypto.randomUUID();
+  try {
+    await db.prepare(
+      `INSERT INTO competitor_keyword_groups (
+        group_id, marketplace, language, group_name, normalized_name, description,
+        status, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)`
+    ).bind(
+      groupId, input.marketplace, input.language, input.groupName, normalized,
+      input.groupDescription, timestamp, timestamp
+    ).run();
+  } catch (error) {
+    // A concurrent request can create the same normalized name. Re-read it and
+    // never manufacture a second business context for the same product line.
+    const concurrent = await db.prepare(
+      `SELECT * FROM competitor_keyword_groups
+       WHERE marketplace=? AND language=? AND normalized_name=?`
+    ).bind(input.marketplace, input.language, normalized).first();
+    if (concurrent?.status === "ACTIVE") return concurrent;
+    throw error;
+  }
+  return db.prepare(`SELECT * FROM competitor_keyword_groups WHERE group_id=?`).bind(groupId).first();
+}
+
+async function listGroups(env, url) {
+  const marketplace = safeText(url.searchParams.get("marketplace") || "US", 8).toUpperCase();
+  const includeArchived = url.searchParams.get("include_archived") === "1";
+  const clauses = ["g.marketplace=?"];
+  const binds = [marketplace];
+  if (!includeArchived) clauses.push("g.status='ACTIVE'");
+  const result = await env.CORE_DB.prepare(
+    `SELECT g.*,
+            COUNT(DISTINCT j.job_id) AS job_count,
+            COUNT(DISTINCT i.keyword_id) AS keyword_count,
+            COUNT(DISTINCT ga.asin) AS asin_count
+     FROM competitor_keyword_groups g
+     LEFT JOIN competitor_keyword_research_jobs j ON j.group_id=g.group_id
+     LEFT JOIN competitor_keyword_job_items i ON i.job_id=j.job_id
+     LEFT JOIN competitor_keyword_group_asins ga ON ga.group_id=g.group_id
+     WHERE ${clauses.join(" AND ")}
+     GROUP BY g.group_id
+     ORDER BY CASE WHEN g.status='ACTIVE' THEN 0 ELSE 1 END, g.updated_at DESC, g.group_name ASC`
+  ).bind(...binds).all();
+  return { groups: (result.results || []).map(serializeGroup), marketplace };
+}
+
+async function createGroup(request, env) {
+  const body = await readJsonBody(request);
+  const marketplace = safeText(body.marketplace || "US", 8).toUpperCase();
+  if (!SUPPORTED_MARKETPLACES[marketplace]) {
+    throw new ResearchError("GROUP_INVALID", "Unsupported group marketplace", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  const groupName = safeText(body.group_name, 80);
+  if (!groupName || !normalizeGroupName(groupName)) {
+    throw new ResearchError("GROUP_NAME_REQUIRED", "A product group name is required", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  const normalized = normalizeGroupName(groupName);
+  const before = await env.CORE_DB.prepare(
+    `SELECT group_id FROM competitor_keyword_groups
+     WHERE marketplace=? AND language=? AND normalized_name=?`
+  ).bind(marketplace, SUPPORTED_MARKETPLACES[marketplace].language, normalized).first();
+  const group = await resolveGroup(env.CORE_DB, {
+    marketplace,
+    language: SUPPORTED_MARKETPLACES[marketplace].language,
+    groupId: null,
+    groupName,
+    groupDescription: safeText(body.description, 300) || null,
+  });
+  return { group: serializeGroup(group), reused_existing_group: Boolean(before) };
+}
+
+async function updateGroup(request, env, groupId) {
+  if (!validGroupId(groupId)) {
+    throw new ResearchError("GROUP_NOT_FOUND", "Group is not found", { stage: "GROUP", httpStatus: 404 });
+  }
+  const existing = await env.CORE_DB.prepare(
+    `SELECT * FROM competitor_keyword_groups WHERE group_id=?`
+  ).bind(groupId).first();
+  if (!existing) throw new ResearchError("GROUP_NOT_FOUND", "Group is not found", { stage: "GROUP", httpStatus: 404 });
+  const body = await readJsonBody(request);
+  const requestedStatus = safeText(body.status, 16).toUpperCase();
+  const groupName = body.group_name === undefined ? existing.group_name : safeText(body.group_name, 80);
+  const description = body.description === undefined ? existing.description : (safeText(body.description, 300) || null);
+  const status = requestedStatus || existing.status;
+  if (!groupName || !normalizeGroupName(groupName) || !["ACTIVE", "ARCHIVED"].includes(status)) {
+    throw new ResearchError("GROUP_INVALID", "Group update is invalid", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  const timestamp = nowIso();
+  try {
+    await env.CORE_DB.prepare(
+      `UPDATE competitor_keyword_groups
+       SET group_name=?, normalized_name=?, description=?, status=?, updated_at=?,
+           archived_at=CASE WHEN ?='ARCHIVED' THEN COALESCE(archived_at, ?) ELSE NULL END
+       WHERE group_id=?`
+    ).bind(groupName, normalizeGroupName(groupName), description, status, timestamp, status, timestamp, groupId).run();
+  } catch (error) {
+    throw new ResearchError("GROUP_INVALID", "Group name conflicts with an existing group", { stage: "GROUP", httpStatus: 409 });
+  }
+  const updated = await env.CORE_DB.prepare(`SELECT * FROM competitor_keyword_groups WHERE group_id=?`).bind(groupId).first();
+  return { group: serializeGroup(updated) };
+}
+
 function serializeJob(row) {
   if (!row) return null;
   return {
     job_id: row.job_id,
     job_name: row.job_name || null,
+    group_id: row.group_id || null,
+    group: row.group_id ? {
+      group_id: row.group_id,
+      group_name: row.group_name || "未命名分组",
+      description: row.group_description || null,
+      status: row.group_status || "UNKNOWN",
+    } : null,
     marketplace: row.marketplace,
     language: row.language,
     input_asins: parseJson(row.input_asins_json, []),
@@ -338,19 +530,20 @@ async function createJob(request, env) {
   }
   const body = await readJsonBody(request);
   const input = validateCreatePayload(body);
+  const group = await resolveGroup(env.CORE_DB, input);
   await assertRateLimit(env.CORE_DB, input.asins.length);
 
   const jobId = crypto.randomUUID();
   const createdAt = nowIso();
   const jobInsert = env.CORE_DB.prepare(
     `INSERT INTO competitor_keyword_research_jobs (
-      job_id, job_name, marketplace, language, input_asins_json, own_brands_json,
+      job_id, job_name, group_id, marketplace, language, input_asins_json, own_brands_json,
       input_asin_count, period_start, granularity, requested_page_size,
       maximum_pages_per_asin, status, source_tool, taxonomy_version,
       normalizer_version, warning_json, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?)`
   ).bind(
-    jobId, input.jobName, input.marketplace, input.language, JSON.stringify(input.asins),
+    jobId, input.jobName, group.group_id, input.marketplace, input.language, JSON.stringify(input.asins),
     JSON.stringify(input.ownBrands), input.asins.length, input.periodStart, input.granularity,
     PAGE_SIZE, MAX_PAGES_PER_ASIN, SOURCE_TOOL, TAXONOMY_VERSION, NORMALIZER_VERSION,
     JSON.stringify(input.duplicateInputs.length ? [{ code: "DUPLICATE_INPUTS_REMOVED", count: input.duplicateInputs.length }] : []),
@@ -359,7 +552,13 @@ async function createJob(request, env) {
   const asinInserts = input.asins.map((asin) => env.CORE_DB.prepare(
     `INSERT INTO competitor_keyword_research_asins (job_id, asin, status) VALUES (?, ?, 'QUEUED')`
   ).bind(jobId, asin));
-  await env.CORE_DB.batch([jobInsert, ...asinInserts]);
+  const groupAsinUpserts = input.asins.map((asin) => env.CORE_DB.prepare(
+    `INSERT INTO competitor_keyword_group_asins (
+      group_id, asin, first_job_id, first_seen_at, last_seen_at
+    ) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(group_id, asin) DO UPDATE SET last_seen_at=excluded.last_seen_at`
+  ).bind(group.group_id, asin, jobId, createdAt, createdAt));
+  await env.CORE_DB.batch([jobInsert, ...asinInserts, ...groupAsinUpserts]);
 
   try {
     await env.KEYWORD_RESEARCH_QUEUE.sendBatch(input.asins.map((asin) => ({
@@ -388,23 +587,38 @@ async function createJob(request, env) {
   }
 
   const row = await env.CORE_DB.prepare(
-    `SELECT * FROM competitor_keyword_research_jobs WHERE job_id=?`
+    `SELECT j.*, g.group_name, g.description AS group_description, g.status AS group_status
+     FROM competitor_keyword_research_jobs j
+     LEFT JOIN competitor_keyword_groups g ON g.group_id=j.group_id
+     WHERE j.job_id=?`
   ).bind(jobId).first();
-  return { job: serializeJob(row), input: { duplicate_asins_removed: input.duplicateInputs } };
+  return { job: serializeJob(row), group: serializeGroup(group), input: { duplicate_asins_removed: input.duplicateInputs } };
 }
 
 async function listJobs(env, url) {
   const requested = Number(url.searchParams.get("limit") || 20);
   const limit = Math.min(50, Math.max(1, Number.isFinite(requested) ? Math.floor(requested) : 20));
+  const groupId = safeText(url.searchParams.get("group_id"), 36);
+  if (groupId && !validGroupId(groupId)) {
+    throw new ResearchError("GROUP_INVALID", "group_id is invalid", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  const where = groupId ? "WHERE j.group_id=?" : "";
   const result = await env.CORE_DB.prepare(
-    `SELECT * FROM competitor_keyword_research_jobs ORDER BY created_at DESC LIMIT ?`
-  ).bind(limit).all();
-  return { jobs: (result.results || []).map(serializeJob), limit };
+    `SELECT j.*, g.group_name, g.description AS group_description, g.status AS group_status
+     FROM competitor_keyword_research_jobs j
+     LEFT JOIN competitor_keyword_groups g ON g.group_id=j.group_id
+     ${where}
+     ORDER BY j.created_at DESC LIMIT ?`
+  ).bind(...(groupId ? [groupId, limit] : [limit])).all();
+  return { jobs: (result.results || []).map(serializeJob), limit, group_id: groupId || null };
 }
 
 async function getJob(env, jobId) {
   const job = await env.CORE_DB.prepare(
-    `SELECT * FROM competitor_keyword_research_jobs WHERE job_id=?`
+    `SELECT j.*, g.group_name, g.description AS group_description, g.status AS group_status
+     FROM competitor_keyword_research_jobs j
+     LEFT JOIN competitor_keyword_groups g ON g.group_id=j.group_id
+     WHERE j.job_id=?`
   ).bind(jobId).first();
   if (!job) throw new ResearchError("JOB_NOT_FOUND", "Job not found", { stage: "READ", httpStatus: 404 });
   const [asinsResult, categoriesResult] = await Promise.all([
@@ -547,6 +761,93 @@ async function listKeywords(env, jobId, url) {
   };
 }
 
+async function listGroupKeywords(env, groupId, url) {
+  if (!validGroupId(groupId)) {
+    throw new ResearchError("GROUP_NOT_FOUND", "Group is not found", { stage: "GROUP", httpStatus: 404 });
+  }
+  const group = await env.CORE_DB.prepare(
+    `SELECT * FROM competitor_keyword_groups WHERE group_id=?`
+  ).bind(groupId).first();
+  if (!group) throw new ResearchError("GROUP_NOT_FOUND", "Group is not found", { stage: "GROUP", httpStatus: 404 });
+
+  const requested = Number(url.searchParams.get("limit") || 100);
+  const limit = Math.min(200, Math.max(1, Number.isFinite(requested) ? Math.floor(requested) : 100));
+  const offset = decodeCursor(url.searchParams.get("cursor"));
+  const category = safeText(url.searchParams.get("category"), 64);
+  const query = boundedLikeTerm(url.searchParams.get("q"));
+  const sort = url.searchParams.get("sort");
+  const orderBy = sort === "source_count"
+    ? "source_asin_count DESC, search_volume DESC, normalized_keyword ASC"
+    : sort === "keyword"
+      ? "normalized_keyword ASC"
+      : "search_volume DESC, source_asin_count DESC, normalized_keyword ASC";
+  const where = ["j.group_id=?"];
+  const binds = [groupId];
+  if (query) { where.push("k.normalized_keyword LIKE ? ESCAPE '\\'"); binds.push(`%${escapeLike(query)}%`); }
+  const having = category ? "HAVING SUM(CASE WHEN i.primary_category=? THEN 1 ELSE 0 END) > 0" : "";
+  const groupedFrom = `
+    FROM competitor_keyword_research_jobs j
+    JOIN competitor_keyword_job_items i ON i.job_id=j.job_id
+    JOIN competitor_keywords k ON k.keyword_id=i.keyword_id
+    LEFT JOIN competitor_keyword_sources s ON s.job_id=i.job_id AND s.keyword_id=i.keyword_id
+    WHERE ${where.join(" AND ")}
+    GROUP BY k.keyword_id, k.display_keyword, k.normalized_keyword`;
+  const select = `
+    SELECT k.keyword_id, k.display_keyword AS keyword, k.normalized_keyword,
+           GROUP_CONCAT(DISTINCT i.primary_category) AS primary_categories,
+           COUNT(DISTINCT i.primary_category) AS category_variant_count,
+           MAX(i.needs_review) AS needs_review,
+           COUNT(DISTINCT j.job_id) AS source_job_count,
+           COUNT(DISTINCT s.asin) AS source_asin_count,
+           GROUP_CONCAT(DISTINCT s.asin) AS source_asins_csv,
+           MAX(s.search_volume) AS search_volume,
+           MIN(CASE WHEN s.aba_rank > 0 THEN s.aba_rank END) AS best_aba_rank,
+           MAX(s.traffic_score) AS max_traffic_score,
+           MAX(s.traffic_share) AS max_traffic_share,
+           MIN(CASE WHEN s.organic_rank > 0 THEN s.organic_rank END) AS best_organic_rank,
+           MIN(CASE WHEN s.sp_rank > 0 THEN s.sp_rank END) AS best_sp_rank,
+           MAX(s.observed_at) AS observed_at`;
+  const allBinds = category ? [...binds, category] : binds;
+  const [rowsResult, countRow] = await Promise.all([
+    env.CORE_DB.prepare(`${select} ${groupedFrom} ${having} ORDER BY ${orderBy} LIMIT ? OFFSET ?`)
+      .bind(...allBinds, limit + 1, offset).all(),
+    env.CORE_DB.prepare(`SELECT COUNT(*) AS total FROM (SELECT k.keyword_id ${groupedFrom} ${having})`)
+      .bind(...allBinds).first(),
+  ]);
+  const rows = rowsResult.results || [];
+  const hasMore = rows.length > limit;
+  const items = rows.slice(0, limit).map((row) => {
+    const categories = String(row.primary_categories || "").split(",").filter(Boolean);
+    const classificationConflict = Number(row.category_variant_count || 0) > 1;
+    return {
+      keyword_id: row.keyword_id,
+      keyword: row.keyword,
+      normalized_keyword: row.normalized_keyword,
+      primary_category: categories[0] || "related_general",
+      primary_categories: categories,
+      classification_conflict: classificationConflict,
+      needs_review: Boolean(row.needs_review) || classificationConflict,
+      source_job_count: Number(row.source_job_count || 0),
+      source_asin_count: Number(row.source_asin_count || 0),
+      source_asins: String(row.source_asins_csv || "").split(",").filter(Boolean),
+      search_volume: toNumber(row.search_volume),
+      best_aba_rank: toInteger(row.best_aba_rank),
+      max_traffic_score: toNumber(row.max_traffic_score),
+      max_traffic_share: toNumber(row.max_traffic_share),
+      best_organic_rank: toNumber(row.best_organic_rank),
+      best_sp_rank: toNumber(row.best_sp_rank),
+      observed_at: row.observed_at || null,
+    };
+  });
+  return {
+    group: serializeGroup(group),
+    items,
+    total: Number(countRow?.total || 0),
+    limit,
+    next_cursor: hasMore ? encodeCursor(offset + limit) : null,
+  };
+}
+
 export async function handleResearchRequest(request, env, context) {
   const url = new URL(request.url);
   const { json, origin } = context;
@@ -576,6 +877,22 @@ export async function handleResearchRequest(request, env, context) {
     await requireResearchAccess(request, env);
     if (!env.CORE_DB) {
       throw new ResearchError("STORAGE_NOT_READY", "CORE_DB is not bound", { stage: "CONFIG", httpStatus: 503 });
+    }
+    if (request.method === "GET" && url.pathname === `${API_PREFIX}/competitor-keyword-groups`) {
+      return json({ success: true, ...(await listGroups(env, url)) }, 200, origin);
+    }
+    if (request.method === "POST" && url.pathname === `${API_PREFIX}/competitor-keyword-groups`) {
+      return json({ success: true, ...(await createGroup(request, env)) }, 201, origin);
+    }
+    const groupMatch = url.pathname.match(/^\/api\/v1\/competitor-keyword-groups\/([0-9a-f-]+)(?:\/(keywords))?$/i);
+    if (groupMatch) {
+      const groupId = groupMatch[1];
+      if (request.method === "GET" && groupMatch[2] === "keywords") {
+        return json({ success: true, ...(await listGroupKeywords(env, groupId, url)) }, 200, origin);
+      }
+      if (request.method === "PATCH" && !groupMatch[2]) {
+        return json({ success: true, ...(await updateGroup(request, env, groupId)) }, 200, origin);
+      }
     }
     if (request.method === "POST" && url.pathname === `${API_PREFIX}/competitor-keyword-runs`) {
       const result = await createJob(request, env);

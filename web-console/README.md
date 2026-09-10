@@ -74,7 +74,7 @@ https://1122.sorilo-uk.com/#/connectors
 
 在 Cloudflare Dashboard 的 **Workers & Pages → 1122-web-agent → Custom domains** 中添加 `1122.sorilo-uk.com`。该域名位于同一 Cloudflare Zone 时，Cloudflare 会管理所需 DNS/HTTPS 配置。不要把 1122 绑定到 `sorilo-uk.com` 根域名，以免覆盖现有主站。
 
-本网页仅调用只读的 Status Bridge 与 Data Layer；Cloudflare Token、Amazon Token、账户密钥都不属于 Pages 产物。R2 当前未启用。
+本网页默认只读取 Status Bridge 与 Data Layer。Amazon Ads 的唯一受控写入入口是人工确认的单条 Sponsored Products Campaign 状态切换：只有管理员在 Worker Secret 中配置 `AMAZON_ADS_WRITE_ACCESS_KEY` 后才会显示，操作密钥只随本次请求发送，不写入 Pages、浏览器存储、日志或 GitHub。Cloudflare Token、Amazon Token 与 Amazon Client Secret 均不属于 Pages 产物。R2 当前未启用。
 
 ## 路由
 

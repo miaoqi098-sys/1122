@@ -17,11 +17,17 @@
   }
 
   function oauthPanel(open) {
-    return `<details class="connection-settings section" ${open ? 'open' : ''}>
-      <summary><span>紫鸟手工回跳授权</span><span class="tag tag-neutral">Secret 仅在 Worker</span></summary>
+    return `<section class="connection-settings section">
       <div class="connection-settings-body">
-        <div class="notice warn" style="margin-top:16px"><strong>准备：</strong>Amazon LWA 的 1122 Ads Integration → Web 设置中需保留 Allowed Return URL <span class="code">https://amazon.com</span>。授权码和完整回跳地址不要发送到聊天、日志或 GitHub。</div>
-        <div class="oauth-steps section">
+        <div class="section-head"><div><h2>直接连接 Amazon Ads</h2><div class="section-sub">标准 Amazon LWA 授权码流程 · 回调仅由 Worker 处理</div></div><span class="tag tag-ok">推荐</span></div>
+        <p class="item-meta">在普通浏览器中使用已登录、且拥有 Campaign Manager 所需权限的 Amazon Ads 账户完成授权。成功后 Amazon 会回到 1122 的 Worker callback，由 Worker 交换和加密保存 Refresh Token；浏览器、日志和 GitHub 都不会收到 Client Secret 或 Refresh Token。</p>
+        <div class="oauth-actions"><a class="btn btn-primary" href="${BRIDGE}/oauth/start?region=na">连接 Amazon Ads（NA）</a></div>
+        <div class="notice">Amazon LWA 中的 Allowed Return URL 必须精确保留为 <span class="code">https://1122-amazon-ads-bridge.zhangshuaibing01.workers.dev/oauth/callback</span>。授权页显示在 Amazon 域名是正常流程的一部分。</div>
+        <details class="connection-settings" ${open ? 'open' : ''}>
+          <summary><span>受限浏览器备用：手工回跳授权</span><span class="tag tag-neutral">可选</span></summary>
+          <div class="connection-settings-body">
+            <div class="notice warn" style="margin-top:16px"><strong>仅当普通浏览器无法使用时：</strong>Amazon LWA 的 1122 Ads Integration → Web 设置还需保留 Allowed Return URL <span class="code">https://amazon.com</span>。授权码和完整回跳地址不要发送到聊天、日志或 GitHub。</div>
+            <div class="oauth-steps section">
           <div class="oauth-step">
             <div class="oauth-step-title"><span class="step-number">1</span><span>生成并复制一次性授权链接</span></div>
             <p class="item-meta">把链接粘贴到已登录广告账户的紫鸟浏览器地址栏。</p>
@@ -42,9 +48,11 @@
             <div class="oauth-actions"><button class="btn btn-primary" id="ads-manual-complete" type="button">验证并完成授权</button></div>
           </div>
           <div id="ads-manual-status" role="status" aria-live="polite"></div>
-        </div>
+            </div>
+          </div>
+        </details>
       </div>
-    </details>`;
+    </section>`;
   }
 
   function bindOauth(isCurrent) {
@@ -129,11 +137,22 @@
     return `<div class="table-wrap"><table><caption>${profiles.length} 个 Amazon Ads Profiles；不显示 Token。</caption><thead><tr><th scope="col">Profile ID</th><th scope="col">国家</th><th scope="col">币种</th><th scope="col">时区</th><th scope="col">Account ID</th><th scope="col">Type</th></tr></thead><tbody>${profiles.map(profile => `<tr><td class="code">${esc(profile.profileId)}</td><td>${esc(profile.countryCode)}</td><td>${esc(profile.currencyCode)}</td><td>${esc(profile.timezone)}</td><td class="code">${esc(profile.accountId || '—')}</td><td>${esc(profile.accountType || '—')}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
-  function renderWorkbench(profiles) {
+  function writePanel(write) {
+    const enabled = Boolean(write?.operator_gate_configured);
+    return `<section class="card section card-elevated">
+      <div class="section-head"><div><h2>受控 Campaign 状态写入</h2><div class="section-sub">仅 Sponsored Products · ENABLED / PAUSED · 单条、人工确认、幂等且不自动重试</div></div>${tag(enabled ? 'OPERATOR GATE READY' : 'WRITE GATE NOT CONFIGURED')}</div>
+      ${enabled
+        ? `<div class="ads-toolbar"><label><span class="field-label">本次操作密钥</span><input id="ads-write-key" class="field" type="password" autocomplete="off" spellcheck="false" placeholder="仅保存在此页面内存中" /></label><div class="item-meta">选择 Campaign 后会出现状态切换按钮。每次请求都需要新的幂等键和浏览器确认；不会保存操作密钥。</div></div>`
+        : `<div class="notice warn">读取已真实连接；写入门禁尚未配置。管理员需仅在 Cloudflare 的 <span class="code">1122-amazon-ads-bridge</span> Worker Secrets 中添加 <span class="code">AMAZON_ADS_WRITE_ACCESS_KEY</span>，然后重新打开本页。不要把该值发到聊天、代码仓库或 URL。</div>`}
+      <div id="ads-write-status" role="status" aria-live="polite"></div>
+    </section>`;
+  }
+
+  function renderWorkbench(profiles, write) {
     const defaultProfile = profiles.find(profile => profile.countryCode === 'US') || profiles[0];
     return `
       <section class="card section card-elevated">
-        <div class="section-head"><div><h2>广告结构</h2><div class="section-sub">Profile → Campaign → Ad Group · 只读</div></div><span class="tag tag-ok">AMAZON ADS API</span></div>
+        <div class="section-head"><div><h2>广告结构</h2><div class="section-sub">Profile → Campaign → Ad Group · 实时读取</div></div><span class="tag tag-ok">AMAZON ADS API</span></div>
         <div class="ads-toolbar">
           <label><span class="field-label">广告 Profile</span><select id="ads-profile-select" class="field">${profiles.map(profile => `<option value="${esc(profile.profileId)}" ${profile.profileId === defaultProfile?.profileId ? 'selected' : ''}>${esc(profile.countryCode)} · ${esc(profile.accountType || 'Account')} · ${esc(profile.currencyCode)}</option>`).join('')}</select></label>
           <label><span class="field-label">Campaign 名称</span><input id="ads-campaign-search" class="field" type="search" placeholder="筛选活动名称" /></label>
@@ -148,10 +167,11 @@
         ${metric('数据检查时间', '—', 'Amazon Ads API', 'ads-structure-checked')}
       </div>
       <div id="ads-structure-result" class="section">${loading('正在读取广告结构')}</div>
+      ${writePanel(write)}
     `;
   }
 
-  function bindWorkbench(profiles, isCurrent) {
+  function bindWorkbench(profiles, isCurrent, write) {
     const profileSelect = document.getElementById('ads-profile-select');
     if (!profileSelect) return;
     const search = document.getElementById('ads-campaign-search');
@@ -174,6 +194,8 @@
       if (!visible.some(campaign => campaign.campaignId === selectedCampaignId)) selectedCampaignId = visible[0]?.campaignId || null;
       const selected = campaigns.find(campaign => campaign.campaignId === selectedCampaignId);
       const groups = selected ? adGroups.filter(group => group.campaignId === selected.campaignId) : [];
+      const canChangeSelectedState = Boolean(selected && write?.operator_gate_configured && ['ENABLED', 'PAUSED'].includes(selected.state));
+      const nextState = selected?.state === 'PAUSED' ? 'ENABLED' : 'PAUSED';
       target.innerHTML = `
         <div class="ads-structure">
           <section class="card campaign-panel">
@@ -186,6 +208,7 @@
           </section>
           <section class="card adgroup-panel">
             <div class="section-head"><div><h2>Ad Groups</h2><div class="section-sub">${selected ? esc(selected.name) : '请先选择 Campaign'}</div></div>${selected ? tag(selected.state) : ''}</div>
+            ${canChangeSelectedState ? `<div class="oauth-actions"><button id="ads-campaign-state-change" class="btn btn-primary" type="button">将此 Campaign 设为 ${esc(nextState)}</button></div>` : ''}
             <div class="adgroup-list">${selected ? (groups.length ? groups.map(group => `
               <article class="adgroup-card"><div class="adgroup-name">${esc(group.name || '未命名 Ad Group')}</div><div class="adgroup-meta">${tag(group.state)}<span>Default bid ${fmtNumber(group.defaultBid, 2)}</span><span class="code">ID ${esc(group.adGroupId)}</span></div></article>`).join('') : '<div class="empty-state compact-empty"><h3>0 个 Ad Group</h3><p>选中 Campaign 当前未返回广告组。</p></div>') : '<div class="empty-state compact-empty"><h3>未选择 Campaign</h3><p>从左侧列表选择一个广告活动。</p></div>'}</div>
           </section>
@@ -194,6 +217,49 @@
         selectedCampaignId = button.dataset.campaignId;
         renderStructure();
       }));
+      target.querySelector('#ads-campaign-state-change')?.addEventListener('click', () => applyCampaignState(selected, nextState));
+    }
+
+    async function applyCampaignState(campaign, nextState) {
+      const profile = currentProfile();
+      const accessKey = document.getElementById('ads-write-key')?.value || '';
+      const statusBox = document.getElementById('ads-write-status');
+      if (!profile || !campaign || !accessKey.trim()) {
+        if (statusBox) statusBox.innerHTML = '<div class="notice warn">请先输入本次操作密钥，再选择可修改状态的 Campaign。</div>';
+        return;
+      }
+      const approved = window.confirm(`确认将 Campaign “${campaign.name}” (${campaign.campaignId}) 设置为 ${nextState}？此操作会写入 Amazon Ads，且不会自动重试。`);
+      if (!approved) return;
+      const button = document.getElementById('ads-campaign-state-change');
+      if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+      if (statusBox) statusBox.innerHTML = '<div class="notice">正在提交受控状态变更…</div>';
+      try {
+        const requestId = window.crypto?.randomUUID?.() || `ads-${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+        const result = await window.__1122_FETCH_JSON__(`${BRIDGE}/write-intents/campaign-state?region=na`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': requestId,
+            'X-1122-Ads-Write-Key': accessKey.trim(),
+          },
+          body: JSON.stringify({
+            profile_id: profile.profileId,
+            campaign_id: campaign.campaignId,
+            state: nextState,
+            confirmation: 'APPLY CAMPAIGN STATE',
+          }),
+          timeoutMs: 15000,
+          retries: 0,
+          validate: value => value?.ok === true && value.status === 'SUCCEEDED' && typeof value.intent_id === 'string',
+        });
+        if (!isCurrent()) return;
+        if (statusBox) statusBox.innerHTML = `<div class="notice ok">已提交并确认 Campaign 状态为 ${esc(result.requested_state || nextState)}。审计意图：<span class="code">${esc(result.intent_id)}</span></div>`;
+        await loadStructure();
+      } catch (error) {
+        if (isCurrent() && statusBox) statusBox.innerHTML = `<div class="notice bad">状态变更未完成：${esc(error.message || 'WRITE_FAILED')}。系统没有自动重试，请先确认 Amazon 中的实际状态。</div>`;
+      } finally {
+        if (isCurrent() && button) { button.disabled = false; button.removeAttribute('aria-busy'); }
+      }
     }
 
     async function loadStructure() {
@@ -258,6 +324,7 @@
     const health = await window.__1122_CONNECTORS__.read('amazon-ads');
     if (!isCurrent()) return;
     const details = health.details || {};
+    const write = health.write || {};
     const connected = health.status === 'CONNECTED';
     let profiles = [];
     let profileError = null;
@@ -279,9 +346,9 @@
       ? '<a class="btn btn-primary" href="#/operations/ads">打开广告工作台</a><a class="btn" href="#/connectors">返回连接中心</a>'
       : '<a class="btn btn-primary" href="#/connectors/amazon-ads">连接设置</a><a class="btn" href="#/operations/products">产品中心</a>';
     view.innerHTML = `
-      <div class="source-bar"><span class="source-label">Amazon Ads Bridge</span>${tag(health.status)}<span>NA</span><span>Checked ${esc(fmtTime(health.checked_at))}</span><span>只读</span></div>
+      <div class="source-bar"><span class="source-label">Amazon Ads Bridge</span>${tag(health.status)}<span>${esc(details.region || 'NA')}</span><span>Checked ${esc(fmtTime(health.checked_at))}</span><span>${write.operator_gate_configured ? '受控写入已配置' : '读取已连接'}</span></div>
       <div class="hero">
-        <div><div class="hero-eyebrow">${settingsMode ? 'CONNECTOR SETTINGS' : 'ADS OPERATIONS'}</div><h2>${settingsMode ? 'Amazon Ads 连接设置' : 'Amazon Ads 广告工作台'}</h2><p>${settingsMode ? '管理紫鸟手工回跳授权并验证 Profiles；Client Secret 与 Refresh Token 始终留在 Worker / 加密存储。' : '选择一个广告 Profile，读取真实 Campaigns 与 Ad Groups。预算、竞价和状态修改仍未开放。'}</p></div>
+        <div><div class="hero-eyebrow">${settingsMode ? 'CONNECTOR SETTINGS' : 'ADS OPERATIONS'}</div><h2>${settingsMode ? 'Amazon Ads 连接设置' : 'Amazon Ads 广告工作台'}</h2><p>${settingsMode ? '使用直接 Amazon LWA 授权并验证 Profiles；Client Secret 与 Refresh Token 始终留在 Worker / 加密存储。' : '选择一个广告 Profile，读取真实 Campaigns 与 Ad Groups。首个受控写入能力是单条 Sponsored Products Campaign 状态切换。'}</p></div>
         <div class="hero-actions">${actions}</div>
       </div>
       <div class="grid grid-4 section">
@@ -294,12 +361,12 @@
       ${profileError ? `<div class="notice bad section">Profiles 读取失败：${esc(profileError.message)}。不会将连接状态伪造成可用数据。</div>` : ''}
       ${settingsMode
         ? `${profiles.length ? `<section class="section"><div class="section-head"><div><h2>已授权 Profiles</h2><div class="section-sub">国家、币种、时区与账户标识</div></div></div>${renderProfilesTable(profiles)}</section>` : ''}${oauthPanel(!connected)}`
-        : `${connected && profiles.length ? renderWorkbench(profiles) : `<div class="empty-state"><div class="empty-icon">◌</div><h2>${connected ? 'Profiles 暂不可用' : '需要完成 Amazon Ads 授权'}</h2><p>${connected ? '连接检查成功，但 Profiles 读取失败或为空。' : '进入连接设置，通过紫鸟完成授权后再读取广告结构。'}</p><div style="margin-top:16px"><a class="btn btn-primary" href="#/connectors/amazon-ads">打开连接设置</a></div></div>`}`}
+        : `${connected && profiles.length ? renderWorkbench(profiles, write) : `<div class="empty-state"><div class="empty-icon">◌</div><h2>${connected ? 'Profiles 暂不可用' : '需要完成 Amazon Ads 授权'}</h2><p>${connected ? '连接检查成功，但 Profiles 读取失败或为空。' : '进入连接设置，通过直接 Amazon 授权后再读取广告结构。'}</p><div style="margin-top:16px"><a class="btn btn-primary" href="#/connectors/amazon-ads">打开连接设置</a></div></div>`}`}
       ${!settingsMode ? '<details class="connection-settings section"><summary><span>连接与授权说明</span><span class="tag tag-neutral">设置已独立</span></summary><div class="connection-settings-body"><p class="item-meta" style="margin-top:16px">重新授权已移到独立连接设置页，避免在已连接状态下遮挡广告业务数据。</p><a class="btn" href="#/connectors/amazon-ads">打开 Amazon Ads 连接设置</a></div></details>' : ''}
-      <div class="notice section">当前开放：Profiles / Campaigns / Ad Groups 只读。Keywords、Targets、Search Terms 与 Reports 尚未接入；所有广告写操作保持关闭。</div>
+      <div class="notice section">当前开放：Profiles / Campaigns / Ad Groups 实时读取；在管理员写入门禁已配置时，可人工确认切换单条 Sponsored Products Campaign 的 ENABLED / PAUSED 状态。Keywords、Targets、Search Terms 与 Reports 尚未接入。</div>
     `;
     if (settingsMode) bindOauth(isCurrent);
-    else if (connected && profiles.length) bindWorkbench(profiles, isCurrent);
+    else if (connected && profiles.length) bindWorkbench(profiles, isCurrent, write);
   }
 
   renderers['/operations/ads'] = renderAds;

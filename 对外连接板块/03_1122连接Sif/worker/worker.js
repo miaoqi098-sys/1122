@@ -12,7 +12,7 @@ const ALLOWED_ORIGINS = new Set(["https://1122.sorilo-uk.com", "https://1122-web
 
 function cors(origin = "") {
   const headers = {
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
     "Content-Type": "application/json; charset=UTF-8",

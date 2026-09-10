@@ -105,6 +105,25 @@ function publicResearchError(error) {
   };
 }
 
+// D1 error text can contain SQL implementation detail. Keep the public
+// response stable and keep diagnostics deliberately metadata-only: neither
+// the operation key nor submitted ASIN values are written to Worker logs.
+function storageFailure(operation, error, context = {}) {
+  if (error instanceof ResearchError) return error;
+  console.error(JSON.stringify({
+    event: "competitor_keyword_storage_failure",
+    operation,
+    stage: "STORAGE",
+    job_id: context.jobId || null,
+    group_id: context.groupId || null,
+    statement_count: Number(context.statementCount || 0) || null,
+    error_name: safeText(error?.name || "Error", 80),
+  }));
+  return new ResearchError("STORAGE_ERROR", "Competitor keyword storage operation failed", {
+    stage: "STORAGE", retryable: true, httpStatus: 503,
+  });
+}
+
 function errorResponse(error, json, origin) {
   const detail = publicResearchError(error);
   const status = error?.httpStatus || (detail.code === "UNAUTHORIZED" ? 401 : 500);
@@ -530,68 +549,178 @@ async function createJob(request, env) {
   }
   const body = await readJsonBody(request);
   const input = validateCreatePayload(body);
-  const group = await resolveGroup(env.CORE_DB, input);
-  await assertRateLimit(env.CORE_DB, input.asins.length);
+  let group;
+  try {
+    group = await resolveGroup(env.CORE_DB, input);
+    await assertRateLimit(env.CORE_DB, input.asins.length);
+  } catch (error) {
+    throw storageFailure("resolve_group_or_rate_limit", error);
+  }
 
   const jobId = crypto.randomUUID();
   const createdAt = nowIso();
-  const jobInsert = env.CORE_DB.prepare(
-    `INSERT INTO competitor_keyword_research_jobs (
-      job_id, job_name, group_id, marketplace, language, input_asins_json, own_brands_json,
-      input_asin_count, period_start, granularity, requested_page_size,
-      maximum_pages_per_asin, status, source_tool, taxonomy_version,
-      normalizer_version, warning_json, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?)`
-  ).bind(
-    jobId, input.jobName, group.group_id, input.marketplace, input.language, JSON.stringify(input.asins),
-    JSON.stringify(input.ownBrands), input.asins.length, input.periodStart, input.granularity,
-    PAGE_SIZE, MAX_PAGES_PER_ASIN, SOURCE_TOOL, TAXONOMY_VERSION, NORMALIZER_VERSION,
-    JSON.stringify(input.duplicateInputs.length ? [{ code: "DUPLICATE_INPUTS_REMOVED", count: input.duplicateInputs.length }] : []),
-    createdAt
-  );
-  const asinInserts = input.asins.map((asin) => env.CORE_DB.prepare(
-    `INSERT INTO competitor_keyword_research_asins (job_id, asin, status) VALUES (?, ?, 'QUEUED')`
-  ).bind(jobId, asin));
-  const groupAsinUpserts = input.asins.map((asin) => env.CORE_DB.prepare(
-    `INSERT INTO competitor_keyword_group_asins (
-      group_id, asin, first_job_id, first_seen_at, last_seen_at
-    ) VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(group_id, asin) DO UPDATE SET last_seen_at=excluded.last_seen_at`
-  ).bind(group.group_id, asin, jobId, createdAt, createdAt));
-  await env.CORE_DB.batch([jobInsert, ...asinInserts, ...groupAsinUpserts]);
+  const jobWarnings = input.duplicateInputs.length
+    ? [{ code: "DUPLICATE_INPUTS_REMOVED", count: input.duplicateInputs.length }]
+    : [];
+  // The job ledger is the source of truth. It must be written before any
+  // secondary group index, and its SQL arity is covered by a worker contract
+  // test. Do not let a derivative index failure discard a valid user task.
+  try {
+    const jobInsert = env.CORE_DB.prepare(
+      `INSERT INTO competitor_keyword_research_jobs (
+        job_id, job_name, group_id, marketplace, language, input_asins_json, own_brands_json,
+        input_asin_count, period_start, granularity, requested_page_size,
+        maximum_pages_per_asin, status, source_tool, taxonomy_version,
+        normalizer_version, warning_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?, ?, ?, ?)`
+    ).bind(
+      jobId, input.jobName, group.group_id, input.marketplace, input.language, JSON.stringify(input.asins),
+      JSON.stringify(input.ownBrands), input.asins.length, input.periodStart, input.granularity,
+      PAGE_SIZE, MAX_PAGES_PER_ASIN, SOURCE_TOOL, TAXONOMY_VERSION, NORMALIZER_VERSION,
+      JSON.stringify(jobWarnings),
+      createdAt
+    );
+    const asinInserts = input.asins.map((asin) => env.CORE_DB.prepare(
+      `INSERT INTO competitor_keyword_research_asins (job_id, asin, status) VALUES (?, ?, 'QUEUED')`
+    ).bind(jobId, asin));
+    await env.CORE_DB.batch([jobInsert, ...asinInserts]);
+  } catch (error) {
+    throw storageFailure("prepare_or_persist_job_ledger", error, {
+      jobId,
+      groupId: group.group_id,
+      statementCount: 1 + input.asins.length,
+    });
+  }
+
+  try {
+    const groupAsinUpserts = input.asins.map((asin) => env.CORE_DB.prepare(
+      `INSERT INTO competitor_keyword_group_asins (
+        group_id, asin, first_job_id, first_seen_at, last_seen_at
+      ) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(group_id, asin) DO UPDATE SET last_seen_at=excluded.last_seen_at`
+    ).bind(group.group_id, asin, jobId, createdAt, createdAt));
+    await env.CORE_DB.batch(groupAsinUpserts);
+  } catch (error) {
+    const indexWarning = { code: "GROUP_ASIN_INDEX_DEGRADED", stage: "STORAGE" };
+    jobWarnings.push(indexWarning);
+    console.error(JSON.stringify({
+      event: "competitor_keyword_group_asin_index_degraded",
+      stage: "STORAGE",
+      job_id: jobId,
+      group_id: group.group_id,
+      statement_count: input.asins.length,
+      error_name: safeText(error?.name || "Error", 80),
+    }));
+    try {
+      await env.CORE_DB.prepare(
+        `UPDATE competitor_keyword_research_jobs SET warning_json=? WHERE job_id=?`
+      ).bind(JSON.stringify(jobWarnings), jobId).run();
+    } catch (warningError) {
+      // The task ledger is already durable and can proceed; keep this warning
+      // path fail-closed in observability without turning it into a false
+      // "task not created" result.
+      storageFailure("persist_group_index_warning", warningError, { jobId, groupId: group.group_id });
+    }
+  }
+
+  // Persist RUNNING before publishing. Once sendBatch resolves, the consumer
+  // is allowed to execute immediately, so no later storage failure may turn a
+  // legitimately published job into a terminal FAILED state.
+  try {
+    await env.CORE_DB.prepare(
+      `UPDATE competitor_keyword_research_jobs SET status='RUNNING' WHERE job_id=?`
+    ).bind(jobId).run();
+  } catch (error) {
+    throw storageFailure("mark_job_running_before_queue", error, { jobId, groupId: group.group_id });
+  }
 
   try {
     await env.KEYWORD_RESEARCH_QUEUE.sendBatch(input.asins.map((asin) => ({
       body: { schema_version: "CompetitorKeywordQueueMessage.v1", phase: "FETCH", job_id: jobId, asin, page_num: 1 },
     })));
-    await env.CORE_DB.prepare(
-      `UPDATE competitor_keyword_research_jobs SET status='RUNNING' WHERE job_id=?`
-    ).bind(jobId).run();
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "competitor_keyword_queue_publish_failed",
+      stage: "QUEUE",
+      job_id: jobId,
+      group_id: group.group_id,
+      error_name: safeText(error?.name || "Error", 80),
+    }));
     const completedAt = nowIso();
-    await env.CORE_DB.batch([
-      env.CORE_DB.prepare(
-        `UPDATE competitor_keyword_research_jobs
-         SET status='FAILED', error_stage='QUEUE', error_code='QUEUE_PUBLISH_FAILED',
-             error_message='任务未能进入处理队列', completed_at=? WHERE job_id=?`
-      ).bind(completedAt, jobId),
-      ...input.asins.map((asin) => env.CORE_DB.prepare(
-        `UPDATE competitor_keyword_research_asins
-         SET status='FAILED', error_code='QUEUE_PUBLISH_FAILED', error_message='任务未能进入处理队列'
-         WHERE job_id=? AND asin=?`
-      ).bind(jobId, asin)),
-    ]);
+    try {
+      await env.CORE_DB.batch([
+        env.CORE_DB.prepare(
+          `UPDATE competitor_keyword_research_jobs
+           SET status='FAILED', error_stage='QUEUE', error_code='QUEUE_PUBLISH_FAILED',
+               error_message='任务未能进入处理队列', completed_at=? WHERE job_id=?`
+        ).bind(completedAt, jobId),
+        ...input.asins.map((asin) => env.CORE_DB.prepare(
+          `UPDATE competitor_keyword_research_asins
+           SET status='FAILED', error_code='QUEUE_PUBLISH_FAILED', error_message='任务未能进入处理队列'
+           WHERE job_id=? AND asin=?`
+        ).bind(jobId, asin)),
+      ]);
+    } catch (markError) {
+      storageFailure("mark_queue_publish_failure", markError, {
+        jobId,
+        groupId: group.group_id,
+        statementCount: 1 + input.asins.length,
+      });
+    }
     throw new ResearchError("QUEUE_NOT_READY", "Failed to publish research messages", {
       stage: "QUEUE", retryable: true, httpStatus: 503,
     });
   }
 
-  const row = await env.CORE_DB.prepare(
-    `SELECT j.*, g.group_name, g.description AS group_description, g.status AS group_status
-     FROM competitor_keyword_research_jobs j
-     LEFT JOIN competitor_keyword_groups g ON g.group_id=j.group_id
-     WHERE j.job_id=?`
-  ).bind(jobId).first();
+  let row;
+  try {
+    row = await env.CORE_DB.prepare(
+      `SELECT j.*, g.group_name, g.description AS group_description, g.status AS group_status
+       FROM competitor_keyword_research_jobs j
+       LEFT JOIN competitor_keyword_groups g ON g.group_id=j.group_id
+       WHERE j.job_id=?`
+    ).bind(jobId).first();
+  } catch (error) {
+    // The durable ledger and queue publication already succeeded. Return a
+    // safe, shape-valid provisional view so the UI can continue polling the
+    // task instead of falsely telling the user that it was never created.
+    console.error(JSON.stringify({
+      event: "competitor_keyword_post_publish_read_degraded",
+      stage: "READ",
+      job_id: jobId,
+      group_id: group.group_id,
+      error_name: safeText(error?.name || "Error", 80),
+    }));
+    row = {
+      job_id: jobId,
+      job_name: input.jobName,
+      group_id: group.group_id,
+      group_name: group.group_name,
+      group_description: group.description || null,
+      group_status: group.status,
+      marketplace: input.marketplace,
+      language: input.language,
+      input_asins_json: JSON.stringify(input.asins),
+      own_brands_json: JSON.stringify(input.ownBrands),
+      input_asin_count: input.asins.length,
+      period_start: input.periodStart,
+      granularity: input.granularity,
+      requested_page_size: PAGE_SIZE,
+      maximum_pages_per_asin: MAX_PAGES_PER_ASIN,
+      status: "RUNNING",
+      source_tool: SOURCE_TOOL,
+      taxonomy_version: TAXONOMY_VERSION,
+      normalizer_version: NORMALIZER_VERSION,
+      raw_keyword_count: 0,
+      unique_keyword_count: 0,
+      duplicate_keyword_count: 0,
+      classification_offset: 0,
+      successful_asin_count: 0,
+      failed_asin_count: 0,
+      warning_json: JSON.stringify(jobWarnings),
+      created_at: createdAt,
+    };
+  }
   return { job: serializeJob(row), group: serializeGroup(group), input: { duplicate_asins_removed: input.duplicateInputs } };
 }
 

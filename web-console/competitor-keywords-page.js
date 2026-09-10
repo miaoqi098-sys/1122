@@ -80,6 +80,8 @@
           if (attempt + 1 < attempts && [502, 503, 504].includes(response.status)) continue;
           const error = new Error(payload.error?.message || payload.message || `HTTP ${response.status}`);
           error.code = payload.error?.code || `HTTP_${response.status}`;
+          error.stage = payload.error?.stage || '';
+          error.retryable = payload.error?.retryable === true;
           error.status = response.status;
           error.validation = payload.validation;
           throw error;
@@ -100,6 +102,12 @@
       }
     }
     throw new Error('接口请求未完成');
+  }
+
+  function describeRequestFailure(error) {
+    const codeAndStage = [error?.code, error?.stage].filter(Boolean).join(' / ');
+    const retryHint = error?.retryable ? ' 可安全重试。' : '';
+    return `${error?.message || '接口请求未完成'}${codeAndStage ? `（${codeAndStage}）` : ''}${retryHint}`;
   }
 
   function defaultPeriodStart() {
@@ -771,7 +779,7 @@
           activeGroupId = effectiveGroupId;
         }
         const progress = createdJobs.length ? `已成功创建 ${createdJobs.length}/${chunks.length} 个任务；剩余 ASIN 尚未创建。` : '';
-        showMessage('research-form-message', `${progress}${progress ? ' ' : ''}${error.message}${extra}`);
+        showMessage('research-form-message', `${progress}${progress ? ' ' : ''}${describeRequestFailure(error)}${extra}`);
       } finally {
         button.disabled = false;
         button.removeAttribute('aria-busy');

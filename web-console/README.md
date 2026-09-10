@@ -13,8 +13,8 @@ V2 已收口为一个入口、一个 Navigation Registry 和一个 Hash Router�
 - AOM 正向运营方法
 - APB 政策与边界证据
 - Amazon SP-API / Amazon Ads / SIF / Cloudflare / Email 连接状态
-- Amazon Ads Profiles、Campaigns 与 Ad Groups 真实只读视图
-- 竞品关键词工作台：多 ASIN SIF 分页任务、严格去重、10 类分类与来源追溯
+- Amazon Ads Profiles、Campaigns 与 Ad Groups 真实读取视图，以及受控的 Sponsored Products Campaign 状态切换
+- 竞品关键词工作台：多 ASIN 自动分批 SIF 任务、严格去重、10 类分类与来源追溯
 - Agent 中心
 - 任务中心
 - 沙盘演练
@@ -36,7 +36,7 @@ V2 已收口为一个入口、一个 Navigation Registry 和一个 Hash Router�
 | Pages 发布 | `MANUAL` | 当前从本地手工部署，不依赖 GitHub 自动发布 |
 | 会话鉴权 | `PENDING_USER_IDENTITY` | CORS 不是鉴权；待用户确认允许访问的身份后，再配置 Cloudflare Access 或等价会话鉴权 |
 | 竞品关键词操作 | `PROTECTED_KEY` | 独立 `SIF_RESEARCH_ACCESS_KEY` 保护任务和词库；密钥仅保存在当前页面内存 |
-| 外部生产写操作 | `CLOSED` | Web Console 没有 Amazon、Ads、商品、价格、库存或广告投放写权限；受保护的关键词研究会写入内部 D1 事实层 |
+| 外部生产写操作 | `CONTROLLED` | Amazon Ads 仅开放人工确认、幂等且无自动重试的 Sponsored Products Campaign 状态切换；其余 Amazon、商品、价格、库存及广告写操作仍关闭 |
 
 Profiles、Campaigns 与 Ad Groups 数量是最近一次真实读取快照，不是固定配置；页面刷新失败时应显示未知或错误，不得沿用旧数字伪装实时成功。
 
@@ -114,7 +114,7 @@ V2 优先读取 Data Layer 的只读 UI bootstrap，并由各只读 Bridge 独�
 - KV 当前状态；
 - Amazon SP-API、Amazon Ads、SIF、Cloudflare 与 Email 的连接状态；
 - Amazon Ads NA Profiles，以及所选 Profile 的 Campaign / Ad Group 结构。
-- SIF 竞品关键词任务、任务内严格去重词表、10 类分类和每个关键词的来源 ASIN（需操作密钥）。
+- SIF 竞品关键词任务、每 10 个 ASIN 自动分批、分组内严格去重词表、10 类分类和每个关键词的来源 ASIN（需操作密钥）。
 
 页面必须分别显示传输可达、连接状态、来源状态、新鲜度、语义验证和授权状态。进入 `SNAPSHOT_FALLBACK` 时，不得把仓库快照标记为实时数据。
 

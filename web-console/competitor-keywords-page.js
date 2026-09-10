@@ -11,6 +11,7 @@
   const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(value ?? 'UNKNOWN')}</span>`;
   const isRecord = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   const hasJobShape = value => isRecord(value?.job) && typeof value.job.job_id === 'string' && typeof value.job.status === 'string';
+  const MAX_UI_BATCH_ASINS = 100;
   let accessKey = '';
   let taxonomy = null;
   let capability = null;
@@ -25,8 +26,35 @@
   let groupKeywordCursor = null;
   let pollGeneration = 0;
 
+  function perJobAsinLimit() {
+    const limit = Number(capability?.limits?.max_asins_per_job || 10);
+    return Number.isInteger(limit) && limit > 0 ? limit : 10;
+  }
+
+  function batchAsinLimit() {
+    const perJob = perJobAsinLimit();
+    const hourly = Number(capability?.limits?.max_asins_per_hour || MAX_UI_BATCH_ASINS);
+    const jobsHourly = Number(capability?.limits?.max_jobs_per_hour || 20);
+    const safeHourly = Number.isFinite(hourly) && hourly > 0 ? Math.floor(hourly) : MAX_UI_BATCH_ASINS;
+    const safeJobs = Number.isFinite(jobsHourly) && jobsHourly > 0 ? Math.floor(jobsHourly) : 20;
+    return Math.min(MAX_UI_BATCH_ASINS, safeHourly, perJob * safeJobs);
+  }
+
+  function splitAsins(asins, size) {
+    const chunks = [];
+    for (let index = 0; index < asins.length; index += size) chunks.push(asins.slice(index, index + size));
+    return chunks;
+  }
+
+  function batchJobName(value, index, total) {
+    const base = String(value || '').trim();
+    if (total === 1) return base;
+    const suffix = ` · ${index + 1}/${total}`;
+    return `${(base || '批量竞品关键词').slice(0, Math.max(1, 80 - suffix.length))}${suffix}`;
+  }
+
   function hero(actions = '') {
-    return `<div class="hero"><div><div class="hero-eyebrow">COMPETITOR KEYWORD WORKSPACE</div><h2>竞品关键词工作台</h2><p>输入最多 10 个竞品 ASIN，通过 SIF 分页读取所选周期内可见的流量词，严格去重后按版本化规则分类，并长期保存每个词的来源 ASIN。</p></div>${actions ? `<div class="hero-actions">${actions}</div>` : ''}</div>`;
+    return `<div class="hero"><div><div class="hero-eyebrow">COMPETITOR KEYWORD WORKSPACE</div><h2>竞品关键词工作台</h2><p>一次可输入最多 ${batchAsinLimit()} 个竞品 ASIN；系统按每 ${perJobAsinLimit()} 个自动拆分为受控 SIF 任务，在同一产品分组内严格去重、分类并长期保留来源 ASIN。</p></div>${actions ? `<div class="hero-actions">${actions}</div>` : ''}</div>`;
   }
 
   async function api(path, options = {}) {
@@ -162,7 +190,7 @@
   function overviewCards() {
     return `<div class="grid grid-3 section">
         <div class="card metric-card"><div class="metric-label">SIF 数据源</div><div class="metric-value compact-value">周期流量词</div><div class="metric-meta">分页读取，不用 ABA Top3 冒充全部词</div></div>
-        <div class="card metric-card"><div class="metric-label">单次竞品</div><div class="metric-value">${capability?.limits?.max_asins_per_job ?? 10}</div><div class="metric-meta">输入内自动去重，不静默截断</div></div>
+        <div class="card metric-card"><div class="metric-label">自动分批</div><div class="metric-value">${perJobAsinLimit()}</div><div class="metric-meta">每任务上限；同组可一次提交 ${batchAsinLimit()} 个</div></div>
         <div class="card metric-card"><div class="metric-label">分类规则</div><div class="metric-value compact-value">${esc(capability?.taxonomy_version || taxonomy?.taxonomy_version || 'v1')}</div><div class="metric-meta">10 个主分类 + 长尾 / 核心层级标签</div></div>
       </div>`;
   }
@@ -200,7 +228,7 @@
     const existingGroup = selectedGroup();
     const groupOptions = groups.map(group => `<option value="${esc(group.group_id)}" ${group.group_id === researchDraft.groupId ? 'selected' : ''}>${esc(group.group_name)}${group.status === 'ARCHIVED' ? '（已归档）' : ''}</option>`).join('');
     return `<section class="card card-elevated" id="research-new-panel">
-      <div class="section-head"><div><h2>新建竞品词研究</h2><div class="section-sub">先用自定义产品分组隔离词库，再输入 1–10 个竞品 ASIN；10 类关键词分类仍是独立维度。</div></div>${tag(ready ? 'PROTECTED ACTION' : 'EXECUTION LOCKED')}</div>
+      <div class="section-head"><div><h2>新建竞品词研究</h2><div class="section-sub">先用自定义产品分组隔离词库，再输入 1–${batchAsinLimit()} 个竞品 ASIN；系统每 ${perJobAsinLimit()} 个自动建立一个任务，10 类关键词分类仍是独立维度。</div></div>${tag(ready ? 'PROTECTED ACTION' : 'EXECUTION LOCKED')}</div>
       <form id="keyword-research-form" class="research-form">
         <label><span class="field-label">产品关键词分组</span><select id="research-group-id" class="field"><option value="" ${existingGroup ? '' : 'selected'}>＋ 新建自定义分组</option>${groupOptions}</select><span class="field-help">分组用于隔离产品线词库，例如“毛绒玩具”与“厨房用品”。</span></label>
         <div class="toolbar" style="align-items:end"><button id="research-open-group-library" class="btn btn-quiet" type="button" ${existingGroup ? '' : 'disabled'}>查看当前分组词库</button><span class="field-help">同一分组可累计多个研究任务；不同分组默认隔离。</span></div>
@@ -208,14 +236,14 @@
           <label><span class="field-label">新分组名称</span><input id="research-group-name" class="field" maxlength="80" value="${esc(researchDraft.groupName)}" placeholder="例如：毛绒玩具" /><span class="field-help">名称可自定义；同一市场下同名分组会复用，避免词库混杂。</span></label>
           <label><span class="field-label">分组说明（可选）</span><input id="research-group-description" class="field" maxlength="300" value="${esc(researchDraft.groupDescription)}" placeholder="例如：US 站毛绒动物玩具核心竞品" /></label>
         </div>
-        <label class="research-form-wide"><span class="field-label">竞品 ASIN（每行一个，也支持逗号或空格）</span><textarea id="research-asins" class="field research-textarea" rows="6" placeholder="B0XXXXXXXX&#10;B0YYYYYYYY" required>${esc(researchDraft.asins)}</textarea><span id="asin-validation" class="field-help">0 个有效 ASIN · 最多 10 个</span></label>
+        <label class="research-form-wide"><span class="field-label">竞品 ASIN（每行一个，也支持逗号或空格）</span><textarea id="research-asins" class="field research-textarea" rows="6" placeholder="B0XXXXXXXX&#10;B0YYYYYYYY" required>${esc(researchDraft.asins)}</textarea><span id="asin-validation" class="field-help">0 个有效 ASIN · 将按每 ${perJobAsinLimit()} 个自动分批</span></label>
         <label><span class="field-label">任务名称（可选）</span><input id="research-job-name" class="field" maxlength="80" value="${esc(researchDraft.jobName)}" placeholder="例如：毛绒玩具核心竞品 · 9 月" /></label>
         <label><span class="field-label">我方品牌（可选）</span><input id="research-own-brands" class="field" maxlength="300" value="${esc(researchDraft.ownBrands)}" placeholder="多个品牌用逗号分隔" /><span class="field-help">用于识别“自有品牌词”，不会发送给 Amazon</span></label>
         <label><span class="field-label">市场</span><select id="research-marketplace" class="field"><option value="US" ${researchDraft.marketplace === 'US' ? 'selected' : ''}>美国（US）</option></select></label>
         <label><span class="field-label">时间粒度</span><select id="research-granularity" class="field"><option value="month" ${researchDraft.granularity === 'month' ? 'selected' : ''}>月</option><option value="week" ${researchDraft.granularity === 'week' ? 'selected' : ''}>周</option><option value="day" ${researchDraft.granularity === 'day' ? 'selected' : ''}>日</option></select></label>
         <label><span class="field-label">SIF 周期锚点</span><input id="research-period" class="field" type="date" value="${esc(researchDraft.periodStart)}" required /></label>
         <div class="research-form-wide notice">数据范围是<strong>所选周期内 SIF 能观测到的竞品流量词</strong>，不是 Amazon 所有搜索查询。系统逐页读取，达到安全上限时会明确标记“已截断”。</div>
-        <div class="research-form-wide toolbar"><button id="research-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '开始分析' : '等待执行授权'}</button><span class="field-help">${ready ? `每小时最多 ${capability?.limits?.max_asins_per_hour ?? 100} 个 ASIN；任务不会因关闭页面而丢失。` : 'ASIN 与分组草稿会保留到本次页面解锁；配置并输入操作密钥后即可提交。'}</span></div>
+        <div class="research-form-wide toolbar"><button id="research-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '开始分析' : '等待执行授权'}</button><span class="field-help">${ready ? `每小时最多 ${capability?.limits?.max_asins_per_hour ?? 100} 个 ASIN；超过 ${perJobAsinLimit()} 个会自动拆分，同一分组最终统一去重。` : 'ASIN 与分组草稿会保留到本次页面解锁；配置并输入操作密钥后即可提交。'}</span></div>
       </form>
       <div id="research-form-message" class="section"></div>
     </section>`;
@@ -607,8 +635,11 @@
     const validation = document.getElementById('asin-validation');
     if (!asinInput || !validation) return;
     const parsed = parseAsins(asinInput.value);
-    validation.textContent = `${parsed.valid.length} 个有效 · ${parsed.duplicateCount} 个重复 · ${parsed.invalid.length} 个无效 · 最多 ${capability?.limits?.max_asins_per_job ?? 10} 个`;
-    validation.className = `field-help ${parsed.invalid.length || parsed.valid.length > 10 ? 'bad-text' : ''}`;
+    const perJob = perJobAsinLimit();
+    const batchLimit = batchAsinLimit();
+    const batches = Math.ceil(parsed.valid.length / perJob);
+    validation.textContent = `${parsed.valid.length} 个有效 · ${parsed.duplicateCount} 个重复 · ${parsed.invalid.length} 个无效 · ${parsed.valid.length ? `将建立 ${batches} 个任务（每个最多 ${perJob}）` : `最多 ${batchLimit} 个`}`;
+    validation.className = `field-help ${parsed.invalid.length || parsed.valid.length > batchLimit ? 'bad-text' : ''}`;
   }
 
   function updateGroupFormState() {
@@ -679,8 +710,10 @@
       const parsed = parseAsins(researchDraft.asins);
       const groupId = researchDraft.groupId.trim();
       const groupName = researchDraft.groupName.trim();
-      if (parsed.invalid.length || parsed.valid.length < 1 || parsed.valid.length > 10) {
-        showMessage('research-form-message', '请保留 1–10 个合法的 10 位 ASIN，并修正无效项。');
+      const perJob = perJobAsinLimit();
+      const batchLimit = batchAsinLimit();
+      if (parsed.invalid.length || parsed.valid.length < 1 || parsed.valid.length > batchLimit) {
+        showMessage('research-form-message', `请保留 1–${batchLimit} 个合法的 10 位 ASIN，并修正无效项。`);
         return;
       }
       if (!groupId && !groupName) {
@@ -690,40 +723,55 @@
       if (!button) return;
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
-      showMessage('research-form-message', '任务正在创建，请稍候…', '');
-      const body = {
-        asins: parsed.valid,
-        marketplace: researchDraft.marketplace,
-        job_name: researchDraft.jobName,
-        own_brands: researchDraft.ownBrands,
-        granularity: researchDraft.granularity,
-        period_start: researchDraft.periodStart,
-      };
-      // The Worker intentionally rejects both fields together. Only one is
-      // sent: an existing group id, or an inline custom group definition.
-      if (groupId) body.group_id = groupId;
-      else {
-        body.group_name = groupName;
-        if (researchDraft.groupDescription.trim()) body.group_description = researchDraft.groupDescription.trim();
-      }
+      const chunks = splitAsins(parsed.valid, perJob);
+      showMessage('research-form-message', `将创建 ${chunks.length} 个任务；同一产品分组会在结果层统一去重。`, '');
+      const createdJobs = [];
+      let effectiveGroupId = groupId;
       try {
-        const payload = await api('/api/v1/competitor-keyword-runs', {
-          method: 'POST', timeoutMs: 20_000,
-          validate: value => hasJobShape(value),
-          body,
-        });
-        const createdGroupId = payload.job.group_id || payload.group?.group_id || groupId;
-        if (createdGroupId) {
-          researchDraft.groupId = createdGroupId;
-          researchDraft.groupName = '';
-          researchDraft.groupDescription = '';
+        for (let index = 0; index < chunks.length; index += 1) {
+          const body = {
+            asins: chunks[index],
+            marketplace: researchDraft.marketplace,
+            job_name: batchJobName(researchDraft.jobName, index, chunks.length),
+            own_brands: researchDraft.ownBrands,
+            granularity: researchDraft.granularity,
+            period_start: researchDraft.periodStart,
+          };
+          // The first request either selects an existing group or atomically
+          // creates a new one. Every later request uses that returned group id;
+          // the Worker rejects ambiguous group_id + group_name payloads.
+          if (effectiveGroupId) body.group_id = effectiveGroupId;
+          else {
+            body.group_name = groupName;
+            if (researchDraft.groupDescription.trim()) body.group_description = researchDraft.groupDescription.trim();
+          }
+          showMessage('research-form-message', `正在创建第 ${index + 1}/${chunks.length} 个任务（${chunks[index].length} 个 ASIN）…`, '');
+          const payload = await api('/api/v1/competitor-keyword-runs', {
+            method: 'POST', timeoutMs: 20_000,
+            validate: value => hasJobShape(value),
+            body,
+          });
+          const createdGroupId = payload.job.group_id || payload.group?.group_id || effectiveGroupId;
+          if (!createdGroupId) throw new Error('产品分组创建结果不完整，已停止后续任务。');
+          effectiveGroupId = createdGroupId;
+          createdJobs.push(payload.job);
         }
-        activeJobId = payload.job.job_id;
-        activeGroupId = createdGroupId || null;
-        location.hash = workbenchHref({ jobId: activeJobId, groupId: activeGroupId || '' });
+        researchDraft.groupId = effectiveGroupId;
+        researchDraft.groupName = '';
+        researchDraft.groupDescription = '';
+        activeJobId = createdJobs.length === 1 ? createdJobs[0].job_id : null;
+        activeGroupId = effectiveGroupId;
+        location.hash = workbenchHref({ jobId: activeJobId || '', groupId: activeGroupId || '' });
       } catch (error) {
         const extra = error.validation?.invalid?.length ? ` 无效项：${error.validation.invalid.join('、')}` : '';
-        showMessage('research-form-message', `${error.message}${extra}`);
+        if (createdJobs.length && effectiveGroupId) {
+          researchDraft.groupId = effectiveGroupId;
+          researchDraft.groupName = '';
+          researchDraft.groupDescription = '';
+          activeGroupId = effectiveGroupId;
+        }
+        const progress = createdJobs.length ? `已成功创建 ${createdJobs.length}/${chunks.length} 个任务；剩余 ASIN 尚未创建。` : '';
+        showMessage('research-form-message', `${progress}${progress ? ' ' : ''}${error.message}${extra}`);
       } finally {
         button.disabled = false;
         button.removeAttribute('aria-busy');

@@ -128,9 +128,11 @@ export function classifyKeyword(input) {
   const ownBrands = normalizedTerms(input.ownBrands);
   const competitorBrands = normalizedTerms(input.competitorBrands).filter((brand) => !ownBrands.includes(brand));
   const coreTokens = new Set(normalizedTerms(input.coreTokens));
-  const inputAsinCount = Math.max(1, Number(input.inputAsinCount) || 1);
-  const sourceAsinCount = Math.max(1, Number(input.sourceAsinCount) || 1);
-  const coverage = sourceAsinCount / inputAsinCount;
+  // A manual import has no fabricated ASIN provenance. Keep its coverage at
+  // zero instead of silently treating it as a one-ASIN SIF observation.
+  const inputAsinCount = Math.max(0, Number(input.inputAsinCount) || 0);
+  const sourceAsinCount = Math.max(0, Number(input.sourceAsinCount) || 0);
+  const coverage = inputAsinCount > 0 ? sourceAsinCount / inputAsinCount : 0;
   const matches = new Map();
   const ruleIds = [];
 

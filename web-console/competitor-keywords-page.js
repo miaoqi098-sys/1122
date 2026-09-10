@@ -11,7 +11,10 @@
   const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(value ?? 'UNKNOWN')}</span>`;
   const isRecord = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   const hasJobShape = value => isRecord(value?.job) && typeof value.job.job_id === 'string' && typeof value.job.status === 'string';
+  const hasImportShape = value => isRecord(value?.import) && typeof value.import.import_id === 'string'
+    && typeof value.import.group_id === 'string' && typeof value.import.status === 'string';
   const MAX_UI_BATCH_ASINS = 100;
+  const MAX_UI_IMPORTED_KEYWORDS = 2_000;
   let accessKey = '';
   let taxonomy = null;
   let capability = null;
@@ -133,6 +136,19 @@
     groupDescription: '',
   };
 
+  // Imported terms are intentionally scoped to a product group and held only
+  // in this page process until the operator explicitly saves them. This keeps
+  // the operation key and unsubmitted keyword list out of storage and URLs.
+  const importDraft = {
+    keywords: '',
+    importName: '',
+    ownBrands: '',
+    marketplace: 'US',
+    groupId: '',
+    groupName: '',
+    groupDescription: '',
+  };
+
   function parseAsins(value) {
     const seen = new Set();
     const valid = [];
@@ -149,12 +165,55 @@
     return { valid, invalid, duplicateCount };
   }
 
+  function importedKeywordLimit() {
+    const value = Number(capability?.limits?.max_imported_keywords || MAX_UI_IMPORTED_KEYWORDS);
+    return Number.isInteger(value) && value > 0 ? Math.min(MAX_UI_IMPORTED_KEYWORDS, value) : MAX_UI_IMPORTED_KEYWORDS;
+  }
+
+  function normalizeImportedKeyword(value) {
+    return String(value || '')
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[\u2010-\u2015\u2212]/g, '-')
+      .replace(/[\p{P}\p{S}]+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function parseImportedKeywords(value) {
+    const seen = new Set();
+    const valid = [];
+    const invalid = [];
+    let inputCount = 0;
+    let duplicateCount = 0;
+    for (const raw of String(value || '').split(/[\r\n,;，；\t]+/)) {
+      const keyword = raw.normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!keyword) continue;
+      inputCount += 1;
+      const normalized = normalizeImportedKeyword(keyword);
+      if (!normalized || keyword.length > 240 || normalized.length > 240) {
+        invalid.push(keyword.slice(0, 80));
+        continue;
+      }
+      if (seen.has(normalized)) { duplicateCount += 1; continue; }
+      seen.add(normalized);
+      valid.push(keyword);
+    }
+    return { valid, invalid, inputCount, duplicateCount };
+  }
+
   function categoryMap() {
     return new Map((taxonomy?.categories || []).map(item => [item.code, item.label]));
   }
 
   function categoryLabel(code) {
     return categoryMap().get(code) || code || '未分类';
+  }
+
+  function sourceKindLabel(code) {
+    if (code === 'MANUAL_IMPORT') return '手工导入';
+    if (code === 'SIF_ASIN_RESEARCH') return 'SIF 竞品研究';
+    return code || '未知来源';
   }
 
   function workbenchHref({ jobId = '', groupId = '' } = {}) {
@@ -192,6 +251,23 @@
     values.forEach(([key, id]) => {
       const value = read(id);
       if (value !== undefined) researchDraft[key] = value;
+    });
+  }
+
+  function rememberImportDraft() {
+    const read = id => document.getElementById(id)?.value;
+    const values = [
+      ['keywords', 'keyword-import-input'],
+      ['importName', 'keyword-import-name'],
+      ['ownBrands', 'keyword-import-own-brands'],
+      ['marketplace', 'keyword-import-marketplace'],
+      ['groupId', 'keyword-import-group-id'],
+      ['groupName', 'keyword-import-group-name'],
+      ['groupDescription', 'keyword-import-group-description'],
+    ];
+    values.forEach(([key, id]) => {
+      const value = read(id);
+      if (value !== undefined) importDraft[key] = value;
     });
   }
 
@@ -257,6 +333,32 @@
     </section>`;
   }
 
+  function importDialog() {
+    const ready = executionReady();
+    const selected = groups.find(group => group.group_id === importDraft.groupId) || null;
+    const options = groups.map(group => `<option value="${esc(group.group_id)}" ${group.group_id === importDraft.groupId ? 'selected' : ''}>${esc(group.group_name)}${group.status === 'ARCHIVED' ? '（已归档）' : ''}</option>`).join('');
+    return `<dialog id="keyword-import-dialog" class="keyword-import-dialog" aria-labelledby="keyword-import-title">
+      <section class="card card-elevated keyword-import-card">
+        <div class="section-head"><div><div class="hero-eyebrow">MANUAL KEYWORD IMPORT</div><h2 id="keyword-import-title">导入关键词并自动分类</h2><div class="section-sub">粘贴关键词或选择本地 CSV / TXT；导入不调用 SIF，也不会伪造 ASIN、搜索量或流量指标。</div></div><button id="keyword-import-close" class="btn btn-quiet" type="button" aria-label="关闭关键词导入窗口">关闭</button></div>
+        <form id="keyword-import-form" class="research-form">
+          <label><span class="field-label">产品关键词分组</span><select id="keyword-import-group-id" class="field"><option value="" ${selected ? '' : 'selected'}>＋ 新建自定义分组</option>${options}</select><span class="field-help">导入词只保存到这一产品分组，不会与其他品类词库混合。</span></label>
+          <label><span class="field-label">导入名称（可选）</span><input id="keyword-import-name" class="field" maxlength="80" value="${esc(importDraft.importName)}" placeholder="例如：毛绒玩具人工补词 · 9 月" /></label>
+          <div id="keyword-import-new-group-fields" class="research-form-wide grid grid-2" ${selected ? 'hidden' : ''}>
+            <label><span class="field-label">新分组名称</span><input id="keyword-import-group-name" class="field" maxlength="80" value="${esc(importDraft.groupName)}" placeholder="例如：毛绒玩具" /><span class="field-help">同一市场下同名分组会复用。</span></label>
+            <label><span class="field-label">分组说明（可选）</span><input id="keyword-import-group-description" class="field" maxlength="300" value="${esc(importDraft.groupDescription)}" placeholder="例如：US 站毛绒动物玩具词库" /></label>
+          </div>
+          <label class="research-form-wide"><span class="field-label">关键词（每行一个，也支持逗号、分号或 Tab）</span><textarea id="keyword-import-input" class="field research-textarea" rows="10" placeholder="plush toys&#10;stuffed animal for kids&#10;birthday gift for girls">${esc(importDraft.keywords)}</textarea><span id="keyword-import-validation" class="field-help">0 个可导入关键词</span></label>
+          <label><span class="field-label">从本地文件读取（可选）</span><input id="keyword-import-file" class="field" type="file" accept=".csv,.txt,text/csv,text/plain" /><span class="field-help">CSV 优先识别“关键词 / keyword / search term”列；不会上传原始文件。</span></label>
+          <label><span class="field-label">我方品牌（可选）</span><input id="keyword-import-own-brands" class="field" maxlength="300" value="${esc(importDraft.ownBrands)}" placeholder="多个品牌用逗号分隔" /><span class="field-help">用于“自有品牌词”分类，仅在 Worker 的受保护请求中使用。</span></label>
+          <label><span class="field-label">市场</span><select id="keyword-import-marketplace" class="field"><option value="US" ${importDraft.marketplace === 'US' ? 'selected' : ''}>美国（US）</option></select></label>
+          <div class="research-form-wide notice"><strong>自动处理：</strong>严格去重后，每个词都会按当前 10 类 taxonomy 给出一个主分类、标签、置信度和待复核信号。未命中明确语义规则的词会进入“相关泛词”，不会被悄悄丢弃。</div>
+          <div class="research-form-wide toolbar"><button id="keyword-import-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '导入并分析' : '等待执行授权'}</button><span class="field-help">单次最多 ${importedKeywordLimit()} 个去重关键词；操作密钥不会写入文件、URL 或浏览器存储。</span></div>
+        </form>
+        <div id="keyword-import-message" class="section"></div>
+      </section>
+    </dialog>`;
+  }
+
   function historyPanel(jobs) {
     const groupFilterOptions = groups.map(group => `<option value="${esc(group.group_id)}" ${group.group_id === activeGroupId ? 'selected' : ''}>${esc(group.group_name)}</option>`).join('');
     return `<section class="card research-history"><div class="section-head"><div><h2>最近任务</h2><div class="section-sub">结果保存在 1122-core D1；任务和词库按产品分组隔离。</div></div><button id="research-refresh-jobs" class="btn btn-quiet" type="button">刷新</button></div>
@@ -279,17 +381,18 @@
     const resultShell = shouldLoadResult
       ? '<div class="card"><div class="skeleton skeleton-line"></div></div>'
       : `<div class="empty-state"><div class="empty-icon">⌕</div><h2>${emptyTitle}</h2><p>${emptyText}</p></div>`;
-    return `${hero(`${executionReady() ? '<button id="research-lock" class="btn" type="button">锁定执行</button>' : ''}<a class="btn" href="#/operations/competitors">竞品中心</a>`)}
+    return `${hero(`${executionReady() ? '<button id="research-open-import" class="btn btn-primary" type="button">导入关键词</button><button id="research-lock" class="btn" type="button">锁定执行</button>' : '<button id="research-open-import" class="btn" type="button" disabled>导入关键词</button>'}<a class="btn" href="#/operations/competitors">竞品中心</a>`)}
       ${overviewCards()}
       ${unlockPanel(unlockMessage)}
       <div class="research-layout section"><div>${formPanel()}</div><div>${historyPanel(jobs)}</div></div>
       ${groupsLoadError ? `<div class="notice warn section"><strong>分组列表暂时不可读取：</strong>${esc(groupsLoadError)}。你仍可填写新分组名称；解锁后重试即可加载已保存分组。</div>` : ''}
       <div id="research-result" class="section">${resultShell}</div>
-      ${taxonomyPanel()}`;
+      ${taxonomyPanel()}
+      ${importDialog()}`;
   }
 
   function categoryDistribution(detail) {
-    const total = Number(detail.job.unique_keyword_count || 0);
+    const total = Number(detail.summary?.classified_keyword_count || 0);
     return `<div class="category-distribution">${(taxonomy?.categories || []).map(item => {
       const row = (detail.category_counts || []).find(value => value.category === item.code);
       const count = Number(row?.keyword_count || 0);
@@ -345,30 +448,45 @@
     const rows = items.map(item => {
       const labels = (item.primary_categories || [item.primary_category]).map(categoryLabel).join(' / ');
       const review = item.classification_conflict ? ' · 分类待复核' : (item.needs_review ? ' · 待复核' : '');
+      const sourceKinds = (item.source_kinds || []).map(sourceKindLabel).join(' / ') || '来源待确认';
+      const sourceDetail = item.source_asin_count
+        ? `${fmtNumber(item.source_asin_count)} 个来源 ASIN`
+        : item.manual_import_batch_count ? `手工导入 ${fmtNumber(item.manual_import_batch_count)} 批` : '无 ASIN 来源';
       return `<tr>
         <td><strong>${esc(item.keyword)}</strong><div class="item-meta">${fmtTime(item.observed_at)}${review}</div></td>
         <td><span class="tag tag-info">${esc(labels || '未分类')}</span><div class="item-meta">${item.classification_conflict ? '跨任务分类不同，未静默合并' : '分组内主分类'}</div></td>
-        <td><strong>${fmtNumber(item.source_job_count)}</strong><div class="item-meta">${fmtNumber(item.source_asin_count)} 个来源 ASIN</div></td>
+        <td><strong>${fmtNumber(item.source_job_count)}</strong><div class="item-meta">${esc(sourceKinds)} · ${esc(sourceDetail)}</div></td>
         <td>${fmtNumber(item.search_volume)}<div class="item-meta">ABA 排名 ${fmtNumber(item.best_aba_rank)}</div></td>
         <td>${fmtPercent(item.max_traffic_share)}<div class="item-meta">得分 ${fmtNumber(item.max_traffic_score, 2)}</div></td>
-        <td><div class="source-asins">${(item.source_asins || []).map(asin => `<span class="code">${esc(asin)}</span>`).join('')}</div></td>
+        <td><div class="source-asins">${(item.source_asins || []).map(asin => `<span class="code">${esc(asin)}</span>`).join('') || '<span class="item-meta">手工导入词无 ASIN 来源</span>'}</div></td>
       </tr>`;
     }).join('');
     if (append) return rows;
-    return `<div class="table-wrap"><table><caption>当前“产品关键词分组”共 ${fmtNumber(total)} 个严格去重关键词。仅聚合此分组内的任务；全局词典不会把其他产品线的词带入。</caption><thead><tr><th>关键词 / 最近观察</th><th>10 类分类</th><th>覆盖任务 / ASIN</th><th>搜索量 / ABA</th><th>最高流量占比</th><th>来源 ASIN</th></tr></thead><tbody id="group-keyword-table-body">${rows || '<tr><td colspan="6">该分组尚没有已完成的关键词。</td></tr>'}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><caption>当前“产品关键词分组”共 ${fmtNumber(total)} 个严格去重关键词。仅聚合此分组内已完成的 SIF 任务和手工导入批次；全局词典不会把其他产品线的词带入。</caption><thead><tr><th>关键词 / 最近观察</th><th>10 类分类</th><th>来源批次 / ASIN</th><th>搜索量 / ABA</th><th>最高流量占比</th><th>来源 ASIN</th></tr></thead><tbody id="group-keyword-table-body">${rows || '<tr><td colspan="6">该分组尚没有已完成的关键词。</td></tr>'}</tbody></table></div>`;
   }
 
   function groupLibraryPanel(payload) {
     const group = payload.group || groups.find(item => item.group_id === activeGroupId) || {};
+    const summary = payload.summary || {};
+    const imports = payload.imports || [];
     return `<section class="result-hero card card-elevated"><div class="split-title"><div><div class="hero-eyebrow">PRODUCT GROUP LIBRARY</div><h2>${esc(groupLabel(group, '产品关键词分组'))}</h2><div class="item-meta">${esc(group.marketplace || 'US')} · ${esc(group.description || '自定义产品线；不同分组默认不互相混合。')}</div></div>${tag(group.status || 'ACTIVE')}</div>
-      <div class="notice section"><strong>分组边界：</strong>这里仅汇总当前分组中的任务。十类分类仍按每个关键词展示；若同一个词在不同历史任务中出现不同分类，会明确标记为待复核。</div>
-      <div class="toolbar"><a class="btn btn-quiet" href="${esc(workbenchHref())}">返回全部任务</a></div>
+      <div class="notice section"><strong>分组边界：</strong>这里仅汇总当前分组中的 SIF 研究和手工导入。手工词不伪造 ASIN 或 SIF 指标；若同一个词在不同批次得到不同分类，会明确标记为待复核。</div>
+      <div class="toolbar"><button id="group-keyword-download" class="btn btn-primary" type="button">下载当前筛选 CSV</button><a class="btn btn-quiet" href="${esc(workbenchHref())}">返回全部任务</a></div>
     </section>
-    <section class="section"><div class="section-head"><div><h2>分组去重词库</h2><div class="section-sub">按当前分组跨任务严格去重，并保留任务数、来源 ASIN 与分类冲突信号。</div></div></div>${groupKeywordFilters()}<div id="group-keyword-table-shell">${groupKeywordTable(payload.items || [], payload.total || 0)}</div>${payload.next_cursor ? '<div class="toolbar group-load-more-row"><button id="group-keyword-load-more" class="btn" type="button">加载更多</button></div>' : ''}</section>`;
+    <div class="grid grid-auto section">
+      <div class="card metric-card"><div class="metric-label">关键词总数</div><div class="metric-value">${fmtNumber(summary.total_keyword_count)}</div><div class="metric-meta">当前分组跨 SIF / 手工批次严格去重</div></div>
+      <div class="card metric-card"><div class="metric-label">已完成分类</div><div class="metric-value">${fmtNumber(summary.classified_keyword_count)}</div><div class="metric-meta">每个已保存词均有一个 10 类主分类</div></div>
+      <div class="card metric-card"><div class="metric-label">待复核</div><div class="metric-value">${fmtNumber(summary.review_keyword_count)}</div><div class="metric-meta">低置信度、近似词或跨批次分类冲突</div></div>
+      <div class="card metric-card"><div class="metric-label">分类处理中</div><div class="metric-value">${fmtNumber(summary.unclassified_keyword_count)}</div><div class="metric-meta">后台 SIF 任务尚未落库的去重词</div></div>
+      <div class="card metric-card"><div class="metric-label">手工导入词</div><div class="metric-value">${fmtNumber(summary.manual_import_keyword_count)}</div><div class="metric-meta">同时来自 SIF 的词只在总数中算一次</div></div>
+    </div>
+    ${imports.length ? `<section class="card section"><div class="section-head"><div><h2>最近手工导入批次</h2><div class="section-sub">批次已完成后才进入分组词库。</div></div></div><div class="list compact-list">${imports.map(item => `<div class="list-item"><div class="split-title"><div class="item-title">${esc(item.import_name || '未命名关键词导入')}</div>${tag(item.status)}</div><div class="item-meta">${fmtTime(item.created_at)} · 输入 ${fmtNumber(item.input_keyword_count)} · 去重后 ${fmtNumber(item.unique_keyword_count)} · 已分类 ${fmtNumber(item.classified_keyword_count)} · 待复核 ${fmtNumber(item.review_keyword_count)}</div>${item.error ? `<div class="item-meta bad-text">${esc(item.error.message)}</div>` : ''}</div>`).join('')}</div></section>` : ''}
+    <section class="section"><div class="section-head"><div><h2>分组去重词库</h2><div class="section-sub">按当前分组跨任务严格去重，并保留批次、来源 ASIN、手工来源和分类冲突信号。</div></div></div>${groupKeywordFilters()}<div id="group-keyword-table-shell">${groupKeywordTable(payload.items || [], payload.total || 0)}</div>${payload.next_cursor ? '<div class="toolbar group-load-more-row"><button id="group-keyword-load-more" class="btn" type="button">加载更多</button></div>' : ''}</section>`;
   }
 
   function resultPanel(detail, keywordPayload) {
     const job = detail.job;
+    const summary = detail.summary || {};
     const duplicates = Number(job.duplicate_keyword_count || 0);
     const dedupeRate = job.raw_keyword_count ? duplicates / job.raw_keyword_count : 0;
     const running = !TERMINAL.has(job.status);
@@ -377,12 +495,14 @@
     return `<section class="result-hero card card-elevated"><div class="split-title"><div><div class="hero-eyebrow">RESEARCH RUN</div><h2>${esc(job.job_name || job.input_asins.join(' · '))}</h2><div class="item-meta">${esc(job.marketplace)} · ${esc(job.granularity)} ${esc(job.period_start)} · ${esc(job.source_tool)}</div></div>${tag(job.status)}</div>
       <div class="item-meta section">产品关键词分组：${job.group ? `<strong>${esc(groupLabel(job.group))}</strong>${job.group.description ? ` · ${esc(job.group.description)}` : ''}` : '历史未分组（该任务不会被自动并入任何产品线词库）'}</div>
       ${running ? `<div class="research-progress"><span></span></div><div class="item-meta">${job.status === 'CLASSIFYING' ? `正在分类 ${fmtNumber(job.classified_keyword_count)} / ${fmtNumber(job.unique_keyword_count)} 个去重词` : job.status === 'CLASSIFICATION_PENDING' ? '已完成采集，正在启动分类' : '任务正在后台分页采集'}；本页将在有限时间内自动刷新。</div>` : ''}
-      <div class="toolbar section"><button id="research-refresh-result" class="btn" type="button">刷新结果</button>${groupLink}<a class="btn btn-quiet" href="${esc(workbenchHref({ groupId: job.group?.group_id || '' }))}">${job.group?.group_id ? '返回分组' : '清除选择'}</a></div>
+      <div class="toolbar section"><button id="research-refresh-result" class="btn" type="button">刷新结果</button><button id="keyword-download" class="btn btn-primary" type="button">下载当前筛选 CSV</button>${groupLink}<a class="btn btn-quiet" href="${esc(workbenchHref({ groupId: job.group?.group_id || '' }))}">${job.group?.group_id ? '返回分组' : '清除选择'}</a></div>
     </section>
-    <div class="grid grid-4 section">
+    <div class="grid grid-auto section">
       <div class="card metric-card"><div class="metric-label">输入 ASIN</div><div class="metric-value">${fmtNumber(job.input_asin_count)}</div><div class="metric-meta">成功 ${fmtNumber(job.successful_asin_count)} · 失败 ${fmtNumber(job.failed_asin_count)}</div></div>
       <div class="card metric-card"><div class="metric-label">SIF 原始词行</div><div class="metric-value">${fmtNumber(job.raw_keyword_count)}</div><div class="metric-meta">逐 ASIN、逐页真实计数</div></div>
-      <div class="card metric-card"><div class="metric-label">严格去重后</div><div class="metric-value">${fmtNumber(job.unique_keyword_count)}</div><div class="metric-meta">合并 ${fmtNumber(duplicates)} 行 · ${fmtPercent(dedupeRate)}</div></div>
+      <div class="card metric-card"><div class="metric-label">关键词总数（严格去重）</div><div class="metric-value">${fmtNumber(summary.total_keyword_count ?? job.unique_keyword_count)}</div><div class="metric-meta">合并 ${fmtNumber(duplicates)} 行 · ${fmtPercent(dedupeRate)}</div></div>
+      <div class="card metric-card"><div class="metric-label">已完成分类</div><div class="metric-value">${fmtNumber(summary.classified_keyword_count)}</div><div class="metric-meta">10 类主分类已真实写入 D1</div></div>
+      <div class="card metric-card"><div class="metric-label">待复核 / 待分类</div><div class="metric-value">${fmtNumber(summary.review_keyword_count)} / ${fmtNumber(summary.unclassified_keyword_count)}</div><div class="metric-meta">不会把未落库词误显示为已分类</div></div>
       <div class="card metric-card"><div class="metric-label">完成时间</div><div class="metric-value compact-value">${fmtTime(job.completed_at)}</div><div class="metric-meta">${esc(job.taxonomy_version)}</div></div>
     </div>
     ${truncated ? '<div class="notice warn section"><strong>存在截断：</strong>至少一个 ASIN 的总词数超过单 ASIN 安全页数上限。已保存的数据真实有效，但不能标记为完整覆盖。</div>' : ''}
@@ -428,26 +548,20 @@
     });
   }
 
-  async function loadGroupKeywords(groupId, { append = false } = {}) {
-    const params = new URLSearchParams({ limit: '100' });
+  function groupKeywordFilterParams({ limit = '100', cursor = '' } = {}) {
+    const params = new URLSearchParams({ limit: String(limit) });
     const q = document.getElementById('group-keyword-filter-q')?.value.trim();
     const category = document.getElementById('group-keyword-filter-category')?.value;
     const sort = document.getElementById('group-keyword-filter-sort')?.value;
     if (q) params.set('q', q);
     if (category) params.set('category', category);
     if (sort) params.set('sort', sort);
-    if (append && groupKeywordCursor) params.set('cursor', groupKeywordCursor);
-    const payload = await api(`/api/v1/competitor-keyword-groups/${encodeURIComponent(groupId)}/keywords?${params.toString()}`, {
-      validate: value => isRecord(value.group) && Array.isArray(value.items) && Number.isInteger(value.total)
-        && (value.next_cursor === null || typeof value.next_cursor === 'string'),
-    });
-    groupKeywordCursor = payload.next_cursor;
-    activeGroupKeywordItems = append ? [...activeGroupKeywordItems, ...payload.items] : payload.items;
-    return { ...payload, items: activeGroupKeywordItems };
+    if (cursor) params.set('cursor', cursor);
+    return params;
   }
 
-  async function loadKeywords(jobId, { append = false } = {}) {
-    const params = new URLSearchParams({ limit: '100' });
+  function jobKeywordFilterParams({ limit = '100', cursor = '' } = {}) {
+    const params = new URLSearchParams({ limit: String(limit) });
     const q = document.getElementById('keyword-filter-q')?.value.trim();
     const category = document.getElementById('keyword-filter-category')?.value;
     const tier = document.getElementById('keyword-filter-tier')?.value;
@@ -460,7 +574,69 @@
     if (asin) params.set('asin', asin);
     if (sort) params.set('sort', sort);
     if (review) params.set('review', '1');
-    if (append && keywordCursor) params.set('cursor', keywordCursor);
+    if (cursor) params.set('cursor', cursor);
+    return params;
+  }
+
+  async function downloadCsv(path, fallbackFilename) {
+    if (!executionReady()) throw new Error('请先输入正确的关键词研究操作密钥。');
+    let response;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45_000);
+      try {
+        response = await fetch(`${API_BASE}${path}`, {
+          method: 'GET',
+          headers: { Accept: 'text/csv', Authorization: `Bearer ${accessKey}` },
+          signal: controller.signal,
+        });
+        if ([502, 503, 504].includes(response.status) && attempt === 0) continue;
+        break;
+      } catch (error) {
+        if (attempt === 0) continue;
+        if (error?.name === 'AbortError') throw new Error('下载超时，请缩小筛选范围后重试。');
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+    if (!response) throw new Error('下载请求未完成。');
+    if (!response.ok) {
+      let message = `HTTP ${response.status}`;
+      try {
+        const payload = await response.json();
+        message = payload?.error?.message || payload?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const filename = match?.[1] || fallbackFilename;
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+  }
+
+  async function loadGroupKeywords(groupId, { append = false } = {}) {
+    const params = groupKeywordFilterParams({ cursor: append ? groupKeywordCursor : '' });
+    const payload = await api(`/api/v1/competitor-keyword-groups/${encodeURIComponent(groupId)}/keywords?${params.toString()}`, {
+      validate: value => isRecord(value.group) && Array.isArray(value.items) && Number.isInteger(value.total)
+        && (value.next_cursor === null || typeof value.next_cursor === 'string'),
+    });
+    groupKeywordCursor = payload.next_cursor;
+    activeGroupKeywordItems = append ? [...activeGroupKeywordItems, ...payload.items] : payload.items;
+    return { ...payload, items: activeGroupKeywordItems };
+  }
+
+  async function loadKeywords(jobId, { append = false } = {}) {
+    const params = jobKeywordFilterParams({ cursor: append ? keywordCursor : '' });
     const payload = await api(`/api/v1/competitor-keyword-runs/${encodeURIComponent(jobId)}/keywords?${params}`, {
       validate: value => Array.isArray(value.items) && Number.isInteger(value.total)
         && (value.next_cursor === null || typeof value.next_cursor === 'string'),
@@ -509,6 +685,22 @@
   }
 
   function bindGroupResultEvents(groupId, isCurrent) {
+    document.getElementById('group-keyword-download')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      try {
+        const params = groupKeywordFilterParams();
+        params.delete('limit');
+        await downloadCsv(`/api/v1/competitor-keyword-groups/${encodeURIComponent(groupId)}/keywords/export.csv?${params.toString()}`, '1122-group-keywords.csv');
+      } catch (error) {
+        const shell = document.getElementById('group-keyword-table-shell');
+        if (shell) shell.insertAdjacentHTML('beforebegin', `<div class="notice bad">下载失败：${esc(error.message)}</div>`);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
     document.getElementById('group-keyword-filter-apply')?.addEventListener('click', async event => {
       const button = event.currentTarget;
       button.setAttribute('aria-busy', 'true');
@@ -560,6 +752,22 @@
 
   function bindResultEvents(detail, isCurrent) {
     document.getElementById('research-refresh-result')?.addEventListener('click', () => renderSelectedJob(isCurrent));
+    document.getElementById('keyword-download')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      try {
+        const params = jobKeywordFilterParams();
+        params.delete('limit');
+        await downloadCsv(`/api/v1/competitor-keyword-runs/${encodeURIComponent(detail.job.job_id)}/keywords/export.csv?${params.toString()}`, '1122-research-keywords.csv');
+      } catch (error) {
+        const shell = document.getElementById('keyword-table-shell');
+        if (shell) shell.insertAdjacentHTML('beforebegin', `<div class="notice bad">下载失败：${esc(error.message)}</div>`);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
     document.getElementById('keyword-filter-apply')?.addEventListener('click', async event => {
       const button = event.currentTarget;
       button.setAttribute('aria-busy', 'true');
@@ -650,6 +858,61 @@
     validation.className = `field-help ${parsed.invalid.length || parsed.valid.length > batchLimit ? 'bad-text' : ''}`;
   }
 
+  function updateImportValidation() {
+    const input = document.getElementById('keyword-import-input');
+    const validation = document.getElementById('keyword-import-validation');
+    if (!input || !validation) return;
+    const parsed = parseImportedKeywords(input.value);
+    const limit = importedKeywordLimit();
+    validation.textContent = `${parsed.inputCount} 个输入 · ${parsed.valid.length} 个可导入 · ${parsed.duplicateCount} 个严格重复 · ${parsed.invalid.length} 个无效 · 最多 ${limit} 个`;
+    validation.className = `field-help ${parsed.invalid.length || parsed.valid.length > limit ? 'bad-text' : ''}`;
+  }
+
+  function updateImportGroupFormState() {
+    const select = document.getElementById('keyword-import-group-id');
+    const fields = document.getElementById('keyword-import-new-group-fields');
+    const name = document.getElementById('keyword-import-group-name');
+    const description = document.getElementById('keyword-import-group-description');
+    const groupId = select?.value || '';
+    importDraft.groupId = groupId;
+    if (fields) fields.hidden = Boolean(groupId);
+    if (name) name.disabled = Boolean(groupId);
+    if (description) description.disabled = Boolean(groupId);
+  }
+
+  function parseCsvLine(line) {
+    const cells = [];
+    let value = '';
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if (char === '"') {
+        if (quoted && line[index + 1] === '"') { value += '"'; index += 1; }
+        else quoted = !quoted;
+      } else if (char === ',' && !quoted) {
+        cells.push(value.trim());
+        value = '';
+      } else value += char;
+    }
+    cells.push(value.trim());
+    return cells;
+  }
+
+  function keywordTextFromFile(text, filename = '') {
+    const clean = String(text || '').replace(/^\uFEFF/, '');
+    if (!/\.csv$/i.test(filename)) return clean;
+    const lines = clean.split(/\r?\n/).filter(line => line.trim());
+    if (!lines.length) return '';
+    const header = parseCsvLine(lines[0]).map(cell => normalizeImportedKeyword(cell));
+    const keywordHeaders = new Set(['keyword', 'keywords', 'search term', 'search terms', '关键词', '搜索词']);
+    const keywordColumn = header.findIndex(value => keywordHeaders.has(value));
+    const start = keywordColumn >= 0 ? 1 : 0;
+    return lines.slice(start)
+      .map(line => parseCsvLine(line)[keywordColumn >= 0 ? keywordColumn : 0] || '')
+      .filter(Boolean)
+      .join('\n');
+  }
+
   function updateGroupFormState() {
     const select = document.getElementById('research-group-id');
     const fields = document.getElementById('research-new-group-fields');
@@ -665,6 +928,122 @@
   }
 
   function bindWorkspaceEvents(isCurrent) {
+    const importDialogElement = document.getElementById('keyword-import-dialog');
+    document.getElementById('research-open-import')?.addEventListener('click', () => {
+      if (!executionReady()) return;
+      const groupSelect = document.getElementById('keyword-import-group-id');
+      if (!importDraft.groupId && activeGroupId && groups.some(group => group.group_id === activeGroupId) && groupSelect) {
+        groupSelect.value = activeGroupId;
+        importDraft.groupId = activeGroupId;
+        updateImportGroupFormState();
+      }
+      if (typeof importDialogElement?.showModal === 'function' && !importDialogElement.open) importDialogElement.showModal();
+    });
+    document.getElementById('keyword-import-close')?.addEventListener('click', () => {
+      rememberImportDraft();
+      importDialogElement?.close?.();
+    });
+    const importForm = document.getElementById('keyword-import-form');
+    const importInput = document.getElementById('keyword-import-input');
+    importInput?.addEventListener('input', () => {
+      importDraft.keywords = importInput.value;
+      updateImportValidation();
+    });
+    importForm?.addEventListener('input', rememberImportDraft);
+    importForm?.addEventListener('change', rememberImportDraft);
+    document.getElementById('keyword-import-group-id')?.addEventListener('change', () => {
+      updateImportGroupFormState();
+      rememberImportDraft();
+    });
+    document.getElementById('keyword-import-file')?.addEventListener('change', async event => {
+      const file = event.currentTarget.files?.[0];
+      if (!file) return;
+      if (file.size > 1_500_000) {
+        showMessage('keyword-import-message', '文件超过 1.5 MB 的本地安全读取上限，请拆分后导入。');
+        event.currentTarget.value = '';
+        return;
+      }
+      try {
+        const text = await file.text();
+        const imported = keywordTextFromFile(text, file.name);
+        if (!imported.trim()) throw new Error('文件中没有可识别的关键词列或文本。');
+        if (importInput) {
+          importInput.value = imported;
+          importDraft.keywords = imported;
+        }
+        updateImportValidation();
+        showMessage('keyword-import-message', `已在浏览器本地读取“${file.name}”，请确认预览后再导入。`, '');
+      } catch (error) {
+        showMessage('keyword-import-message', error.message || '读取本地文件失败。');
+      } finally {
+        event.currentTarget.value = '';
+      }
+    });
+    updateImportGroupFormState();
+    updateImportValidation();
+
+    importForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      rememberImportDraft();
+      if (!executionReady()) {
+        showMessage('keyword-import-message', '请先输入正确的关键词研究操作密钥。');
+        return;
+      }
+      const parsed = parseImportedKeywords(importDraft.keywords);
+      const limit = importedKeywordLimit();
+      const groupId = importDraft.groupId.trim();
+      const groupName = importDraft.groupName.trim();
+      if (!parsed.valid.length || parsed.invalid.length || parsed.valid.length > limit) {
+        showMessage('keyword-import-message', `请保留 1–${limit} 个有效关键词，并修正无效项。`);
+        return;
+      }
+      if (!groupId && !groupName) {
+        showMessage('keyword-import-message', '请选择已有产品分组，或填写一个新的分组名称。');
+        return;
+      }
+      const button = document.getElementById('keyword-import-submit');
+      if (!button) return;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      showMessage('keyword-import-message', `正在保存 ${parsed.valid.length} 个去重关键词并执行 10 类分类…`, '');
+      try {
+        const body = {
+          keyword_text: importDraft.keywords,
+          marketplace: importDraft.marketplace,
+          import_name: importDraft.importName,
+          own_brands: importDraft.ownBrands,
+        };
+        if (groupId) body.group_id = groupId;
+        else {
+          body.group_name = groupName;
+          if (importDraft.groupDescription.trim()) body.group_description = importDraft.groupDescription.trim();
+        }
+        const payload = await api('/api/v1/competitor-keyword-imports', {
+          method: 'POST', timeoutMs: 45_000, validate: value => hasImportShape(value), body,
+        });
+        const effectiveGroupId = payload.import.group_id || payload.group?.group_id;
+        if (!effectiveGroupId) throw new Error('关键词导入结果缺少产品分组。');
+        importDraft.keywords = '';
+        importDraft.importName = '';
+        importDraft.groupId = effectiveGroupId;
+        importDraft.groupName = '';
+        importDraft.groupDescription = '';
+        researchDraft.groupId = effectiveGroupId;
+        activeJobId = null;
+        activeGroupId = effectiveGroupId;
+        importDialogElement?.close?.();
+        const nextHash = workbenchHref({ groupId: effectiveGroupId });
+        if (location.hash === nextHash) window.dispatchEvent(new HashChangeEvent('hashchange'));
+        else location.hash = nextHash;
+      } catch (error) {
+        const invalid = error.validation?.invalid?.length ? ` 无效项：${error.validation.invalid.join('、')}` : '';
+        showMessage('keyword-import-message', `${describeRequestFailure(error)}${invalid}`);
+      } finally {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
+
     document.getElementById('research-lock')?.addEventListener('click', () => {
       rememberResearchDraft();
       accessKey = '';

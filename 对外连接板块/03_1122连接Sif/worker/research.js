@@ -12,13 +12,18 @@ import {
 
 const SOURCE_TOOL = "ops_get_asin_traffic_trend_detail";
 const PROFILE_TOOL = "market_get_asin_profile";
+const MANUAL_IMPORT_SOURCE_KIND = "MANUAL_IMPORT";
 const API_PREFIX = "/api/v1";
 const MAX_ASINS = 10;
 const PAGE_SIZE = 200;
 const MAX_PAGES_PER_ASIN = 20;
 const MAX_BODY_CHARS = 12_000;
+const MAX_IMPORT_BODY_CHARS = 192_000;
+const MAX_IMPORTED_KEYWORDS = 2_000;
+const IMPORT_WRITE_PAGE_SIZE = 200;
 const MAX_JOBS_PER_HOUR = 20;
 const MAX_ASINS_PER_HOUR = 100;
+const MAX_IMPORTS_PER_HOUR = 30;
 const CLASSIFICATION_PAGE_SIZE = 200;
 const TERMINAL_JOB_STATES = new Set(["SUCCEEDED", "PARTIAL", "FAILED"]);
 const SUPPORTED_MARKETPLACES = Object.freeze({ US: { language: "en", timezone: "America/Los_Angeles" } });
@@ -89,6 +94,10 @@ function publicResearchError(error) {
     GROUP_NOT_FOUND: "所选产品分组不存在，或不属于当前市场。",
     GROUP_ARCHIVED: "所选产品分组已归档，不能再创建新任务。",
     GROUP_INVALID: "产品分组信息不符合要求。",
+    IMPORT_INPUT_REQUIRED: "请至少输入一个可分析的关键词。",
+    IMPORT_TOO_LARGE: "单次导入的关键词数量超过安全上限。",
+    IMPORT_RATE_LIMITED: "最近导入的关键词较多，请稍后再试。",
+    IMPORT_FAILED: "关键词导入或自动分类未能完成。",
     FETCH_PAGE_BUSY: "同一个 ASIN 的该页正在处理，系统会稍后继续。",
     FETCH_PREDECESSOR_PENDING: "前一页尚未完成，系统会稍后继续。",
     JOB_NOT_FOUND: "未找到这次竞品关键词任务。",
@@ -200,6 +209,45 @@ function normalizeAsins(value) {
   return { valid, invalid, duplicates };
 }
 
+function normalizeImportedKeywords(value) {
+  const parts = Array.isArray(value)
+    ? value
+    : String(value || "").split(/[\r\n,;，；\t]+/);
+  const seen = new Set();
+  const valid = [];
+  const invalid = [];
+  let inputKeywordCount = 0;
+  let duplicateCount = 0;
+  for (const candidate of parts) {
+    const displayKeyword = String(candidate ?? "")
+      .normalize("NFKC")
+      .replace(/[\u0000-\u001f\u007f]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!displayKeyword) continue;
+    inputKeywordCount += 1;
+    const normalizedKeyword = normalizeKeyword(displayKeyword);
+    const tooLong = displayKeyword.length > 240
+      || normalizedKeyword.length > 240
+      || new TextEncoder().encode(displayKeyword).byteLength > 960;
+    if (!normalizedKeyword || tooLong) {
+      invalid.push(displayKeyword.slice(0, 80));
+      continue;
+    }
+    if (seen.has(normalizedKeyword)) {
+      duplicateCount += 1;
+      continue;
+    }
+    seen.add(normalizedKeyword);
+    valid.push({
+      displayKeyword,
+      normalizedKeyword,
+      tokenSignature: tokenSignature(normalizedKeyword),
+    });
+  }
+  return { valid, invalid, inputKeywordCount, duplicateCount };
+}
+
 function normalizeBrands(value) {
   const parts = Array.isArray(value) ? value : String(value || "").split(/[,;，；\n]+/);
   return [...new Set(parts.map((item) => safeText(item, 80)).filter(Boolean))].slice(0, 10);
@@ -218,7 +266,9 @@ function validGroupId(value) {
 export const researchInputTestApi = Object.freeze({
   normalizeGroupName,
   validGroupId,
+  normalizeImportedKeywords,
   validateCreatePayload,
+  validateImportPayload,
 });
 
 function validDate(value) {
@@ -226,13 +276,13 @@ function validDate(value) {
   return !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 }
 
-async function readJsonBody(request) {
+async function readJsonBody(request, maxChars = MAX_BODY_CHARS) {
   const declared = Number(request.headers.get("content-length") || 0);
-  if (declared > MAX_BODY_CHARS) {
+  if (declared > maxChars) {
     throw new ResearchError("BODY_TOO_LARGE", "Request body is too large", { stage: "VALIDATION", httpStatus: 413 });
   }
   const text = await request.text();
-  if (text.length > MAX_BODY_CHARS) {
+  if (text.length > maxChars) {
     throw new ResearchError("BODY_TOO_LARGE", "Request body is too large", { stage: "VALIDATION", httpStatus: 413 });
   }
   try {
@@ -294,6 +344,72 @@ function validateCreatePayload(body) {
   };
 }
 
+function validateImportPayload(body) {
+  const marketplace = safeText(body.marketplace || "US", 8).toUpperCase();
+  if (!SUPPORTED_MARKETPLACES[marketplace]) {
+    throw new ResearchError("INVALID_INPUT", "Only the US marketplace is supported in this version", {
+      stage: "VALIDATION", httpStatus: 400,
+    });
+  }
+  const parsed = normalizeImportedKeywords(body.keywords ?? body.keyword_text);
+  if (!parsed.valid.length) {
+    const error = new ResearchError("IMPORT_INPUT_REQUIRED", "No valid imported keywords", {
+      stage: "VALIDATION", httpStatus: 400,
+    });
+    error.validation = {
+      inputKeywordCount: parsed.inputKeywordCount,
+      invalid: parsed.invalid,
+      duplicateKeywordCount: parsed.duplicateCount,
+      validCount: 0,
+      maxKeywords: MAX_IMPORTED_KEYWORDS,
+    };
+    throw error;
+  }
+  if (parsed.valid.length > MAX_IMPORTED_KEYWORDS || parsed.inputKeywordCount > MAX_IMPORTED_KEYWORDS * 3) {
+    const error = new ResearchError("IMPORT_TOO_LARGE", "Too many imported keywords", {
+      stage: "VALIDATION", httpStatus: 413,
+    });
+    error.validation = {
+      inputKeywordCount: parsed.inputKeywordCount,
+      invalid: parsed.invalid.slice(0, 20),
+      duplicateKeywordCount: parsed.duplicateCount,
+      validCount: parsed.valid.length,
+      maxKeywords: MAX_IMPORTED_KEYWORDS,
+    };
+    throw error;
+  }
+  const groupId = safeText(body.group_id, 36);
+  const groupName = safeText(body.group_name, 80);
+  const groupDescription = safeText(body.group_description, 300) || null;
+  if (groupId && !validGroupId(groupId)) {
+    throw new ResearchError("GROUP_INVALID", "group_id is invalid", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  if (groupId && groupName) {
+    throw new ResearchError("GROUP_INVALID", "Choose an existing group or provide a new group name, not both", {
+      stage: "VALIDATION", httpStatus: 400,
+    });
+  }
+  if (!groupId && !groupName) {
+    throw new ResearchError("GROUP_NAME_REQUIRED", "A product group is required", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  if (groupName && !normalizeGroupName(groupName)) {
+    throw new ResearchError("GROUP_NAME_REQUIRED", "A product group name is required", { stage: "VALIDATION", httpStatus: 400 });
+  }
+  return {
+    marketplace,
+    language: SUPPORTED_MARKETPLACES[marketplace].language,
+    keywords: parsed.valid,
+    inputKeywordCount: parsed.inputKeywordCount,
+    duplicateKeywordCount: parsed.duplicateCount,
+    invalidKeywords: parsed.invalid,
+    ownBrands: normalizeBrands(body.own_brands),
+    importName: safeText(body.import_name ?? body.job_name, 80) || null,
+    groupId: groupId || null,
+    groupName: groupName || null,
+    groupDescription,
+  };
+}
+
 async function assertRateLimit(db, requestedAsins) {
   const result = await db.prepare(
     `SELECT COUNT(*) AS job_count, COALESCE(SUM(input_asin_count), 0) AS asin_count
@@ -304,6 +420,19 @@ async function assertRateLimit(db, requestedAsins) {
   const asins = Number(result?.asin_count || 0);
   if (jobs >= MAX_JOBS_PER_HOUR || asins + requestedAsins > MAX_ASINS_PER_HOUR) {
     throw new ResearchError("RESEARCH_RATE_LIMITED", "Hourly research limit reached", {
+      stage: "RATE_LIMIT", httpStatus: 429,
+    });
+  }
+}
+
+async function assertImportRateLimit(db) {
+  const result = await db.prepare(
+    `SELECT COUNT(*) AS import_count
+     FROM competitor_keyword_import_batches
+     WHERE datetime(created_at) >= datetime('now', '-1 hour')`
+  ).first();
+  if (Number(result?.import_count || 0) >= MAX_IMPORTS_PER_HOUR) {
+    throw new ResearchError("IMPORT_RATE_LIMITED", "Hourly import limit reached", {
       stage: "RATE_LIMIT", httpStatus: 429,
     });
   }
@@ -322,8 +451,41 @@ function serializeGroup(row) {
     updated_at: row.updated_at,
     archived_at: row.archived_at || null,
     job_count: row.job_count === undefined ? undefined : Number(row.job_count || 0),
+    import_count: row.import_count === undefined ? undefined : Number(row.import_count || 0),
     keyword_count: row.keyword_count === undefined ? undefined : Number(row.keyword_count || 0),
     asin_count: row.asin_count === undefined ? undefined : Number(row.asin_count || 0),
+  };
+}
+
+function serializeImport(row) {
+  if (!row) return null;
+  return {
+    import_id: row.import_id,
+    group_id: row.group_id,
+    group: row.group_id ? {
+      group_id: row.group_id,
+      group_name: row.group_name || "未命名分组",
+      description: row.group_description || null,
+      status: row.group_status || "UNKNOWN",
+    } : null,
+    marketplace: row.marketplace,
+    language: row.language,
+    import_name: row.import_name || null,
+    own_brands: parseJson(row.own_brands_json, []),
+    input_keyword_count: Number(row.input_keyword_count || 0),
+    unique_keyword_count: Number(row.unique_keyword_count || 0),
+    duplicate_keyword_count: Number(row.duplicate_keyword_count || 0),
+    invalid_keyword_count: Number(row.invalid_keyword_count || 0),
+    classified_keyword_count: Number(row.classified_keyword_count || 0),
+    review_keyword_count: Number(row.review_keyword_count || 0),
+    status: row.status,
+    source_kind: MANUAL_IMPORT_SOURCE_KIND,
+    taxonomy_version: row.taxonomy_version,
+    normalizer_version: row.normalizer_version,
+    warnings: parseJson(row.warning_json, []),
+    error: row.error_code ? { stage: row.error_stage, code: row.error_code, message: row.error_message } : null,
+    created_at: row.created_at,
+    completed_at: row.completed_at || null,
   };
 }
 
@@ -385,16 +547,23 @@ async function listGroups(env, url) {
   const binds = [marketplace];
   if (!includeArchived) clauses.push("g.status='ACTIVE'");
   const result = await env.CORE_DB.prepare(
-    `SELECT g.*,
-            COUNT(DISTINCT j.job_id) AS job_count,
-            COUNT(DISTINCT i.keyword_id) AS keyword_count,
-            COUNT(DISTINCT ga.asin) AS asin_count
+    `WITH group_keywords AS (
+       SELECT j.group_id, i.keyword_id
+       FROM competitor_keyword_research_jobs j
+       JOIN competitor_keyword_job_items i ON i.job_id=j.job_id
+       UNION
+       SELECT b.group_id, mi.keyword_id
+       FROM competitor_keyword_import_batches b
+       JOIN competitor_keyword_import_items mi ON mi.import_id=b.import_id
+       WHERE b.status='SUCCEEDED'
+     )
+     SELECT g.*,
+            (SELECT COUNT(*) FROM competitor_keyword_research_jobs j WHERE j.group_id=g.group_id) AS job_count,
+            (SELECT COUNT(*) FROM competitor_keyword_import_batches b WHERE b.group_id=g.group_id AND b.status='SUCCEEDED') AS import_count,
+            (SELECT COUNT(*) FROM group_keywords gw WHERE gw.group_id=g.group_id) AS keyword_count,
+            (SELECT COUNT(*) FROM competitor_keyword_group_asins ga WHERE ga.group_id=g.group_id) AS asin_count
      FROM competitor_keyword_groups g
-     LEFT JOIN competitor_keyword_research_jobs j ON j.group_id=g.group_id
-     LEFT JOIN competitor_keyword_job_items i ON i.job_id=j.job_id
-     LEFT JOIN competitor_keyword_group_asins ga ON ga.group_id=g.group_id
      WHERE ${clauses.join(" AND ")}
-     GROUP BY g.group_id
      ORDER BY CASE WHEN g.status='ACTIVE' THEN 0 ELSE 1 END, g.updated_at DESC, g.group_name ASC`
   ).bind(...binds).all();
   return { groups: (result.results || []).map(serializeGroup), marketplace };
@@ -521,6 +690,7 @@ export function researchCapability(env) {
     sif_configured: Boolean(env.SIF_MCP_SECRET),
     access_key_configured: Boolean(env.SIF_RESEARCH_ACCESS_KEY),
     auth_required: true,
+    manual_import_enabled: Boolean(env.CORE_DB && env.SIF_RESEARCH_ACCESS_KEY),
     source_tool: SOURCE_TOOL,
     source_scope: "SIF-visible traffic keywords in the selected period; not all Amazon search queries",
     marketplaces: Object.keys(SUPPORTED_MARKETPLACES),
@@ -531,6 +701,8 @@ export function researchCapability(env) {
       max_visible_rows_per_asin: PAGE_SIZE * MAX_PAGES_PER_ASIN,
       max_jobs_per_hour: MAX_JOBS_PER_HOUR,
       max_asins_per_hour: MAX_ASINS_PER_HOUR,
+      max_imported_keywords: MAX_IMPORTED_KEYWORDS,
+      max_imports_per_hour: MAX_IMPORTS_PER_HOUR,
     },
     taxonomy_version: TAXONOMY_VERSION,
     normalizer_version: NORMALIZER_VERSION,
@@ -724,6 +896,235 @@ async function createJob(request, env) {
   return { job: serializeJob(row), group: serializeGroup(group), input: { duplicate_asins_removed: input.duplicateInputs } };
 }
 
+async function manualImportClassificationContext(db, group) {
+  const profilesResult = await db.prepare(
+    `SELECT a.title, a.brand
+     FROM competitor_keyword_research_jobs j
+     JOIN competitor_keyword_research_asins a ON a.job_id=j.job_id
+     WHERE j.group_id=? AND a.status='SUCCEEDED' AND (a.title IS NOT NULL OR a.brand IS NOT NULL)
+     ORDER BY a.observed_at DESC LIMIT 100`
+  ).bind(group.group_id).all();
+  const profiles = profilesResult.results || [];
+  const groupContext = [{ title: `${group.group_name || ""} ${group.description || ""}`.trim(), brand: "" }]
+    .filter((item) => item.title);
+  return {
+    competitorBrands: profiles.map((row) => row.brand).filter(Boolean),
+    coreTokens: deriveCoreTokens(profiles.length ? profiles : groupContext),
+    hasSifProfileContext: profiles.length > 0,
+  };
+}
+
+function manualImportClassification(keyword, input, context) {
+  const classification = classifyKeyword({
+    normalizedKeyword: keyword.normalizedKeyword,
+    sourceAsinCount: 0,
+    inputAsinCount: 0,
+    ownBrands: input.ownBrands,
+    competitorBrands: context.competitorBrands,
+    coreTokens: context.coreTokens,
+    nearDuplicateCount: 0,
+  });
+  const noSemanticRule = classification.primaryCategory === "related_general";
+  const coreFromGroupContext = classification.primaryCategory === "category_core" && !context.hasSifProfileContext;
+  return {
+    ...classification,
+    secondaryTags: [...new Set(["MANUAL_IMPORT", ...classification.secondaryTags])],
+    classificationReason: noSemanticRule
+      ? "手工导入词未命中更明确的确定性语义规则，已归入相关泛词并标记待复核"
+      : coreFromGroupContext
+        ? "命中当前产品关键词分组名称或说明中的核心词根"
+        : `手工导入词；${classification.classificationReason}`,
+  };
+}
+
+async function persistManualImportItems(db, importId, group, input, context, createdAt) {
+  let reviewCount = 0;
+  for (let offset = 0; offset < input.keywords.length; offset += IMPORT_WRITE_PAGE_SIZE) {
+    const keywordPage = input.keywords.slice(offset, offset + IMPORT_WRITE_PAGE_SIZE);
+    const canonicalRows = keywordPage.map((keyword) => ({
+      keyword_id: keywordId(input.marketplace, input.language, keyword.normalizedKeyword),
+      marketplace: input.marketplace,
+      language: input.language,
+      normalized_keyword: keyword.normalizedKeyword,
+      display_keyword: keyword.displayKeyword,
+      token_signature: keyword.tokenSignature,
+      observed_at: createdAt,
+    }));
+    const importRows = keywordPage.map((keyword, index) => {
+      const classification = manualImportClassification(keyword, input, context);
+      if (classification.needsReview) reviewCount += 1;
+      return {
+        import_id: importId,
+        keyword_id: canonicalRows[index].keyword_id,
+        raw_keyword: keyword.displayKeyword,
+        primary_category: classification.primaryCategory,
+        secondary_tags_json: JSON.stringify(classification.secondaryTags),
+        matched_facets_json: JSON.stringify(classification.matchedFacets),
+        matched_rule_ids_json: JSON.stringify(classification.matchedRuleIds),
+        classification_reason: classification.classificationReason,
+        classification_confidence: classification.classificationConfidence,
+        taxonomy_version: TAXONOMY_VERSION,
+        normalizer_version: NORMALIZER_VERSION,
+        classifier_method: "deterministic_rules",
+        query_shape: classification.queryShape,
+        strategic_tier: classification.strategicTier,
+        relevance_status: classification.relevanceStatus,
+        needs_review: classification.needsReview ? 1 : 0,
+        token_signature: keyword.tokenSignature,
+        created_at: createdAt,
+      };
+    });
+    await db.batch([
+      db.prepare(
+        `INSERT INTO competitor_keywords (
+           keyword_id, marketplace, language, normalized_keyword, display_keyword,
+           token_signature, first_seen_at, last_seen_at
+         )
+         SELECT
+           json_extract(value, '$.keyword_id'), json_extract(value, '$.marketplace'),
+           json_extract(value, '$.language'), json_extract(value, '$.normalized_keyword'),
+           json_extract(value, '$.display_keyword'), json_extract(value, '$.token_signature'),
+           json_extract(value, '$.observed_at'), json_extract(value, '$.observed_at')
+         FROM json_each(?) WHERE true
+         ON CONFLICT(keyword_id) DO UPDATE SET
+           display_keyword=CASE
+             WHEN length(excluded.display_keyword) < length(competitor_keywords.display_keyword)
+               THEN excluded.display_keyword ELSE competitor_keywords.display_keyword END,
+           token_signature=excluded.token_signature,
+           last_seen_at=excluded.last_seen_at`
+      ).bind(JSON.stringify(canonicalRows)),
+      db.prepare(
+        `INSERT INTO competitor_keyword_import_items (
+           import_id, keyword_id, raw_keyword, primary_category, secondary_tags_json,
+           matched_facets_json, matched_rule_ids_json, classification_reason,
+           classification_confidence, taxonomy_version, normalizer_version, classifier_method,
+           query_shape, strategic_tier, relevance_status, needs_review, token_signature, created_at
+         )
+         SELECT
+           json_extract(value, '$.import_id'), json_extract(value, '$.keyword_id'),
+           json_extract(value, '$.raw_keyword'), json_extract(value, '$.primary_category'),
+           json_extract(value, '$.secondary_tags_json'), json_extract(value, '$.matched_facets_json'),
+           json_extract(value, '$.matched_rule_ids_json'), json_extract(value, '$.classification_reason'),
+           json_extract(value, '$.classification_confidence'), json_extract(value, '$.taxonomy_version'),
+           json_extract(value, '$.normalizer_version'), json_extract(value, '$.classifier_method'),
+           json_extract(value, '$.query_shape'), json_extract(value, '$.strategic_tier'),
+           json_extract(value, '$.relevance_status'), json_extract(value, '$.needs_review'),
+           json_extract(value, '$.token_signature'), json_extract(value, '$.created_at')
+         FROM json_each(?) WHERE true
+         ON CONFLICT(import_id, keyword_id) DO UPDATE SET
+           raw_keyword=excluded.raw_keyword,
+           primary_category=excluded.primary_category,
+           secondary_tags_json=excluded.secondary_tags_json,
+           matched_facets_json=excluded.matched_facets_json,
+           matched_rule_ids_json=excluded.matched_rule_ids_json,
+           classification_reason=excluded.classification_reason,
+           classification_confidence=excluded.classification_confidence,
+           taxonomy_version=excluded.taxonomy_version,
+           normalizer_version=excluded.normalizer_version,
+           classifier_method=excluded.classifier_method,
+           query_shape=excluded.query_shape,
+           strategic_tier=excluded.strategic_tier,
+           relevance_status=excluded.relevance_status,
+           needs_review=excluded.needs_review,
+           token_signature=excluded.token_signature,
+           created_at=excluded.created_at`
+      ).bind(JSON.stringify(importRows)),
+    ]);
+  }
+  return reviewCount;
+}
+
+async function createManualImport(request, env) {
+  if (!env.CORE_DB) {
+    throw new ResearchError("STORAGE_NOT_READY", "CORE_DB is not bound", { stage: "CONFIG", httpStatus: 503 });
+  }
+  const body = await readJsonBody(request, MAX_IMPORT_BODY_CHARS);
+  const input = validateImportPayload(body);
+  let group;
+  try {
+    group = await resolveGroup(env.CORE_DB, input);
+    await assertImportRateLimit(env.CORE_DB);
+  } catch (error) {
+    throw storageFailure("resolve_group_or_import_rate_limit", error);
+  }
+
+  const importId = crypto.randomUUID();
+  const createdAt = nowIso();
+  const warnings = [];
+  if (input.duplicateKeywordCount) warnings.push({ code: "DUPLICATE_KEYWORDS_REMOVED", count: input.duplicateKeywordCount });
+  if (input.invalidKeywords.length) warnings.push({ code: "INVALID_KEYWORDS_OMITTED", count: input.invalidKeywords.length });
+  try {
+    await env.CORE_DB.prepare(
+      `INSERT INTO competitor_keyword_import_batches (
+         import_id, group_id, marketplace, language, import_name, own_brands_json,
+         input_keyword_count, unique_keyword_count, duplicate_keyword_count, invalid_keyword_count,
+         status, taxonomy_version, normalizer_version, warning_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PROCESSING', ?, ?, ?, ?)`
+    ).bind(
+      importId, group.group_id, input.marketplace, input.language, input.importName,
+      JSON.stringify(input.ownBrands), input.inputKeywordCount, input.keywords.length,
+      input.duplicateKeywordCount, input.invalidKeywords.length, TAXONOMY_VERSION,
+      NORMALIZER_VERSION, JSON.stringify(warnings), createdAt
+    ).run();
+  } catch (error) {
+    throw storageFailure("create_manual_import_batch", error, { groupId: group.group_id });
+  }
+
+  try {
+    const context = await manualImportClassificationContext(env.CORE_DB, group);
+    const reviewCount = await persistManualImportItems(env.CORE_DB, importId, group, input, context, createdAt);
+    const completedAt = nowIso();
+    await env.CORE_DB.prepare(
+      `UPDATE competitor_keyword_import_batches
+       SET status='SUCCEEDED', classified_keyword_count=?, review_keyword_count=?, completed_at=?,
+           error_stage=NULL, error_code=NULL, error_message=NULL
+       WHERE import_id=? AND status='PROCESSING'`
+    ).bind(input.keywords.length, reviewCount, completedAt, importId).run();
+    await env.CORE_DB.prepare(
+      `UPDATE competitor_keyword_groups SET updated_at=? WHERE group_id=?`
+    ).bind(completedAt, group.group_id).run();
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "competitor_keyword_manual_import_failed",
+      stage: "IMPORT",
+      import_id: importId,
+      group_id: group.group_id,
+      keyword_count: input.keywords.length,
+      error_name: safeText(error?.name || "Error", 80),
+    }));
+    try {
+      await env.CORE_DB.prepare(
+        `UPDATE competitor_keyword_import_batches
+         SET status='FAILED', error_stage='IMPORT', error_code='IMPORT_FAILED',
+             error_message='关键词导入或自动分类未能完成', completed_at=?
+         WHERE import_id=? AND status='PROCESSING'`
+      ).bind(nowIso(), importId).run();
+    } catch {}
+    throw error instanceof ResearchError
+      ? error
+      : new ResearchError("IMPORT_FAILED", "Manual keyword import failed", {
+        stage: "IMPORT", retryable: true, httpStatus: 503,
+      });
+  }
+
+  const row = await env.CORE_DB.prepare(
+    `SELECT b.*, g.group_name, g.description AS group_description, g.status AS group_status
+     FROM competitor_keyword_import_batches b
+     JOIN competitor_keyword_groups g ON g.group_id=b.group_id
+     WHERE b.import_id=?`
+  ).bind(importId).first();
+  return {
+    import: serializeImport(row),
+    group: serializeGroup(group),
+    input: {
+      input_keyword_count: input.inputKeywordCount,
+      unique_keyword_count: input.keywords.length,
+      duplicate_keyword_count: input.duplicateKeywordCount,
+      invalid_keyword_count: input.invalidKeywords.length,
+    },
+  };
+}
+
 async function listJobs(env, url) {
   const requested = Number(url.searchParams.get("limit") || 20);
   const limit = Math.min(50, Math.max(1, Number.isFinite(requested) ? Math.floor(requested) : 20));
@@ -761,14 +1162,24 @@ async function getJob(env, jobId) {
        GROUP BY primary_category ORDER BY keyword_count DESC`
     ).bind(jobId).all(),
   ]);
+  const categoryCounts = (categoriesResult.results || []).map((row) => ({
+    category: row.primary_category,
+    keyword_count: Number(row.keyword_count || 0),
+    review_count: Number(row.review_count || 0),
+  }));
+  const classifiedKeywordCount = categoryCounts.reduce((total, row) => total + row.keyword_count, 0);
+  const reviewKeywordCount = categoryCounts.reduce((total, row) => total + row.review_count, 0);
+  const uniqueKeywordCount = Number(job.unique_keyword_count || 0);
   return {
     job: serializeJob(job),
     asins: (asinsResult.results || []).map(serializeAsin),
-    category_counts: (categoriesResult.results || []).map((row) => ({
-      category: row.primary_category,
-      keyword_count: Number(row.keyword_count || 0),
-      review_count: Number(row.review_count || 0),
-    })),
+    category_counts: categoryCounts,
+    summary: {
+      total_keyword_count: uniqueKeywordCount,
+      classified_keyword_count: classifiedKeywordCount,
+      unclassified_keyword_count: Math.max(0, uniqueKeywordCount - classifiedKeywordCount),
+      review_keyword_count: reviewKeywordCount,
+    },
   };
 }
 
@@ -861,6 +1272,8 @@ async function listKeywords(env, jobId, url) {
     keyword_id: row.keyword_id,
     keyword: row.keyword,
     normalized_keyword: row.normalized_keyword,
+    source_kind: "SIF_ASIN_RESEARCH",
+    source_kinds: ["SIF_ASIN_RESEARCH"],
     primary_category: row.primary_category,
     secondary_tags: parseJson(row.secondary_tags_json, []),
     matched_facets: parseJson(row.matched_facets_json, []),
@@ -906,42 +1319,101 @@ async function listGroupKeywords(env, groupId, url) {
   const query = boundedLikeTerm(url.searchParams.get("q"));
   const sort = url.searchParams.get("sort");
   const orderBy = sort === "source_count"
-    ? "source_asin_count DESC, search_volume DESC, normalized_keyword ASC"
+    ? "source_batch_count DESC, source_asin_count DESC, search_volume DESC, normalized_keyword ASC"
     : sort === "keyword"
       ? "normalized_keyword ASC"
-      : "search_volume DESC, source_asin_count DESC, normalized_keyword ASC";
-  const where = ["j.group_id=?"];
-  const binds = [groupId];
-  if (query) { where.push("k.normalized_keyword LIKE ? ESCAPE '\\'"); binds.push(`%${escapeLike(query)}%`); }
-  const having = category ? "HAVING SUM(CASE WHEN i.primary_category=? THEN 1 ELSE 0 END) > 0" : "";
+      : "search_volume DESC, source_batch_count DESC, source_asin_count DESC, normalized_keyword ASC";
+  // Union SIF-derived and manual-import items only at the selected product
+  // group boundary. The two sources remain explicitly labelled; hand-entered
+  // words never receive invented ASINs or SIF metrics.
+  const groupOccurrences = `
+    WITH group_occurrences AS (
+      SELECT j.group_id, j.job_id AS source_batch_id, 'SIF_ASIN_RESEARCH' AS source_kind,
+             i.keyword_id, i.primary_category, i.secondary_tags_json, i.classification_reason,
+             i.classification_confidence, i.query_shape, i.strategic_tier, i.relevance_status,
+             i.needs_review, s.asin, s.search_volume, s.aba_rank, s.traffic_score,
+             s.traffic_share, s.organic_rank, s.sp_rank, s.observed_at
+      FROM competitor_keyword_research_jobs j
+      JOIN competitor_keyword_job_items i ON i.job_id=j.job_id
+      LEFT JOIN competitor_keyword_sources s ON s.job_id=i.job_id AND s.keyword_id=i.keyword_id
+      WHERE j.group_id=?
+      UNION ALL
+      SELECT b.group_id, b.import_id AS source_batch_id, 'MANUAL_IMPORT' AS source_kind,
+             mi.keyword_id, mi.primary_category, mi.secondary_tags_json, mi.classification_reason,
+             mi.classification_confidence, mi.query_shape, mi.strategic_tier, mi.relevance_status,
+             mi.needs_review, NULL AS asin, NULL AS search_volume, NULL AS aba_rank,
+             NULL AS traffic_score, NULL AS traffic_share, NULL AS organic_rank, NULL AS sp_rank,
+             b.completed_at AS observed_at
+      FROM competitor_keyword_import_batches b
+      JOIN competitor_keyword_import_items mi ON mi.import_id=b.import_id
+      WHERE b.group_id=? AND b.status='SUCCEEDED'
+    )`;
+  const groupBinds = [groupId, groupId];
+  const where = [];
+  const filterBinds = [];
+  if (query) {
+    where.push("k.normalized_keyword LIKE ? ESCAPE '\\'");
+    filterBinds.push(`%${escapeLike(query)}%`);
+  }
   const groupedFrom = `
-    FROM competitor_keyword_research_jobs j
-    JOIN competitor_keyword_job_items i ON i.job_id=j.job_id
-    JOIN competitor_keywords k ON k.keyword_id=i.keyword_id
-    LEFT JOIN competitor_keyword_sources s ON s.job_id=i.job_id AND s.keyword_id=i.keyword_id
-    WHERE ${where.join(" AND ")}
+    FROM group_occurrences o
+    JOIN competitor_keywords k ON k.keyword_id=o.keyword_id
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
     GROUP BY k.keyword_id, k.display_keyword, k.normalized_keyword`;
+  const having = category ? "HAVING SUM(CASE WHEN o.primary_category=? THEN 1 ELSE 0 END) > 0" : "";
   const select = `
     SELECT k.keyword_id, k.display_keyword AS keyword, k.normalized_keyword,
-           GROUP_CONCAT(DISTINCT i.primary_category) AS primary_categories,
-           COUNT(DISTINCT i.primary_category) AS category_variant_count,
-           MAX(i.needs_review) AS needs_review,
-           COUNT(DISTINCT j.job_id) AS source_job_count,
-           COUNT(DISTINCT s.asin) AS source_asin_count,
-           GROUP_CONCAT(DISTINCT s.asin) AS source_asins_csv,
-           MAX(s.search_volume) AS search_volume,
-           MIN(CASE WHEN s.aba_rank > 0 THEN s.aba_rank END) AS best_aba_rank,
-           MAX(s.traffic_score) AS max_traffic_score,
-           MAX(s.traffic_share) AS max_traffic_share,
-           MIN(CASE WHEN s.organic_rank > 0 THEN s.organic_rank END) AS best_organic_rank,
-           MIN(CASE WHEN s.sp_rank > 0 THEN s.sp_rank END) AS best_sp_rank,
-           MAX(s.observed_at) AS observed_at`;
-  const allBinds = category ? [...binds, category] : binds;
-  const [rowsResult, countRow] = await Promise.all([
-    env.CORE_DB.prepare(`${select} ${groupedFrom} ${having} ORDER BY ${orderBy} LIMIT ? OFFSET ?`)
+           GROUP_CONCAT(DISTINCT o.primary_category) AS primary_categories,
+           COUNT(DISTINCT o.primary_category) AS category_variant_count,
+           MAX(o.needs_review) AS needs_review,
+           COUNT(DISTINCT o.source_batch_id) AS source_batch_count,
+           COUNT(DISTINCT CASE WHEN o.source_kind='MANUAL_IMPORT' THEN o.source_batch_id END) AS manual_import_batch_count,
+           GROUP_CONCAT(DISTINCT o.source_kind) AS source_kinds_csv,
+           COUNT(DISTINCT o.asin) AS source_asin_count,
+           GROUP_CONCAT(DISTINCT o.asin) AS source_asins_csv,
+           GROUP_CONCAT(DISTINCT o.secondary_tags_json) AS secondary_tags_jsons,
+           GROUP_CONCAT(DISTINCT o.classification_reason) AS classification_reasons,
+           MAX(o.classification_confidence) AS classification_confidence,
+           GROUP_CONCAT(DISTINCT o.query_shape) AS query_shapes,
+           GROUP_CONCAT(DISTINCT o.strategic_tier) AS strategic_tiers,
+           GROUP_CONCAT(DISTINCT o.relevance_status) AS relevance_statuses,
+           MAX(o.search_volume) AS search_volume,
+           MIN(CASE WHEN o.aba_rank > 0 THEN o.aba_rank END) AS best_aba_rank,
+           MAX(o.traffic_score) AS max_traffic_score,
+           MAX(o.traffic_share) AS max_traffic_share,
+           MIN(CASE WHEN o.organic_rank > 0 THEN o.organic_rank END) AS best_organic_rank,
+           MIN(CASE WHEN o.sp_rank > 0 THEN o.sp_rank END) AS best_sp_rank,
+           MAX(o.observed_at) AS observed_at`;
+  const allBinds = category ? [...groupBinds, ...filterBinds, category] : [...groupBinds, ...filterBinds];
+  const [rowsResult, countRow, summaryRow, importsResult, pendingRow] = await Promise.all([
+    env.CORE_DB.prepare(`${groupOccurrences} ${select} ${groupedFrom} ${having} ORDER BY ${orderBy} LIMIT ? OFFSET ?`)
       .bind(...allBinds, limit + 1, offset).all(),
-    env.CORE_DB.prepare(`SELECT COUNT(*) AS total FROM (SELECT k.keyword_id ${groupedFrom} ${having})`)
+    env.CORE_DB.prepare(`${groupOccurrences} SELECT COUNT(*) AS total FROM (SELECT k.keyword_id ${groupedFrom} ${having})`)
       .bind(...allBinds).first(),
+    env.CORE_DB.prepare(
+      `${groupOccurrences}
+       SELECT COUNT(*) AS total_keyword_count,
+              COALESCE(SUM(needs_review), 0) AS review_keyword_count,
+              COALESCE(SUM(manual_imported), 0) AS manual_import_keyword_count,
+              COALESCE(SUM(sif_researched), 0) AS sif_keyword_count
+       FROM (
+         SELECT k.keyword_id, MAX(o.needs_review) AS needs_review,
+                MAX(CASE WHEN o.source_kind='MANUAL_IMPORT' THEN 1 ELSE 0 END) AS manual_imported,
+                MAX(CASE WHEN o.source_kind='SIF_ASIN_RESEARCH' THEN 1 ELSE 0 END) AS sif_researched
+         ${groupedFrom}
+       )`
+    ).bind(...groupBinds, ...filterBinds).first(),
+    env.CORE_DB.prepare(
+      `SELECT b.* FROM competitor_keyword_import_batches b
+       WHERE b.group_id=? ORDER BY b.created_at DESC LIMIT 8`
+    ).bind(groupId).all(),
+    env.CORE_DB.prepare(
+      `SELECT COALESCE(SUM(CASE
+         WHEN status IN ('CLASSIFICATION_PENDING','CLASSIFYING')
+           THEN MAX(0, unique_keyword_count - classification_offset)
+         ELSE 0 END), 0) AS pending_classification_count
+       FROM competitor_keyword_research_jobs WHERE group_id=?`
+    ).bind(groupId).first(),
   ]);
   const rows = rowsResult.results || [];
   const hasMore = rows.length > limit;
@@ -956,9 +1428,17 @@ async function listGroupKeywords(env, groupId, url) {
       primary_categories: categories,
       classification_conflict: classificationConflict,
       needs_review: Boolean(row.needs_review) || classificationConflict,
-      source_job_count: Number(row.source_job_count || 0),
+      source_job_count: Number(row.source_batch_count || 0),
+      manual_import_batch_count: Number(row.manual_import_batch_count || 0),
+      source_kinds: String(row.source_kinds_csv || "").split(",").filter(Boolean),
       source_asin_count: Number(row.source_asin_count || 0),
       source_asins: String(row.source_asins_csv || "").split(",").filter(Boolean),
+      secondary_tags: parseJoinedJsonArrays(row.secondary_tags_jsons),
+      classification_reason: String(row.classification_reasons || ""),
+      classification_confidence: toNumber(row.classification_confidence),
+      query_shape: String(row.query_shapes || "").split(",").filter(Boolean),
+      strategic_tier: String(row.strategic_tiers || "").split(",").filter(Boolean),
+      relevance_status: String(row.relevance_statuses || "").split(",").filter(Boolean),
       search_volume: toNumber(row.search_volume),
       best_aba_rank: toInteger(row.best_aba_rank),
       max_traffic_score: toNumber(row.max_traffic_score),
@@ -972,14 +1452,180 @@ async function listGroupKeywords(env, groupId, url) {
     group: serializeGroup(group),
     items,
     total: Number(countRow?.total || 0),
+    summary: {
+      total_keyword_count: Number(summaryRow?.total_keyword_count || 0),
+      classified_keyword_count: Number(summaryRow?.total_keyword_count || 0),
+      unclassified_keyword_count: Number(pendingRow?.pending_classification_count || 0),
+      review_keyword_count: Number(summaryRow?.review_keyword_count || 0),
+      manual_import_keyword_count: Number(summaryRow?.manual_import_keyword_count || 0),
+      sif_keyword_count: Number(summaryRow?.sif_keyword_count || 0),
+    },
+    imports: (importsResult.results || []).map((row) => serializeImport({
+      ...row,
+      group_name: group.group_name,
+      group_description: group.description,
+      group_status: group.status,
+    })),
     limit,
     next_cursor: hasMore ? encodeCursor(offset + limit) : null,
   };
 }
 
+function csvCell(value) {
+  let text = value === null || value === undefined ? "" : String(value);
+  // Spreadsheet applications can execute cells beginning with a formula
+  // prefix. Export factual text only, even when a user-imported keyword is
+  // intentionally shaped like a formula.
+  if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function categoryName(code) {
+  return KEYWORD_CATEGORIES.find((item) => item.code === code)?.label || code || "未分类";
+}
+
+function sourceKindName(code) {
+  if (code === MANUAL_IMPORT_SOURCE_KIND) return "手工导入";
+  if (code === "SIF_ASIN_RESEARCH") return "SIF 竞品 ASIN 研究";
+  return code || "未知来源";
+}
+
+function csvValue(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).join(" / ");
+  return value ?? "";
+}
+
+function parseJoinedJsonArrays(value) {
+  // SQLite GROUP_CONCAT keeps each JSON array intact but separates arrays with
+  // commas. Parse the array fragments rather than presenting JSON punctuation
+  // as a user-facing tag list or a spreadsheet cell.
+  const fragments = String(value || "").match(/\[[^\]]*\]/g) || [];
+  return [...new Set(fragments.flatMap((fragment) => {
+    const parsed = parseJson(fragment, []);
+    return Array.isArray(parsed) ? parsed : [];
+  }).filter(Boolean))];
+}
+
+function keywordCsvLine(item, mode) {
+  const categoryCodes = item.primary_categories || [item.primary_category].filter(Boolean);
+  const sourceKinds = item.source_kinds || [item.source_kind].filter(Boolean);
+  const categoryNames = categoryCodes.map(categoryName);
+  const sourceNames = sourceKinds.map(sourceKindName);
+  const row = [
+    mode === "group" ? "产品关键词分组" : "研究任务",
+    sourceNames.join(" / "),
+    item.keyword,
+    item.normalized_keyword,
+    categoryCodes.join(" / "),
+    categoryNames.join(" / "),
+    csvValue(item.secondary_tags),
+    csvValue(item.query_shape),
+    csvValue(item.strategic_tier),
+    csvValue(item.relevance_status),
+    item.needs_review ? "是" : "否",
+    item.classification_confidence === null || item.classification_confidence === undefined ? "" : item.classification_confidence,
+    item.classification_reason,
+    item.source_job_count ?? (mode === "job" ? 1 : ""),
+    item.manual_import_batch_count ?? "",
+    item.source_asin_count,
+    csvValue(item.source_asins),
+    item.search_volume,
+    item.best_aba_rank,
+    item.max_traffic_score,
+    item.max_traffic_share,
+    item.best_organic_rank,
+    item.best_sp_rank,
+    item.observed_at || "",
+  ];
+  return `${row.map(csvCell).join(",")}\r\n`;
+}
+
+const KEYWORD_CSV_HEADER = [
+  "导出范围", "来源类型", "关键词", "规范化关键词", "分类代码", "关键词分类",
+  "标签", "词形", "策略层级", "相关性", "待复核", "分类置信度", "分类说明",
+  "来源批次", "手工导入批次", "来源 ASIN 数", "来源 ASIN", "搜索量", "ABA 排名",
+  "最高流量得分", "最高流量占比", "最佳自然位", "最佳 SP 位", "最近观察时间",
+].map(csvCell).join(",") + "\r\n";
+
+// Deliberately small pure surface for regression tests; exporting CSV must
+// retain spreadsheet-safety even when keywords originate in manual input.
+export const researchCsvTestApi = Object.freeze({ csvCell, keywordCsvLine });
+
+async function jobCsvResponse(env, jobId, url, origin, cors) {
+  const job = await env.CORE_DB.prepare(
+    `SELECT job_id FROM competitor_keyword_research_jobs WHERE job_id=?`
+  ).bind(jobId).first();
+  if (!job) throw new ResearchError("JOB_NOT_FOUND", "Job not found", { stage: "READ", httpStatus: 404 });
+  return keywordCsvResponse(env, url, origin, cors, {
+    mode: "job",
+    filename: `1122-keywords-job-${jobId}.csv`,
+    loadPage: async (cursor) => {
+      const pageUrl = new URL(url.toString());
+      pageUrl.searchParams.set("limit", "200");
+      if (cursor) pageUrl.searchParams.set("cursor", cursor);
+      else pageUrl.searchParams.delete("cursor");
+      return listKeywords(env, jobId, pageUrl);
+    },
+  });
+}
+
+async function groupCsvResponse(env, groupId, url, origin, cors) {
+  const group = await env.CORE_DB.prepare(
+    `SELECT group_id FROM competitor_keyword_groups WHERE group_id=?`
+  ).bind(groupId).first();
+  if (!group) throw new ResearchError("GROUP_NOT_FOUND", "Group is not found", { stage: "GROUP", httpStatus: 404 });
+  return keywordCsvResponse(env, url, origin, cors, {
+    mode: "group",
+    filename: `1122-keywords-group-${groupId}.csv`,
+    loadPage: async (cursor) => {
+      const pageUrl = new URL(url.toString());
+      pageUrl.searchParams.set("limit", "200");
+      if (cursor) pageUrl.searchParams.set("cursor", cursor);
+      else pageUrl.searchParams.delete("cursor");
+      return listGroupKeywords(env, groupId, pageUrl);
+    },
+  });
+}
+
+function keywordCsvResponse(env, url, origin, cors, { mode, filename, loadPage }) {
+  const encoder = new TextEncoder();
+  let started = false;
+  let nextCursor = null;
+  let complete = false;
+  const stream = new ReadableStream({
+    async pull(controller) {
+      try {
+        if (!started) {
+          started = true;
+          controller.enqueue(encoder.encode(`\uFEFF${KEYWORD_CSV_HEADER}`));
+        }
+        if (complete) {
+          controller.close();
+          return;
+        }
+        const page = await loadPage(nextCursor);
+        for (const item of page.items || []) controller.enqueue(encoder.encode(keywordCsvLine(item, mode)));
+        nextCursor = page.next_cursor || null;
+        if (!nextCursor) {
+          complete = true;
+          controller.close();
+        }
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+  const headers = new Headers(cors(origin));
+  headers.set("Content-Type", "text/csv; charset=utf-8");
+  headers.set("Content-Disposition", `attachment; filename=\"${filename}\"`);
+  headers.set("Access-Control-Expose-Headers", "Content-Disposition");
+  headers.set("Cache-Control", "no-store");
+  return new Response(stream, { status: 200, headers });
+}
+
 export async function handleResearchRequest(request, env, context) {
   const url = new URL(request.url);
-  const { json, origin } = context;
+  const { json, origin, cors } = context;
   if (request.method === "GET" && url.pathname === "/research-status") {
     return json({ success: true, research: researchCapability(env) }, 200, origin);
   }
@@ -1013,6 +1659,10 @@ export async function handleResearchRequest(request, env, context) {
     if (request.method === "POST" && url.pathname === `${API_PREFIX}/competitor-keyword-groups`) {
       return json({ success: true, ...(await createGroup(request, env)) }, 201, origin);
     }
+    const groupExportMatch = url.pathname.match(/^\/api\/v1\/competitor-keyword-groups\/([0-9a-f-]+)\/keywords\/export\.csv$/i);
+    if (request.method === "GET" && groupExportMatch) {
+      return groupCsvResponse(env, groupExportMatch[1], url, origin, cors);
+    }
     const groupMatch = url.pathname.match(/^\/api\/v1\/competitor-keyword-groups\/([0-9a-f-]+)(?:\/(keywords))?$/i);
     if (groupMatch) {
       const groupId = groupMatch[1];
@@ -1023,12 +1673,20 @@ export async function handleResearchRequest(request, env, context) {
         return json({ success: true, ...(await updateGroup(request, env, groupId)) }, 200, origin);
       }
     }
+    if (request.method === "POST" && url.pathname === `${API_PREFIX}/competitor-keyword-imports`) {
+      const result = await createManualImport(request, env);
+      return json({ success: true, ...result }, 201, origin);
+    }
     if (request.method === "POST" && url.pathname === `${API_PREFIX}/competitor-keyword-runs`) {
       const result = await createJob(request, env);
       return json({ success: true, ...result }, 202, origin);
     }
     if (request.method === "GET" && url.pathname === `${API_PREFIX}/competitor-keyword-runs`) {
       return json({ success: true, ...(await listJobs(env, url)) }, 200, origin);
+    }
+    const jobExportMatch = url.pathname.match(/^\/api\/v1\/competitor-keyword-runs\/([0-9a-f-]+)\/keywords\/export\.csv$/i);
+    if (request.method === "GET" && jobExportMatch) {
+      return jobCsvResponse(env, jobExportMatch[1], url, origin, cors);
     }
     const match = url.pathname.match(/^\/api\/v1\/competitor-keyword-runs\/([0-9a-f-]+)(?:\/(keywords|asins))?$/i);
     if (request.method === "GET" && match) {

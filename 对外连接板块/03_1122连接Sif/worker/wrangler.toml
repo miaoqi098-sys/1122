@@ -14,6 +14,9 @@ enabled = true
 binding = "CORE_DB"
 database_name = "1122-core"
 database_id = "00076b01-471f-40e6-bf49-57cfc07facc8"
+# The repository keeps the canonical D1 schema in the shared data layer;
+# Wrangler must use that same ledger for both deployment and remote migrations.
+migrations_dir = "../../../数据板块/09_数据库迁移与版本/migrations"
 
 [[queues.producers]]
 binding = "KEYWORD_RESEARCH_QUEUE"

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CompetitorKeywordManualImport.schema.json",
+  "title": "Competitor Keyword Manual Import V1",
+  "description": "A protected, group-scoped import of operator supplied keywords. Manual imports do not fabricate SIF metrics or ASIN provenance.",
+  "type": "object",
+  "required": ["success", "import"],
+  "properties": {
+    "success": { "const": true },
+    "import": { "$ref": "#/$defs/ImportBatch" },
+    "group": { "$ref": "#/$defs/ProductGroup" },
+    "input": {
+      "type": "object",
+      "required": ["input_keyword_count", "unique_keyword_count", "duplicate_keyword_count", "invalid_keyword_count"],
+      "properties": {
+        "input_keyword_count": { "type": "integer", "minimum": 0 },
+        "unique_keyword_count": { "type": "integer", "minimum": 0 },
+        "duplicate_keyword_count": { "type": "integer", "minimum": 0 },
+        "invalid_keyword_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "ImportBatch": {
+      "type": "object",
+      "required": ["import_id", "group_id", "marketplace", "input_keyword_count", "unique_keyword_count", "duplicate_keyword_count", "classified_keyword_count", "review_keyword_count", "status", "source_kind", "created_at"],
+      "properties": {
+        "import_id": { "type": "string", "format": "uuid" },
+        "group_id": { "type": "string", "format": "uuid" },
+        "marketplace": { "const": "US" },
+        "language": { "const": "en" },
+        "import_name": { "type": ["string", "null"] },
+        "input_keyword_count": { "type": "integer", "minimum": 0 },
+        "unique_keyword_count": { "type": "integer", "minimum": 0 },
+        "duplicate_keyword_count": { "type": "integer", "minimum": 0 },
+        "invalid_keyword_count": { "type": "integer", "minimum": 0 },
+        "classified_keyword_count": { "type": "integer", "minimum": 0 },
+        "review_keyword_count": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["PROCESSING", "SUCCEEDED", "FAILED"] },
+        "source_kind": { "const": "MANUAL_IMPORT" },
+        "created_at": { "type": "string" },
+        "completed_at": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "ProductGroup": {
+      "type": "object",
+      "required": ["group_id", "group_name", "marketplace", "language", "status"],
+      "properties": {
+        "group_id": { "type": "string", "format": "uuid" },
+        "group_name": { "type": "string" },
+        "marketplace": { "const": "US" },
+        "language": { "const": "en" },
+        "status": { "enum": ["ACTIVE", "ARCHIVED"] }
+      },
+      "additionalProperties": true
+    }
+  }
+}

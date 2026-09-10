@@ -14,6 +14,7 @@ function cors(origin = "") {
   const headers = {
     "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Expose-Headers": "Content-Disposition",
     "Access-Control-Max-Age": "86400",
     "Content-Type": "application/json; charset=UTF-8",
     "Cache-Control": "no-store",
@@ -383,7 +384,7 @@ export default {
       }
     }
 
-    const researchResponse = await handleResearchRequest(request, env, { json, origin });
+    const researchResponse = await handleResearchRequest(request, env, { json, origin, cors });
     if (researchResponse) return researchResponse;
 
     if (request.method === "GET" && url.pathname === "/internal/tools") {

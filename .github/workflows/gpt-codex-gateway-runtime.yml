@@ -3,15 +3,13 @@ name: GPT Codex Gateway Runtime
 on:
   pull_request:
     paths:
-      - '对外连接板块/01_GPT链接Codex/03_本地网关/runtime/**'
-      - '对外连接板块/01_GPT链接Codex/07_运行与恢复/*gateway.ps1'
+      - '对外连接板块/01_GPT链接Codex/03_本地网关/**'
       - '对外连接板块/01_GPT链接Codex/09_GitHub任务桥/**'
       - '.github/workflows/gpt-codex-gateway-runtime.yml'
   push:
     branches: [main]
     paths:
-      - '对外连接板块/01_GPT链接Codex/03_本地网关/runtime/**'
-      - '对外连接板块/01_GPT链接Codex/07_运行与恢复/*gateway.ps1'
+      - '对外连接板块/01_GPT链接Codex/03_本地网关/**'
       - '对外连接板块/01_GPT链接Codex/09_GitHub任务桥/**'
       - '.github/workflows/gpt-codex-gateway-runtime.yml'
 

@@ -1,95 +1,102 @@
-# GitHub 受控任务桥｜Codex 主动执行模式
+# GitHub 受控任务桥｜Codex 自动执行模式
 
 ## 当前目标
 
-GitHub 只作为 GPT 与本机 Codex 之间的受控任务邮箱。
-
-当前主线路不再依赖常驻 Worker 轮询，也不要求 Gateway 作为任务领取中枢。
+GitHub 作为 GPT 与本机 Codex 之间的受控任务邮箱；本机 Bridge Worker 负责自动领取任务并通过 GPT-Codex Gateway 启动 Codex。
 
 ## 权威链路
 
 ```text
 GPT
-  ↓ 发布任务
+  ↓ 写入结构化任务 + 任务规格
 GitHub `codex-dispatch`
-`.codex-bridge/inbox/current.json`
+  `.codex-bridge/inbox/current.json`
+  `.codex-bridge/tasks/<task_id>.md`
+  ↓ 每 30 秒自动领取
+AmazonAgent-Controlled-Codex-Bridge
   ↓
-Codex 主动领取
+GPT-Codex Gateway (127.0.0.1:8765)
+  ↓ codex_start_task
+本机 Codex
   ↓
-Codex 本机执行
+创建 `codex/*` 工作分支 → 修改代码 → 测试 → commit → push → PR
   ↓
-Codex 自己写回
+Bridge 写回
 `.codex-bridge/results/<task_id>.json`
   ↓
-GPT 读取结果
+GPT 读取结果并验收
 ```
+
+## 支持的任务类型
+
+### `local_readonly_test`
+
+只读检查本机 `C:\AmazonAgent`，用于验证整条链路。
+
+### `website_online`
+
+保留的受控网站上线任务，仅允许预定义域名参数。
+
+### `engineering_task`
+
+用于受控工程开发。远程任务文件不能携带任意 `prompt`、`command`、`shell` 或凭据，只能提供：
+
+- `spec_path`：必须位于 `.codex-bridge/tasks/`；
+- `work_branch`：必须以 `codex/` 开头；
+- `base_branch`：固定为 `main`。
+
+Codex 从 `origin/codex-dispatch:<spec_path>` 读取完整工程规格，然后在独立工作分支中开发、测试、提交、推送并创建 PR。Codex 不得自动 merge、force-push、修改 GitHub Secrets 或绕过仓库保护。
 
 ## GPT 的职责
 
-GPT 只负责：
-
 1. 生成唯一 `task_id`；
-2. 把结构化任务写入 `codex-dispatch`；
-3. 不向任务文件写入凭证明文；
-4. 等 Codex 回写结果；
-5. 读取并验收结果；
-6. 根据结果继续下达下一任务。
+2. 将工程规格写入 `codex-dispatch/.codex-bridge/tasks/<task_id>.md`；
+3. 将结构化任务写入 `codex-dispatch/.codex-bridge/inbox/current.json`；
+4. 不向任务/结果文件写入凭证明文；
+5. 读取 `.codex-bridge/results/<task_id>.json`；
+6. 验收 Codex 创建的分支、测试与 PR。
 
-GPT 不负责本地领取、不替代 Codex 执行本机命令。
+## Worker 的职责
 
-## Codex 的职责
+1. 每 30 秒检查 `codex-dispatch` inbox；
+2. 校验任务类型、参数、路径和分支；
+3. 自动恢复本机 GPT-Codex Gateway；
+4. 调用 `codex_start_task`；
+5. 轮询 `codex_read_result` 直到终态或超时；
+6. 将结果写回 `.codex-bridge/results/<task_id>.json`；
+7. 使用本地 state 防止重复执行同一 `task_id`。
 
-当用户要求“领取 GitHub 内任务并执行”时，Codex负责完整闭环：
+## 安装/更新本机 Worker
 
-1. 使用本机 `gh` 已授权会话读取：
-   `.codex-bridge/inbox/current.json`
-2. 读取 `task_id`、`task_type`、参数和任务说明。
-3. 检查是否已存在：
-   `.codex-bridge/results/<task_id>.json`
-   若已存在终态结果，不得重复执行。
-4. 在本机执行任务。
-5. 所有交互式外部操作必须有超时；不得无限等待。
-6. 如果缺少授权，返回 `AUTH_REQUIRED`；如果失败，返回 `FAILED`；如果超时，返回 `TIMEOUT`。
-7. 将结果直接提交到 `codex-dispatch`：
-   `.codex-bridge/results/<task_id>.json`
-8. 回写完成后向本机用户报告任务 ID 与最终状态。
+使用：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "C:\AmazonAgent\对外连接板块\01_GPT链接Codex\09_GitHub任务桥\install-bridge.ps1"
+```
+
+Installer 会：
+
+- 检查 Gateway 是否 ONLINE；
+- 检查本机 `gh` 已授权且可以访问 `miaoqi098-sys/1122` 的 `codex-dispatch`；
+- 将最新版 `worker.py` 复制到本机 Gateway 运行目录；
+- 注册/覆盖 Windows 计划任务 `AmazonAgent-Controlled-Codex-Bridge`；
+- 立即启动 Worker，并在以后登录时自动启动。
 
 ## 结果格式
 
 ```json
 {
   "task_id": "...",
-  "task_type": "...",
+  "task_type": "engineering_task",
   "status": "SUCCEEDED",
   "completed_at": "ISO-8601 timestamp",
-  "summary": "concise execution result"
+  "summary": "implementation/test/PR result",
+  "local_codex_task_id": "..."
 }
 ```
 
-允许的终态至少包括：
+常见终态：`SUCCEEDED`、`FAILED`、`AUTH_REQUIRED`、`TIMEOUT`、`CANCELLED`。
 
-- `SUCCEEDED`
-- `FAILED`
-- `AUTH_REQUIRED`
-- `TIMEOUT`
-- `CANCELLED`
+## 安全边界
 
-不得把 Token、Secret、Password、Cookie、Authorization Header 或其他凭证明文写入结果。
-
-## 本地敏感信息
-
-如果任务需要 Cloudflare、R2、Amazon API 或其他本机凭证，Codex只允许调用本地敏感信息机制。凭证本体不得经过 GitHub 任务文件或结果文件。
-
-## Worker / Gateway 状态
-
-目录中的 `worker.py`、`install-bridge.ps1`、Gateway Runtime 等代码保留作历史实现与故障恢复备用。
-
-当前主线路默认：
-
-```text
-Codex 自己领取 GitHub 任务
-Codex 自己执行
-Codex 自己回写 GitHub
-```
-
-除非后续明确重新启用，不再把 Worker 轮询视为必需组件。
+不得把 Token、Secret、Password、Cookie、Authorization Header 或其他凭证明文写入 GitHub 任务/结果。工程任务不能携带任意远程 shell；执行指令由 Worker 的可信模板生成，业务开发内容仅从受控 spec 文件读取。

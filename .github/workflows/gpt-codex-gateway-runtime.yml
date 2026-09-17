@@ -3,28 +3,32 @@ name: GPT Codex Gateway Runtime
 on:
   pull_request:
     paths:
-      - '10_对外链接/01_GPT链接Codex/03_本地网关/runtime/**'
-      - '10_对外链接/01_GPT链接Codex/07_运行与恢复/*gateway.ps1'
+      - '对外连接板块/01_GPT链接Codex/03_本地网关/runtime/**'
+      - '对外连接板块/01_GPT链接Codex/07_运行与恢复/*gateway.ps1'
+      - '对外连接板块/01_GPT链接Codex/09_GitHub任务桥/**'
       - '.github/workflows/gpt-codex-gateway-runtime.yml'
   push:
     branches: [main]
     paths:
-      - '10_对外链接/01_GPT链接Codex/03_本地网关/runtime/**'
-      - '10_对外链接/01_GPT链接Codex/07_运行与恢复/*gateway.ps1'
+      - '对外连接板块/01_GPT链接Codex/03_本地网关/runtime/**'
+      - '对外连接板块/01_GPT链接Codex/07_运行与恢复/*gateway.ps1'
+      - '对外连接板块/01_GPT链接Codex/09_GitHub任务桥/**'
       - '.github/workflows/gpt-codex-gateway-runtime.yml'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: '10_对外链接/01_GPT链接Codex/03_本地网关/runtime'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - name: Install
+      - name: Install Gateway Runtime
+        working-directory: '对外连接板块/01_GPT链接Codex/03_本地网关/runtime'
         run: python -m pip install -e '.[test]'
-      - name: Test
+      - name: Test Gateway Runtime
+        working-directory: '对外连接板块/01_GPT链接Codex/03_本地网关/runtime'
         run: pytest -q
+      - name: Test Controlled GitHub Task Bridge
+        working-directory: '对外连接板块/01_GPT链接Codex/09_GitHub任务桥'
+        run: python -m unittest -q test_worker.py

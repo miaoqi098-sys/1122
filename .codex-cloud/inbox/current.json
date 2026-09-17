@@ -1,0 +1,10 @@
+{
+  "task_id": "20260917-stage-constraint-engine-v1",
+  "task_type": "engineering_task",
+  "created_at": "2026-09-17T10:12:00Z",
+  "repository": "miaoqi098-sys/1122",
+  "base_branch": "main",
+  "work_branch": "codex/stage-constraint-engine-v1",
+  "spec_path": ".codex-cloud/tasks/20260917-stage-constraint-engine-v1.md",
+  "title": "Implement Stage Engine V1 and Constraint Engine V1"
+}

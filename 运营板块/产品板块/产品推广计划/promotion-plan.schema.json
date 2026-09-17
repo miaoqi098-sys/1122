@@ -1,58 +1,154 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ProductPromotionPlan.v1",
+  "title": "ProductPromotionPlan.v2",
   "type": "object",
   "required": [
     "plan_id",
     "marketplace",
     "asin",
-    "lifecycle_stage",
     "plan_status",
     "goals",
     "constraints",
-    "strategy_mix",
+    "stage_assessment",
+    "constraint_assessment",
+    "strategy_assessment",
     "review"
   ],
   "properties": {
-    "plan_id": { "type": "string", "minLength": 6 },
-    "version": { "type": "string", "default": "1.0" },
-    "marketplace": { "type": "string" },
-    "asin": { "type": "string" },
-    "seller_scope": { "type": ["string", "null"] },
+    "plan_id": {
+      "type": "string",
+      "minLength": 6
+    },
+    "version": {
+      "type": "string",
+      "default": "2.0"
+    },
+    "marketplace": {
+      "type": "string"
+    },
+    "asin": {
+      "type": "string"
+    },
+    "seller_scope": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "sku_scope": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "uniqueItems": true
     },
-    "start_date": { "type": ["string", "null"], "format": "date" },
-    "target_end_date": { "type": ["string", "null"], "format": "date" },
-    "lifecycle_stage": {
-      "type": "string",
-      "enum": ["PRE_LAUNCH", "LAUNCH", "VALIDATION", "GROWTH", "SCALE", "MATURE", "CLEARANCE"]
+    "start_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "target_end_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
     },
     "plan_status": {
       "type": "string",
-      "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "ACTIVE", "PAUSED", "NEEDS_REVISION", "STAGE_TRANSITION", "COMPLETED"]
+      "enum": [
+        "DRAFT",
+        "READY_FOR_REVIEW",
+        "APPROVED",
+        "ACTIVE",
+        "PAUSED",
+        "NEEDS_REVISION",
+        "STAGE_TRANSITION",
+        "COMPLETED"
+      ]
     },
     "goals": {
       "type": "object",
       "properties": {
-        "primary_goal": { "type": "string" },
-        "target_daily_units": { "type": ["number", "null"], "minimum": 0 },
-        "target_monthly_units": { "type": ["number", "null"], "minimum": 0 },
-        "target_sales": { "type": ["number", "null"], "minimum": 0 },
-        "target_tacos": { "type": ["number", "null"], "minimum": 0 },
-        "target_margin": { "type": ["number", "null"] },
+        "primary_goal": {
+          "type": "string"
+        },
+        "secondary_goals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "target_daily_units": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_monthly_units": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_sales": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_tacos": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_margin": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "target_keywords": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["keyword"],
+            "required": [
+              "keyword"
+            ],
             "properties": {
-              "keyword": { "type": "string" },
-              "target_rank_min": { "type": ["integer", "null"], "minimum": 1 },
-              "target_rank_max": { "type": ["integer", "null"], "minimum": 1 },
-              "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] }
+              "keyword": {
+                "type": "string"
+              },
+              "target_rank_min": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "target_rank_max": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "P0",
+                  "P1",
+                  "P2",
+                  "P3"
+                ]
+              }
             }
           }
         }
@@ -62,56 +158,348 @@
     "constraints": {
       "type": "object",
       "properties": {
-        "min_margin": { "type": ["number", "null"] },
-        "max_tacos": { "type": ["number", "null"] },
-        "min_days_of_supply": { "type": ["number", "null"], "minimum": 0 },
-        "price_floor": { "type": ["number", "null"], "minimum": 0 },
-        "price_ceiling": { "type": ["number", "null"], "minimum": 0 },
-        "policy_hold": { "type": "boolean", "default": false },
-        "data_freshness_required": { "type": "boolean", "default": true }
+        "min_margin": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max_tacos": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min_days_of_supply": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "price_floor": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "price_ceiling": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "policy_hold": {
+          "type": "boolean",
+          "default": false
+        },
+        "data_freshness_required": {
+          "type": "boolean",
+          "default": true
+        },
+        "max_simultaneous_major_changes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
       },
       "additionalProperties": true
     },
     "current_state": {
       "type": "object",
+      "additionalProperties": true
+    },
+    "sample_sufficiency": {
+      "type": "object",
       "properties": {
-        "sales": { "$ref": "#/$defs/windowMetrics" },
-        "traffic": { "type": "object" },
-        "advertising": { "type": "object" },
-        "inventory": { "type": "object" },
-        "pricing": { "type": "object" },
-        "listing": { "type": "object" },
-        "reviews": { "type": "object" },
-        "competition": { "type": "object" },
-        "finance": { "type": "object" }
+        "status": {
+          "type": "string",
+          "enum": [
+            "SUFFICIENT",
+            "PARTIAL",
+            "INSUFFICIENT",
+            "UNKNOWN"
+          ]
+        },
+        "impressions": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "clicks": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "orders": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "days_observed": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "missing_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": true
     },
-    "strategy_mix": {
+    "stage_assessment": {
       "type": "object",
+      "required": [
+        "current_stage",
+        "confidence",
+        "reason"
+      ],
       "properties": {
-        "advertising": { "type": "array", "items": { "type": "string" } },
-        "keywords": { "type": "array", "items": { "type": "string" } },
-        "listing": { "type": "array", "items": { "type": "string" } },
-        "pricing_and_promotion": { "type": "array", "items": { "type": "string" } },
-        "inventory": { "type": "array", "items": { "type": "string" } },
-        "offsite": { "type": "array", "items": { "type": "string" } },
-        "competitor_response": { "type": "array", "items": { "type": "string" } }
-      },
-      "additionalProperties": true
+        "current_stage": {
+          "type": "string",
+          "enum": [
+            "PRE_LAUNCH",
+            "LAUNCH",
+            "VALIDATION",
+            "GROWTH",
+            "SCALE",
+            "MATURE",
+            "REVALIDATION",
+            "CLEARANCE",
+            "UNKNOWN"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "stage_since": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "supporting_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "transition_candidate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "PRE_LAUNCH",
+            "LAUNCH",
+            "VALIDATION",
+            "GROWTH",
+            "SCALE",
+            "MATURE",
+            "REVALIDATION",
+            "CLEARANCE",
+            "UNKNOWN",
+            null
+          ]
+        },
+        "regression_candidate": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "PRE_LAUNCH",
+            "LAUNCH",
+            "VALIDATION",
+            "GROWTH",
+            "SCALE",
+            "MATURE",
+            "REVALIDATION",
+            "CLEARANCE",
+            "UNKNOWN",
+            null
+          ]
+        },
+        "transition_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assessment_version": {
+          "type": "string",
+          "default": "stage-engine.v2"
+        }
+      }
+    },
+    "constraint_assessment": {
+      "type": "object",
+      "required": [
+        "primary_constraint",
+        "confidence"
+      ],
+      "properties": {
+        "primary_constraint": {
+          "type": "string",
+          "enum": [
+            "TRAFFIC_CONSTRAINT",
+            "CTR_CONSTRAINT",
+            "CONVERSION_CONSTRAINT",
+            "AD_EFFICIENCY_CONSTRAINT",
+            "KEYWORD_RANK_CONSTRAINT",
+            "PRICE_CONSTRAINT",
+            "REVIEW_CONSTRAINT",
+            "LISTING_CONSTRAINT",
+            "INVENTORY_CONSTRAINT",
+            "PROFIT_CONSTRAINT",
+            "COMPETITIVE_CONSTRAINT",
+            "POLICY_CONSTRAINT",
+            "DATA_CONSTRAINT",
+            "NO_MAJOR_CONSTRAINT",
+            "UNKNOWN"
+          ]
+        },
+        "secondary_constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "supporting_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "contradicting_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "missing_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assessment_version": {
+          "type": "string",
+          "default": "constraint-engine.v2"
+        }
+      }
+    },
+    "strategy_assessment": {
+      "type": "object",
+      "required": [
+        "primary_strategy",
+        "recommended_actions",
+        "avoid_actions"
+      ],
+      "properties": {
+        "primary_strategy": {
+          "type": "string"
+        },
+        "strategy_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recommended_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "avoid_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "action",
+              "why"
+            ],
+            "properties": {
+              "action": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "next_milestone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assessment_version": {
+          "type": "string",
+          "default": "strategy-engine.v2"
+        }
+      }
     },
     "kpis": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["metric"],
+        "required": [
+          "metric"
+        ],
         "properties": {
-          "metric": { "type": "string" },
+          "metric": {
+            "type": "string"
+          },
           "baseline": {},
           "target": {},
           "warning_threshold": {},
           "critical_threshold": {},
-          "window": { "type": "string" }
+          "window": {
+            "type": "string"
+          }
         }
       }
     },
@@ -119,61 +507,219 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["milestone_id", "description", "status"],
+        "required": [
+          "milestone_id",
+          "description",
+          "status"
+        ],
         "properties": {
-          "milestone_id": { "type": "string" },
-          "description": { "type": "string" },
-          "target_date": { "type": ["string", "null"], "format": "date" },
-          "status": { "type": "string", "enum": ["PENDING", "ON_TRACK", "AT_RISK", "ACHIEVED", "MISSED", "CANCELLED"] }
+          "milestone_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "target_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ON_TRACK",
+              "AT_RISK",
+              "ACHIEVED",
+              "MISSED",
+              "CANCELLED"
+            ]
+          }
         }
       }
     },
-    "recommended_actions": {
+    "change_history": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["action_type", "reason", "approval_level"],
         "properties": {
-          "action_type": { "type": "string" },
-          "reason": { "type": "string" },
-          "evidence": { "type": "array", "items": { "type": "string" } },
-          "approval_level": { "type": "string", "enum": ["L0", "L1", "L2", "L3"] },
-          "execution_status": { "type": "string", "enum": ["SUGGESTED", "APPROVED", "REJECTED", "QUEUED", "EXECUTED", "FAILED"] }
+          "changed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "changed_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "change_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence_window": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "action_cooldown": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "object_type": {
+            "type": "string"
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string"
+          },
+          "cooldown_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     },
     "review": {
       "type": "object",
-      "required": ["review_cadence"],
+      "required": [
+        "review_cadence"
+      ],
       "properties": {
-        "review_cadence": { "type": "string", "enum": ["DAILY", "WEEKLY", "MILESTONE", "MANUAL"] },
-        "next_review_date": { "type": ["string", "null"], "format": "date" },
-        "last_review_at": { "type": ["string", "null"], "format": "date-time" },
-        "stage_transition_candidate": { "type": "boolean", "default": false }
+        "review_cadence": {
+          "type": "string",
+          "enum": [
+            "DAILY",
+            "WEEKLY",
+            "MILESTONE",
+            "MANUAL"
+          ]
+        },
+        "next_review_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "last_review_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "strategy_refresh_required": {
+          "type": "boolean",
+          "default": false
+        }
       }
     },
     "audit": {
       "type": "object",
-      "properties": {
-        "created_at": { "type": ["string", "null"], "format": "date-time" },
-        "created_by": { "type": ["string", "null"] },
-        "updated_at": { "type": ["string", "null"], "format": "date-time" },
-        "updated_by": { "type": ["string", "null"] },
-        "change_reason": { "type": ["string", "null"] }
-      }
+      "additionalProperties": true
     }
   },
   "$defs": {
-    "windowMetrics": {
+    "action": {
       "type": "object",
+      "required": [
+        "action_type",
+        "action",
+        "why",
+        "approval_level"
+      ],
       "properties": {
-        "d1": { "type": "object" },
-        "d3": { "type": "object" },
-        "d7": { "type": "object" },
-        "d14": { "type": "object" },
-        "d30": { "type": "object" }
-      },
-      "additionalProperties": true
+        "action_type": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_result": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observation_window": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stop_condition": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "avoid_if": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "approval_level": {
+          "type": "string",
+          "enum": [
+            "L0",
+            "L1",
+            "L2",
+            "L3"
+          ]
+        },
+        "execution_status": {
+          "type": "string",
+          "enum": [
+            "SUGGESTED",
+            "APPROVED",
+            "REJECTED",
+            "QUEUED",
+            "EXECUTED",
+            "FAILED",
+            "OBSERVING"
+          ]
+        }
+      }
     }
   },
   "additionalProperties": true

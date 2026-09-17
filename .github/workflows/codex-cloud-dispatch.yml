@@ -5,7 +5,6 @@ on:
     branches: [codex-dispatch]
     paths:
       - '.codex-cloud/inbox/current.json'
-      - '.codex-cloud/tasks/**'
   workflow_dispatch:
 
 permissions:

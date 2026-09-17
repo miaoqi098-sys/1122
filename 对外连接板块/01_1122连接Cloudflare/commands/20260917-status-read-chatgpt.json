@@ -1,0 +1,6 @@
+{
+  "command_id": "cf-20260917-status-read-chatgpt",
+  "action": "status.read",
+  "params": {},
+  "confirm": false
+}

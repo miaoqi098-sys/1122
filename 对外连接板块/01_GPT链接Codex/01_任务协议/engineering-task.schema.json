@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://1122.local/schemas/codex-cloud-engineering-task-v1.json",
+  "title": "1122 Codex Cloud Engineering Task V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "task_type",
+    "created_at",
+    "repository",
+    "base_branch",
+    "work_branch",
+    "spec_path",
+    "title"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{5,79}$"
+    },
+    "task_type": {
+      "const": "engineering_task"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repository": {
+      "const": "miaoqi098-sys/1122"
+    },
+    "base_branch": {
+      "const": "main"
+    },
+    "work_branch": {
+      "type": "string",
+      "pattern": "^codex/[A-Za-z0-9._/-]+$"
+    },
+    "spec_path": {
+      "type": "string",
+      "pattern": "^\\.codex-cloud/tasks/[A-Za-z0-9._/-]+\\.(md|txt)$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 160
+    }
+  }
+}

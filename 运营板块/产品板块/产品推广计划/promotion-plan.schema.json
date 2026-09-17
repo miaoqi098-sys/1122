@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProductPromotionPlan.v1",
+  "type": "object",
+  "required": [
+    "plan_id",
+    "marketplace",
+    "asin",
+    "lifecycle_stage",
+    "plan_status",
+    "goals",
+    "constraints",
+    "strategy_mix",
+    "review"
+  ],
+  "properties": {
+    "plan_id": { "type": "string", "minLength": 6 },
+    "version": { "type": "string", "default": "1.0" },
+    "marketplace": { "type": "string" },
+    "asin": { "type": "string" },
+    "seller_scope": { "type": ["string", "null"] },
+    "sku_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "start_date": { "type": ["string", "null"], "format": "date" },
+    "target_end_date": { "type": ["string", "null"], "format": "date" },
+    "lifecycle_stage": {
+      "type": "string",
+      "enum": ["PRE_LAUNCH", "LAUNCH", "VALIDATION", "GROWTH", "SCALE", "MATURE", "CLEARANCE"]
+    },
+    "plan_status": {
+      "type": "string",
+      "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "ACTIVE", "PAUSED", "NEEDS_REVISION", "STAGE_TRANSITION", "COMPLETED"]
+    },
+    "goals": {
+      "type": "object",
+      "properties": {
+        "primary_goal": { "type": "string" },
+        "target_daily_units": { "type": ["number", "null"], "minimum": 0 },
+        "target_monthly_units": { "type": ["number", "null"], "minimum": 0 },
+        "target_sales": { "type": ["number", "null"], "minimum": 0 },
+        "target_tacos": { "type": ["number", "null"], "minimum": 0 },
+        "target_margin": { "type": ["number", "null"] },
+        "target_keywords": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["keyword"],
+            "properties": {
+              "keyword": { "type": "string" },
+              "target_rank_min": { "type": ["integer", "null"], "minimum": 1 },
+              "target_rank_max": { "type": ["integer", "null"], "minimum": 1 },
+              "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "min_margin": { "type": ["number", "null"] },
+        "max_tacos": { "type": ["number", "null"] },
+        "min_days_of_supply": { "type": ["number", "null"], "minimum": 0 },
+        "price_floor": { "type": ["number", "null"], "minimum": 0 },
+        "price_ceiling": { "type": ["number", "null"], "minimum": 0 },
+        "policy_hold": { "type": "boolean", "default": false },
+        "data_freshness_required": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": true
+    },
+    "current_state": {
+      "type": "object",
+      "properties": {
+        "sales": { "$ref": "#/$defs/windowMetrics" },
+        "traffic": { "type": "object" },
+        "advertising": { "type": "object" },
+        "inventory": { "type": "object" },
+        "pricing": { "type": "object" },
+        "listing": { "type": "object" },
+        "reviews": { "type": "object" },
+        "competition": { "type": "object" },
+        "finance": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "strategy_mix": {
+      "type": "object",
+      "properties": {
+        "advertising": { "type": "array", "items": { "type": "string" } },
+        "keywords": { "type": "array", "items": { "type": "string" } },
+        "listing": { "type": "array", "items": { "type": "string" } },
+        "pricing_and_promotion": { "type": "array", "items": { "type": "string" } },
+        "inventory": { "type": "array", "items": { "type": "string" } },
+        "offsite": { "type": "array", "items": { "type": "string" } },
+        "competitor_response": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "kpis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["metric"],
+        "properties": {
+          "metric": { "type": "string" },
+          "baseline": {},
+          "target": {},
+          "warning_threshold": {},
+          "critical_threshold": {},
+          "window": { "type": "string" }
+        }
+      }
+    },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["milestone_id", "description", "status"],
+        "properties": {
+          "milestone_id": { "type": "string" },
+          "description": { "type": "string" },
+          "target_date": { "type": ["string", "null"], "format": "date" },
+          "status": { "type": "string", "enum": ["PENDING", "ON_TRACK", "AT_RISK", "ACHIEVED", "MISSED", "CANCELLED"] }
+        }
+      }
+    },
+    "recommended_actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action_type", "reason", "approval_level"],
+        "properties": {
+          "action_type": { "type": "string" },
+          "reason": { "type": "string" },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "approval_level": { "type": "string", "enum": ["L0", "L1", "L2", "L3"] },
+          "execution_status": { "type": "string", "enum": ["SUGGESTED", "APPROVED", "REJECTED", "QUEUED", "EXECUTED", "FAILED"] }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["review_cadence"],
+      "properties": {
+        "review_cadence": { "type": "string", "enum": ["DAILY", "WEEKLY", "MILESTONE", "MANUAL"] },
+        "next_review_date": { "type": ["string", "null"], "format": "date" },
+        "last_review_at": { "type": ["string", "null"], "format": "date-time" },
+        "stage_transition_candidate": { "type": "boolean", "default": false }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "created_at": { "type": ["string", "null"], "format": "date-time" },
+        "created_by": { "type": ["string", "null"] },
+        "updated_at": { "type": ["string", "null"], "format": "date-time" },
+        "updated_by": { "type": ["string", "null"] },
+        "change_reason": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "$defs": {
+    "windowMetrics": {
+      "type": "object",
+      "properties": {
+        "d1": { "type": "object" },
+        "d3": { "type": "object" },
+        "d7": { "type": "object" },
+        "d14": { "type": "object" },
+        "d30": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

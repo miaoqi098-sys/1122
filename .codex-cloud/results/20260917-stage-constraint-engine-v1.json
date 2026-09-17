@@ -1,0 +1,11 @@
+{
+  "task_id": "20260917-stage-constraint-engine-v1",
+  "task_type": "engineering_task",
+  "status": "AUTH_REQUIRED",
+  "recorded_at": "2026-09-17T10:10:30Z",
+  "workflow_run_id": 35209006571,
+  "agent_session_id": null,
+  "work_branch": "codex/stage-constraint-engine-v1",
+  "pr_found": false,
+  "summary": "Cloud dispatch reached GitHub Actions successfully but stopped before OpenAI Agents API because repository secret OPENAI_API_KEY is not configured. No local fallback was used and no Codex session was falsely reported as started."
+}

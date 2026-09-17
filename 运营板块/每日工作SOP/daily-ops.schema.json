@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DailyOperatingBrief.v1",
+  "type": "object",
+  "required": [
+    "brief_id",
+    "date",
+    "marketplace",
+    "data_status",
+    "overall_status",
+    "metrics",
+    "signals",
+    "tasks",
+    "action_validation"
+  ],
+  "properties": {
+    "brief_id": { "type": "string", "minLength": 6 },
+    "date": { "type": "string", "format": "date" },
+    "marketplace": { "type": "string" },
+    "seller_scope": { "type": ["string", "null"] },
+    "asin_scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "promotion_plan_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "data_status": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["DATA_READY", "DATA_DELAYED", "DATA_INCOMPLETE", "DATA_CONFLICT"] },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "status"],
+            "properties": {
+              "source": { "type": "string" },
+              "status": { "type": "string" },
+              "last_success_at": { "type": ["string", "null"], "format": "date-time" },
+              "freshness": { "type": ["string", "null"] },
+              "notes": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "overall_status": { "type": "string", "enum": ["GREEN", "YELLOW", "RED"] },
+    "today_focus": {
+      "type": "array",
+      "maxItems": 3,
+      "items": { "type": "string" }
+    },
+    "blocked_by": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "sales": { "$ref": "#/$defs/metricWindow" },
+        "units": { "$ref": "#/$defs/metricWindow" },
+        "sessions": { "$ref": "#/$defs/metricWindow" },
+        "cvr": { "$ref": "#/$defs/metricWindow" },
+        "ad_spend": { "$ref": "#/$defs/metricWindow" },
+        "acos": { "$ref": "#/$defs/metricWindow" },
+        "tacos": { "$ref": "#/$defs/metricWindow" },
+        "margin": { "$ref": "#/$defs/metricWindow" },
+        "days_of_supply": { "$ref": "#/$defs/metricWindow" }
+      },
+      "additionalProperties": true
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal_id", "signal_type", "severity", "fact", "evidence_window", "approval_level"],
+        "properties": {
+          "signal_id": { "type": "string" },
+          "signal_type": { "type": "string" },
+          "severity": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+          "asin": { "type": ["string", "null"] },
+          "fact": { "type": "string" },
+          "diagnosis": { "type": ["string", "null"] },
+          "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "evidence_window": { "type": "string" },
+          "evidence_refs": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "recommended_action": { "type": ["string", "null"] },
+          "approval_level": { "type": "string", "enum": ["L0", "L1", "L2", "L3"] },
+          "decision_item_required": { "type": "boolean", "default": false },
+          "status": { "type": "string", "enum": ["OPEN", "OBSERVING", "CONVERTED_TO_DECISION", "RESOLVED", "DISMISSED"] }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task_id", "priority", "description", "status"],
+        "properties": {
+          "task_id": { "type": "string" },
+          "priority": { "type": "string", "enum": ["P0", "P1", "P2", "P3"] },
+          "description": { "type": "string" },
+          "owner": { "type": ["string", "null"] },
+          "due_date": { "type": ["string", "null"], "format": "date" },
+          "source_signal": { "type": ["string", "null"] },
+          "decision_item_ref": { "type": ["string", "null"] },
+          "expected_result": { "type": ["string", "null"] },
+          "approval_required": { "type": "boolean", "default": false },
+          "approval_level": { "type": ["string", "null"], "enum": ["L0", "L1", "L2", "L3", null] },
+          "status": { "type": "string", "enum": ["DRAFT", "PENDING_APPROVAL", "APPROVED", "IN_PROGRESS", "DONE", "BLOCKED", "CANCELLED"] }
+        }
+      }
+    },
+    "action_validation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action_id", "validation_status"],
+        "properties": {
+          "action_id": { "type": "string" },
+          "executed_at": { "type": ["string", "null"], "format": "date-time" },
+          "expected_result": { "type": ["string", "null"] },
+          "observed_result": { "type": ["string", "null"] },
+          "validation_status": { "type": "string", "enum": ["PENDING", "POSITIVE", "NEUTRAL", "NEGATIVE", "INSUFFICIENT_DATA"] },
+          "next_step": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "sales_drop_pct": { "type": ["number", "null"] },
+        "traffic_drop_pct": { "type": ["number", "null"] },
+        "cvr_drop_pct": { "type": ["number", "null"] },
+        "ctr_drop_pct": { "type": ["number", "null"] },
+        "max_target_acos": { "type": ["number", "null"] },
+        "max_target_tacos": { "type": ["number", "null"] },
+        "no_order_click_threshold": { "type": ["integer", "null"], "minimum": 0 },
+        "harvest_order_threshold": { "type": ["integer", "null"], "minimum": 0 },
+        "keyword_rank_drop_threshold": { "type": ["integer", "null"], "minimum": 0 },
+        "min_days_of_supply": { "type": ["number", "null"], "minimum": 0 },
+        "critical_days_of_supply": { "type": ["number", "null"], "minimum": 0 },
+        "rating_warning": { "type": ["number", "null"], "minimum": 0, "maximum": 5 },
+        "negative_review_cluster_count": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "generated_at": { "type": ["string", "null"], "format": "date-time" },
+        "generated_by": { "type": ["string", "null"] },
+        "reviewed_by": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "$defs": {
+    "metricWindow": {
+      "type": "object",
+      "properties": {
+        "current": {},
+        "d1": {},
+        "d3": {},
+        "d7": {},
+        "d14": {},
+        "d30": {},
+        "delta_vs_d7": {},
+        "delta_vs_d14": {},
+        "target": {},
+        "status": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

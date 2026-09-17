@@ -4,6 +4,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$Repository = "miaoqi098-sys/1122"
+$DispatchBranch = "codex-dispatch"
 
 # Registering the persistent Scheduled Task can require elevation on Windows.
 # If this installer is started from a normal PowerShell window, request UAC once
@@ -62,10 +64,10 @@ if ($LASTEXITCODE -ne 0) {
   throw "GitHub CLI is installed but not signed in. Run 'gh auth login' once on this PC, then retry this installer."
 }
 
-# Verify repository/dispatch-branch access without using Chinese repository paths.
-& $Gh.Source api "repos/miaoqi098-sys/-/git/ref/heads/codex-dispatch" 1>$null 2>$null
+# Verify repository/dispatch-branch access without depending on Chinese repository paths.
+& $Gh.Source api "repos/$Repository/git/ref/heads/$DispatchBranch" 1>$null 2>$null
 if ($LASTEXITCODE -ne 0) {
-  throw "GitHub CLI login cannot access the codex-dispatch branch. Re-authenticate gh for the GitHub account that owns miaoqi098-sys/-."
+  throw "GitHub CLI login cannot access the $DispatchBranch branch. Re-authenticate gh for the GitHub account that owns $Repository."
 }
 
 New-Item -ItemType Directory -Path $GatewayRoot -Force | Out-Null
@@ -86,5 +88,7 @@ Write-Host "TaskName=$TaskName"
 Write-Host "LastTaskResult=$($Info.LastTaskResult)"
 Write-Host "Worker=$WorkerTarget"
 Write-Host "Gateway=ONLINE"
+Write-Host "GitHubRepo=$Repository"
+Write-Host "DispatchBranch=$DispatchBranch"
 Write-Host "GitHubAuth=GH_LOCAL_SESSION"
 Write-Host "Elevation=ADMINISTRATOR"

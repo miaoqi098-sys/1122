@@ -10,7 +10,9 @@ if ($Task) {
     Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
 }
+
 if (-not $KeepLocalData -and (Test-Path -LiteralPath $InstallRoot)) {
     Remove-Item -LiteralPath $InstallRoot -Recurse -Force
 }
+
 Write-Output "GATEWAY_UNINSTALL=PASS"

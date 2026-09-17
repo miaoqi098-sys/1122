@@ -1,0 +1,39 @@
+name: Codex Cloud Runtime Validation
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - '对外连接板块/01_GPT链接Codex/**'
+      - '.github/workflows/codex-cloud-runtime.yml'
+      - '.github/workflows/codex-cloud-dispatch.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - '对外连接板块/01_GPT链接Codex/**'
+      - '.github/workflows/codex-cloud-runtime.yml'
+      - '.github/workflows/codex-cloud-dispatch.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate task schema JSON
+        run: python -m json.tool '对外连接板块/01_GPT链接Codex/01_任务协议/engineering-task.schema.json' >/dev/null
+      - name: Test Codex Cloud dispatcher
+        working-directory: '对外连接板块/01_GPT链接Codex/02_CodexCloud执行器'
+        run: python -m unittest -v test_dispatch.py
+      - name: Assert local runtime has been removed
+        shell: bash
+        run: |
+          test ! -e '对外连接板块/01_GPT链接Codex/03_本地网关'
+          test ! -e '对外连接板块/01_GPT链接Codex/09_GitHub任务桥'
+          test ! -e '.github/workflows/gpt-codex-gateway-runtime.yml'

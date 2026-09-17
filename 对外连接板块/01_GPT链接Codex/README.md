@@ -1,69 +1,77 @@
-# GPT ↔ Codex 唯一主链路
+# GPT → Codex Cloud｜唯一主线
 
-本目录只保留一条生产主线：
+本目录只维护一条开发执行链：
 
 ```text
-GPT
+ChatGPT
+  ↓ 写入结构化工程任务
+GitHub `codex-dispatch`
+  ↓ push 触发
+GitHub Actions
   ↓
-GitHub codex-dispatch
+OpenAI Agents API
+  ↓ OpenAI-hosted environment + Codex harness
+Codex Cloud
   ↓
-本机 Bridge Worker 自动领取
+`codex/*` 分支 → 测试 → commit → push → PR
   ↓
-GPT-Codex Gateway (127.0.0.1:8765)
+GitHub Actions 写回 `.codex-cloud/results/<task_id>.json`
   ↓
-本机 Codex
+ChatGPT 读取 PR / 结果并做业务验收
   ↓
-codex/* 工作分支 → 测试 → commit → push → PR
-  ↓
-结果回写 .codex-bridge/results/<task_id>.json
-  ↓
-GPT 验收
+人工 Merge
 ```
 
-## 目录职责
+## 已废弃
 
-- `03_本地网关/`：本机 Gateway Runtime，负责把受控任务交给 Codex。
-- `09_GitHub任务桥/`：GitHub 任务邮箱 + 本机 Worker，负责自动领取、校验、调用 Gateway、回写结果。
+以下组件不再属于1122：
 
-## 唯一任务模式
+- Windows 计划任务；
+- `C:\AmazonAgent` 本机执行依赖；
+- `127.0.0.1:8765` 本地 Gateway；
+- 本机 Codex CLI / app-server；
+- 本机 Bridge Worker；
+- `.codex-bridge` 任务协议。
 
-生产开发任务统一使用 `engineering_task`。
+Git 历史保留旧实现，需要审计时从历史提交查看，不在当前目录继续保留兼容代码。
 
-任务只允许包含：
-- `task_id`
-- `task_type=engineering_task`
-- `created_at`
-- `parameters.spec_path`
-- `parameters.work_branch`
-- `parameters.base_branch=main`
+## 目录
 
-其中：
-- `spec_path` 必须位于 `.codex-bridge/tasks/`；
-- `work_branch` 必须以 `codex/` 开头；
-- 不允许远程传入 `prompt`、`command`、`shell`、`powershell`、凭据或 Secrets；
-- 不允许 Codex 自动 merge、force-push、修改 GitHub Secrets 或绕过仓库保护。
-
-## 本机更新/安装
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "C:\AmazonAgent\对外连接板块\01_GPT链接Codex\09_GitHub任务桥\install-bridge.ps1"
+```text
+01_GPT链接Codex/
+├── README.md
+├── 01_任务协议/
+│   └── engineering-task.schema.json
+├── 02_CodexCloud执行器/
+│   ├── README.md
+│   ├── dispatch.py
+│   └── test_dispatch.py
+└── 03_Codex规则/
+    └── README.md
 ```
 
-该脚本负责：
-1. 检查 Gateway 是否 ONLINE；
-2. 检查本机 GitHub CLI 已授权 `miaoqi098-sys/1122`；
-3. 安装最新版 Worker；
-4. 注册/覆盖 `AmazonAgent-Controlled-Codex-Bridge` 计划任务；
-5. 立即启动自动任务领取。
+仓库根目录 `AGENTS.md` 是 Codex 工程行为的唯一权威规则。
 
-## 废弃规则
+## 两个真值来源
 
-以下模式不再作为生产主线：
-- 手动要求 Codex “主动领取任务”；
-- 旧目录 `10_对外链接/...`；
-- 仓库目标 `miaoqi098-sys/-`；
-- GitHub Issue 轮询；
-- 任意远程 Shell/Prompt 执行；
-- 多套并行 Gateway/Bridge 规则。
+- **任务传输格式**：`01_任务协议/engineering-task.schema.json`
+- **工程行为规则**：仓库根目录 `AGENTS.md`
 
-如果后续需要新增能力，应扩展当前受控 `engineering_task` 协议，而不是再建立第二套桥。
+不要再建立第二份 task schema、Gateway contract 或本机执行规则。
+
+## 凭据
+
+云执行只需要 GitHub Actions Secret：
+
+- `OPENAI_API_KEY`：调用 OpenAI Agents API。
+
+GitHub 写入使用 Actions 自动生成的短期 `GITHUB_TOKEN`，权限仅在该次 workflow job 内有效；不维护长期 GitHub PAT。
+
+## 安全边界
+
+- 任务文件不得携带 Token / Secret / Password；
+- Codex 只能在 `codex/*` 分支工作；
+- Codex 不得自动 merge；
+- Codex 不得修改 GitHub Secrets；
+- 默认不得修改业务规则，除非任务规格明确要求；
+- PR 是工程交付边界，GPT负责业务验收，最终合并由人工完成。

@@ -1,48 +1,38 @@
-# GPT-Codex Gateway Runtime V0.1
+# GPT-Codex Gateway Runtime
 
-这是 `01_GPT链接Codex` 的第一批真实运行代码，不依赖 AACC，也不使用 GitHub Issue 作为执行总线。
+本目录只负责一件事：在本机提供 `127.0.0.1:8765` Gateway，把受控 Bridge 任务交给本机 Codex。
 
-## 已实现
+## 运行接口
 
-- Streamable HTTP MCP 服务；
-- `/health` 本地健康端点；
-- 常驻 Gateway 进程；
-- 启动并监管 `codex app-server`；
-- Codex App Server `initialize / initialized` 握手；
-- `thread/start`、`thread/resume`、`turn/start`、`turn/interrupt`；
-- SQLite 持久任务账本与 GPT 对话→Codex thread 映射；
-- 项目根目录白名单；
-- HIGH_AUTHORITY 默认：`approvalPolicy=never`、`sandbox=danger-full-access`；
-- Secret 只按环境变量名引用，值不进入 MCP 参数、任务账本或 Git；
-- Gateway 重启时把旧 RUNNING 任务标记为 UNKNOWN，禁止伪造仍在运行；
-- MCP 工具：`codex_status`、`codex_start_task`、`codex_continue_task`、`codex_get_task`、`codex_cancel_task`、`codex_list_projects`、`codex_read_result`、`codex_run_command`、`codex_apply_changes`、`codex_use_secret`。
+- Health: `http://127.0.0.1:8765/health`
+- MCP: `http://127.0.0.1:8765/mcp/`
 
-## 运行
+## 安装
+
+不要在 `runtime/` 内手工维护另一套启动方式。统一从上一级执行：
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[test]"
-copy config.example.json config.local.json
-# 修改 config.local.json 中的真实工程根目录
-.\.venv\Scripts\python.exe -m gpt_codex_gateway --config .\config.local.json
+powershell -ExecutionPolicy Bypass -File "C:\AmazonAgent\对外连接板块\01_GPT链接Codex\03_本地网关\install-gateway.ps1" -ProjectRoot "C:\AmazonAgent"
 ```
 
-本地 MCP 地址：
+卸载：
 
-```text
-http://127.0.0.1:8765/mcp/
+```powershell
+powershell -ExecutionPolicy Bypass -File "C:\AmazonAgent\对外连接板块\01_GPT链接Codex\03_本地网关\uninstall-gateway.ps1"
 ```
 
-健康检查：
+## 运行边界
 
-```text
-http://127.0.0.1:8765/health
-```
+- 只监听 localhost；
+- 只允许配置过的项目根目录；
+- 凭据不得进入 Git、任务文件或结果文件；
+- Gateway 只提供执行能力，任务来源和任务校验由 `09_GitHub任务桥` 负责；
+- 不在这里再建立第二套任务队列、GitHub Issue 轮询或远程公网入口。
 
-## 当前真值
+## 验收
 
-`SOURCE_IMPLEMENTED` 不等于 `LOCAL_RUNTIME_VERIFIED`。
+只有以下三项同时成立才视为 Gateway 可用：
 
-只有在 NODE 上真实安装、启动，并完成 `codex_status → codex_start_task → 真实文件修改 → 新对话再次调用` 后，才能升级为长期直连验证通过。
-
-当前 V0.1 只监听 localhost。下一阶段才接入长期 OAuth + 安全远程通道，使 ChatGPT 的不同对话可以复用同一应用授权访问这个 Gateway。
+1. `/health` 返回 ONLINE；
+2. Bridge 能调用 `codex_start_task`；
+3. Codex 能完成一次受控任务并返回终态结果。

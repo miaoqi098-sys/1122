@@ -47,7 +47,7 @@
       return {
         ...fallback,
         ...remote,
-        navigation:Array.isArray(remote.navigation) && remote.navigation.length ? remote.navigation : fallback.navigation,
+        navigation: fallback.navigation,
         __source:{
           mode:'API',
           endpoint,

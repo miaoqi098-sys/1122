@@ -17,6 +17,7 @@
   const statusKind = value => /LIVE|CONNECTED|SUCCESS|READY|FRESH|VERIFIED|ALLOWED|LOW|POSITIVE|CONFIRMED/i.test(String(value)) ? 'ok' : /ERROR|FAIL|BLOCK|STALE|NONCOMPLIANT|HIGH/i.test(String(value)) ? 'bad' : 'warn';
   const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(value ?? 'UNKNOWN')}</span>`;
   const moduleRegistry = window.__1122_REGISTRY__?.modules || [];
+  const homeRoute = window.__1122_REGISTRY__?.home_route || '/command-center';
   const pageRenderers = window.__1122_PAGE_RENDERERS__ || {};
   let data;
   let renderGeneration = 0;
@@ -32,14 +33,14 @@
   data = await (window.__1122_DATA_READY__ || Promise.resolve(window.__1122_DATA__ || {}));
 
   function routeInfo() {
-    const raw = (location.hash || '#/command-center').replace(/^#/, '') || '/command-center';
+    const raw = (location.hash || `#${homeRoute}`).replace(/^#/, '') || homeRoute;
     const secondHash = raw.indexOf('#');
     const beforeAnchor = secondHash >= 0 ? raw.slice(0, secondHash) : raw;
     const anchor = secondHash >= 0 ? raw.slice(secondHash + 1) : '';
     const queryIndex = beforeAnchor.indexOf('?');
     const path = queryIndex >= 0 ? beforeAnchor.slice(0, queryIndex) : beforeAnchor;
     const query = queryIndex >= 0 ? new URLSearchParams(beforeAnchor.slice(queryIndex + 1)) : new URLSearchParams();
-    return { path: path || '/command-center', anchor, query };
+    return { path: path || homeRoute, anchor, query };
   }
 
   function setChrome(title, trail) {
@@ -116,7 +117,7 @@
 
   function renderNotFound(path) {
     setChrome('页面未找到', '系统 / 未知路由');
-    view.innerHTML = `<div class="empty-state"><div class="empty-icon" aria-hidden="true">◌</div><h2>没有找到这个页面</h2><p>路由 <span class="code">${esc(path)}</span> 未在 Navigation Registry 中登记。</p><div class="toolbar" style="justify-content:center;margin-top:18px"><a class="btn btn-primary" href="#/command-center">返回指挥中心</a><a class="btn" href="#/system/overview">查看系统地图</a></div></div>`;
+    view.innerHTML = `<div class="empty-state"><div class="empty-icon" aria-hidden="true">◌</div><h2>没有找到这个页面</h2><p>路由 <span class="code">${esc(path)}</span> 未在 Navigation Registry 中登记。</p><div class="toolbar" style="justify-content:center;margin-top:18px"><a class="btn btn-primary" href="#${esc(homeRoute)}">返回指挥中心</a><a class="btn" href="#/system/overview">查看系统地图</a></div></div>`;
   }
 
   async function render() {

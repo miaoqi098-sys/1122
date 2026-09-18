@@ -1,29 +1,5 @@
 window.__1122_DATA__ = {
-  navigation: [
-    {id:'command-center',label:'经营指挥中心',icon:'◈',route:'#/command-center'},
-    {id:'selection',label:'选品',icon:'◉',route:'#/selection'},
-    {id:'operations',label:'运营',icon:'▦',route:'#/operations',children:[
-      {id:'products',label:'产品',route:'#/operations/products'},
-      {id:'inventory-logistics',label:'库存物流',route:'#/operations/inventory-logistics'},
-      {id:'offsite',label:'站外推广',route:'#/operations/offsite'},
-      {id:'competitors',label:'竞品',route:'#/operations/competitors'},
-      {id:'ads',label:'广告',route:'#/operations/ads'}
-    ]},
-    {id:'sandbox',label:'沙盘演练',icon:'◇',route:'#/sandbox'},
-    {id:'governance',label:'系统政策边界',icon:'⌘',route:'#/governance'},
-    {id:'amazon-boundary',label:'亚马逊经营边界探索',icon:'◎',route:'#/amazon-boundary',badge:'重点',children:[
-      {id:'apr',label:'APR 市场玩法探索',route:'#/amazon-boundary/apr'},
-      {id:'aom',label:'AOM 正向运营方法',route:'#/amazon-boundary/aom'},
-      {id:'apb',label:'APB 政策与边界证据',route:'#/amazon-boundary/apb'}
-    ]},
-    {id:'agents',label:'Agent',icon:'✦',route:'#/agents'},
-    {id:'skills',label:'技能',icon:'⌁',route:'#/skills'},
-    {id:'connectors',label:'对外连接',icon:'⇄',route:'#/connectors'},
-    {id:'tasks',label:'任务中心',icon:'☑',route:'#/tasks'},
-    {id:'knowledge',label:'知识',icon:'◇',route:'#/knowledge'},
-    {id:'memory',label:'记忆',icon:'◫',route:'#/memory'},
-    {id:'data',label:'数据',icon:'▤',route:'#/data'}
-  ],
+  navigation: window.__1122_REGISTRY__?.navigation || [],
   apr: [
     {
       apr_id:'APR-01-0001',domain_no:'01',domain:'Review',pattern_name_cn:'跨商品身份/变体关系的评论聚合模式',business_goal:'快速提升主卖商品的可见 Review 数量与社会证明',observation_status:'DISCOVERED',policy_relation:'NONCOMPLIANT',business_value_signal:'POSITIVE',confidence:'LOW',

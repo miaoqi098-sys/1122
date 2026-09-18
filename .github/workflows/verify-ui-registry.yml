@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   registry:
     runs-on: ubuntu-latest
@@ -13,5 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify every product UI is registered
+      - name: Verify generated artifact is current
+        run: node tools/generate-ui-registry.mjs --check
+      - name: Run UI registry unit tests
+        run: node tools/ui-navigation-registry.test.mjs
+      - name: Verify UI registry, Router, and Renderer contracts
         run: node tools/verify-ui-registry.mjs

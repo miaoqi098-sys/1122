@@ -27,6 +27,18 @@ UI界面设计板块与系统冲突问题库属于系统支撑入口，不作为
 
 `UI界面设计板块/NavigationRegistry.v2.json`
 
+该 JSON 是 UI 导航与运行时登记的唯一人工维护源。前端实际加载的
+`web-console/registry.generated.js` 必须由它自动生成，禁止直接编辑生成文件：
+
+```bash
+node tools/generate-ui-registry.mjs
+node tools/generate-ui-registry.mjs --check
+node tools/ui-navigation-registry.test.mjs
+node tools/verify-ui-registry.mjs
+```
+
+校验会检查 JSON、生成产物、Hash Router、所有 Renderer 注册、连接器路由、快捷入口锚点及关联 UI 契约的一致性。
+
 ## 二、首页：经营指挥中心
 
 首页 route：`/command-center`

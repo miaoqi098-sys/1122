@@ -1,9 +1,19 @@
 name: Verify UI Navigation V2
 
 on:
+  pull_request:
+    paths:
+      - 'UI界面设计板块/**'
+      - 'web-console/**'
+      - 'tools/generate-ui-registry.mjs'
+      - 'tools/ui-navigation-registry-*.mjs'
+      - '.github/workflows/verify-ui-navigation-v2.yml'
   push:
     paths:
       - 'UI界面设计板块/**'
+      - 'web-console/**'
+      - 'tools/generate-ui-registry.mjs'
+      - 'tools/ui-navigation-registry-*.mjs'
       - '.github/workflows/verify-ui-navigation-v2.yml'
   workflow_dispatch:
 
@@ -34,6 +44,11 @@ jobs:
           for(const f of files) JSON.parse(fs.readFileSync(f,'utf8'));
           console.log('UI JSON contracts: PASS');
           NODE
+      - name: Verify generated UI registry contracts
+        run: |
+          node tools/generate-ui-registry.mjs --check
+          node tools/ui-navigation-registry.test.mjs
+          node tools/verify-ui-registry.mjs
       - name: Validate navigation coverage
         run: |
           node - <<'NODE'

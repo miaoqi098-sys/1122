@@ -78,8 +78,9 @@ https://1122.sorilo-uk.com/#/connectors
 
 ## 路由
 
-当前使用一套 Hash Router，避免静态托管环境需要额外 rewrite 配置。`web-console/index.html` 是唯一正式入口，`registry.js` 是页面和连接入口的统一登记表。
+当前使用一套 Hash Router，避免静态托管环境需要额外 rewrite 配置。`web-console/index.html` 是唯一正式入口；人工维护源是 `UI界面设计板块/NavigationRegistry.v2.json`，页面与连接入口的运行时登记表为其自动生成的 `registry.generated.js`。不要直接编辑生成文件；修改导航后运行 `node tools/generate-ui-registry.mjs`，并用 `node tools/verify-ui-registry.mjs` 验证产物、Router 与 Renderer 契约。
 
+- `#/`
 - `#/command-center`
 - `#/selection`
 - `#/operations`
@@ -89,6 +90,9 @@ https://1122.sorilo-uk.com/#/connectors
 - `#/operations/competitors`
 - `#/operations/competitors/keywords`
 - `#/operations/offsite`
+- `#/products/:product_id`
+- `#/products/:product_id/policy-impact`
+- `#/amazon-boundary`
 - `#/amazon-boundary/apr`
 - `#/amazon-boundary/aom`
 - `#/amazon-boundary/apb`
@@ -103,6 +107,9 @@ https://1122.sorilo-uk.com/#/connectors
 - `#/governance`
 - `#/tasks`
 - `#/data`
+- `#/system/overview`
+- `#/system/ui-design`
+- `#/system/conflicts`
 
 ## 数据源状态
 

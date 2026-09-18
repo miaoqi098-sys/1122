@@ -25,7 +25,7 @@
     return `<article class="card catalog-card">
       <div class="split-title"><div class="item-title">${esc(item.label)}</div><span class="tag tag-${kind}">${label}</span></div>
       <div class="catalog-path code">${esc(item.source_path)} · ${fmtNumber(item.file_count)} files</div>
-      <div class="catalog-summary">${esc(item.summary)}</div>
+      <div class="catalog-summary">${esc(item.catalog_summary || item.summary)}</div>
       <div class="readiness-bar" aria-label="${esc(label)}"><span style="width:${progress}%"></span></div>
       <div class="capability-list">${(item.live_surfaces || []).slice(0, 3).map(value => `<span class="capability">${esc(value)}</span>`).join('') || '<span class="capability">暂无真实数据面</span>'}</div>
       <div class="catalog-foot"><span class="item-meta">${esc(item.owner)}</span><a class="route-link" href="#${esc(item.route)}">打开 →</a></div>

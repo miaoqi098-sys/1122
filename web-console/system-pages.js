@@ -331,6 +331,8 @@
         <div class="card"><div class="item-title">APRExplorationView</div><div class="item-meta">市场观察与边界信号。</div></div>
         <div class="card"><div class="item-title">PositiveOperatingMethodView</div><div class="item-meta">正向方法与适用条件。</div></div>
         <div class="card"><div class="item-title">AmazonPolicyBoundaryView</div><div class="item-meta">政策证据与边界结论。</div></div>
+        <div class="card"><div class="item-title">DailyOperatingBriefView</div><div class="item-meta">每日战略上下文、Signal、根因、动作、验证与阶段复核；读模型缺失时保留 NEEDS_DATA。</div></div>
+        <div class="card"><div class="item-title">ProductPromotionPlanView</div><div class="item-meta">产品阶段、瓶颈、策略、证据、观察窗口与审批等级；缺失数据不作推断。</div></div>
       </div></section>
     `;
   }

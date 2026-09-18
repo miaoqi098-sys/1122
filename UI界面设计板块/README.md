@@ -60,6 +60,8 @@ UI界面设计板块与系统冲突问题库属于系统支撑入口，不作为
 ```text
 运营
 ├── 产品 /operations/products
+│   └── 产品推广计划 /operations/products/promotion-plan
+├── 每日工作 SOP /operations/daily-sop
 ├── 库存物流 /operations/inventory-logistics
 ├── 站外推广 /operations/offsite
 ├── 竞品 /operations/competitors
@@ -294,6 +296,8 @@ UI Read Model
 - `亚马逊政策边界中心/APRExplorationView.schema.json`
 - `亚马逊政策边界中心/PositiveOperatingMethodView.schema.json`
 - `竞品关键词工作台/CompetitorKeywordWorkbenchView.schema.json`
+- `每日工作SOP/DailyOperatingBriefView.schema.json`
+- `产品推广计划/ProductPromotionPlanView.schema.json`
 
 ## 十三、权限边界
 

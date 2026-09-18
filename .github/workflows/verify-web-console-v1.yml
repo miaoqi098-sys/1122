@@ -24,12 +24,15 @@ jobs:
           test -f web-console/styles.css
           test -f web-console/app.js
           test -f web-console/live-pages.js
+          test -f web-console/operations-planning-pages.js
           test -f web-console/data/snapshots.js
           test -f web-console/data/data-source.js
       - name: JavaScript syntax check
         run: |
           node --check web-console/app.js
           node --check web-console/live-pages.js
+          node --check web-console/operations-planning-pages.js
+          node --check web-console/system-pages.js
           node --check web-console/data/snapshots.js
           node --check web-console/data/data-source.js
       - name: Verify core routes and modules
@@ -44,6 +47,9 @@ jobs:
           grep -q 'renderProducts' web-console/live-pages.js
           grep -q 'renderAgents' web-console/live-pages.js
           grep -q 'renderTasks' web-console/live-pages.js
+          grep -q '/operations/daily-sop' web-console/registry.js
+          grep -q '/operations/products/promotion-plan' web-console/registry.js
+          node --test web-console/tests/operations-planning-pages.test.mjs
       - name: Verify read-only data-source behavior
         run: |
           grep -q '1122-data-layer.zhangshuaibing01.workers.dev/api/v1/ui/bootstrap' web-console/data/data-source.js

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProductPromotionPlanView V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "generated_at",
+    "view_status",
+    "promotion_plan_source_status",
+    "product_facts",
+    "promotion_plans",
+    "read_only",
+    "execution_authorized",
+    "production_write_authorized"
+  ],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "view_status": { "enum": ["complete", "degraded", "unavailable"] },
+    "promotion_plan_source_status": { "enum": ["LIVE_D1_READ", "NOT_INGESTED", "UNAVAILABLE", "READ_ERROR"] },
+    "product_facts": { "type": "array", "items": { "type": "object" } },
+    "promotion_plans": {
+      "type": "array",
+      "items": { "$ref": "../../运营板块/产品板块/产品推广计划/promotion-plan.schema.json" }
+    },
+    "task_facts": { "type": "array", "items": { "type": "object" } },
+    "missing_sections": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "read_only": { "const": true },
+    "execution_authorized": { "const": false },
+    "production_write_authorized": { "const": false }
+  }
+}

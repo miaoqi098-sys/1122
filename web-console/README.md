@@ -10,6 +10,8 @@ V2 已收口为一个入口、一个 Navigation Registry 和一个 Hash Router�
 - 统一导航、路由和全局搜索
 - 1122 统一登录入口与当前 tab 短时访问会话
 - 产品、广告、库存物流、竞品与站外运营入口
+- 产品推广计划工作台：按产品展示正式计划读模型状态与可验证经营事实
+- 每日工作 SOP 工作台：按风险、诊断、动作、日结四轮节奏审阅事实与 Daily Brief 缺口
 - APR 市场玩法探索
 - AOM 正向运营方法
 - APB 政策与边界证据
@@ -89,6 +91,8 @@ https://1122.sorilo-uk.com/#/connectors
 - `#/selection`
 - `#/operations`
 - `#/operations/products`
+- `#/operations/products/promotion-plan`
+- `#/operations/daily-sop`
 - `#/operations/ads`
 - `#/operations/inventory-logistics`
 - `#/operations/competitors`
@@ -120,6 +124,8 @@ V2 优先读取 Data Layer 的只读 UI bootstrap，并由各只读 Bridge 独�
 - Amazon SP-API、Amazon Ads、SIF、Cloudflare 与 Email 的连接状态；
 - Amazon Ads NA Profiles，以及所选 Profile 的 Campaign / Ad Group 结构。
 - SIF 竞品关键词任务、每 10 个 ASIN 自动分批、分组内严格去重词表、10 类分类和每个关键词的来源 ASIN（使用统一登录会话）。
+
+当前 UI bootstrap 尚未提供 `ProductPromotionPlan.v2` 或 `DailyOperatingBrief.v2` 的正式读模型。两个工作台会明确显示 `PLAN NOT INGESTED` / `NEEDS DATA`，并只呈现可验证的产品和任务事实；它们不会把单日指标、任务或 `product_daily_state.stage` 擅自解释为阶段置信度、主瓶颈、策略、Signal、根因或推荐动作。
 
 页面必须分别显示传输可达、连接状态、来源状态、新鲜度、语义验证和授权状态。进入 `SNAPSHOT_FALLBACK` 时，不得把仓库快照标记为实时数据。
 

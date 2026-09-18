@@ -29,7 +29,9 @@ jobs:
             'UI界面设计板块/产品状态卡/ProductStateAggregatorV0/ProductPolicyImpactView.schema.json',
             'UI界面设计板块/亚马逊政策边界中心/AmazonPolicyBoundaryView.schema.json',
             'UI界面设计板块/亚马逊政策边界中心/APRExplorationView.schema.json',
-            'UI界面设计板块/亚马逊政策边界中心/PositiveOperatingMethodView.schema.json'
+            'UI界面设计板块/亚马逊政策边界中心/PositiveOperatingMethodView.schema.json',
+            'UI界面设计板块/每日工作SOP/DailyOperatingBriefView.schema.json',
+            'UI界面设计板块/产品推广计划/ProductPromotionPlanView.schema.json'
           ];
           for(const f of files) JSON.parse(fs.readFileSync(f,'utf8'));
           console.log('UI JSON contracts: PASS');
@@ -53,7 +55,8 @@ jobs:
           const fs=require('fs');
           const n=require('./UI界面设计板块/NavigationRegistry.v2.json');
           const refs=[];
-          for(const x of n.primary_navigation){for(const c of (x.children||[])) if(c.view_contract) refs.push(c.view_contract);}
+          const flatten=items=>items.flatMap(x=>[x,...flatten(x.children||[])]);
+          for(const x of flatten(n.primary_navigation)) if(x.view_contract) refs.push(x.view_contract);
           for(const x of (n.product_routes||[])) if(x.view_contract) refs.push(x.view_contract);
           for(const f of refs) if(!fs.existsSync(f)) throw new Error('missing linked UI contract: '+f);
           console.log('Linked contracts: PASS');

@@ -99,6 +99,8 @@
         <div class="section-head"><div><h2 id="workspace-title">常用工作台</h2><div class="section-sub">直接进入已建设的业务功能；设计态模块不会伪装成可执行页面。</div></div><a class="route-link" href="#/system/overview">查看完整系统地图 →</a></div>
         <div class="workspace-grid">
           ${workspaceCard({ route: '/operations/products', icon: '◈', eyebrow: 'OPERATIONS', title: '产品中心', description: productsKnown ? `${products.length} 个产品的最新经营状态` : '等待产品读模型确认', state: productsKnown ? 'LIVE READ' : 'SOURCE PENDING' })}
+          ${workspaceCard({ route: '/operations/products/promotion-plan', icon: '◫', eyebrow: 'PLANNING', title: '产品推广计划', description: '查看每个产品的阶段、目标、计划完整性与证据缺口', state: 'READ ONLY' })}
+          ${workspaceCard({ route: '/operations/daily-sop', icon: '✓', eyebrow: 'OPERATIONS', title: '每日工作 SOP', description: '按风险、诊断、动作、日结四轮节奏审阅当日事实', state: 'READ ONLY' })}
           ${workspaceCard({ route: '/operations/ads', icon: '▦', eyebrow: 'OPERATIONS', title: '广告工作台', description: 'Profiles、Campaigns 与 Ad Groups 的实时读取入口', state: 'CONNECTOR' })}
           ${workspaceCard({ route: '/operations/competitors/keywords', icon: '⌕', eyebrow: 'INTELLIGENCE', title: '竞品关键词', description: 'SIF 批量研究、去重词库与 10 类分类', state: 'SESSION PROTECTED' })}
           ${workspaceCard({ route: '/tasks', icon: '☑', eyebrow: 'AUTOMATION', title: '任务中心', description: sourceStatus.tasks === 'LIVE_D1_READ' ? `${tasks.length} 条受控任务事实` : '等待任务读模型确认', state: sourceStatus.tasks === 'LIVE_D1_READ' ? 'LIVE READ' : 'SOURCE PENDING' })}

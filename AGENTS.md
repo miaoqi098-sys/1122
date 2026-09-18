@@ -14,9 +14,7 @@ If the specification is incomplete or contradictory, preserve current behavior w
 - Work only on the exact `codex/*` branch named by the task.
 - Commit and push your changes to that branch.
 - Open a pull request back to `main`.
-- Never merge your own pull request.
 - Never force-push.
-
 ## 3. Required engineering workflow
 
 1. Read the task specification completely.

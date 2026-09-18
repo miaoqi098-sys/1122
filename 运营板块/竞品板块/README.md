@@ -31,7 +31,7 @@
 
 10 个主分类是：自有品牌、竞品/替代、促销/交易、节日/季节/礼赠、人群、场景/用途、痛点/功能利益、属性/材质/规格、核心/类目、相关泛词。长尾不是互斥主分类，而是 `query_shape`；核心程度另存为 `strategic_tier`。
 
-新建任务和读取经营词库都需要 `SIF_RESEARCH_ACCESS_KEY`。该密钥由操作者自行设置，只在页面内存中使用；SIF MCP 密钥永远不进入网页。任务通过 Cloudflare Queue 按 ASIN、SIF 页和分类批次续跑，即使用户关闭页面仍可继续。
+新建任务和读取经营词库都需要 1122 统一登录会话。登录口令仅由 SIF Bridge 服务端校验，网页不再接收 `SIF_RESEARCH_ACCESS_KEY`；SIF MCP 密钥永远不进入网页。任务通过 Cloudflare Queue 按 ASIN、SIF 页和分类批次续跑，即使用户关闭页面仍可继续。
 
 ## 主要数据源
 - Sif MCP

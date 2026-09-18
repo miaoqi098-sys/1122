@@ -25,7 +25,7 @@ Agent-4 广告智能体；跨域最终经营决策仍由 Agent-1 输出。
 | Profiles | 真实读取为 4 个 |
 | US 广告结构 | 当前真实 US Profile 返回 1 个 Campaign、2 个 Ad Groups |
 | 数据模式 | `LIVE_READ / READ_ONLY` |
-| 写能力 | `CLOSED`：预算、竞价、状态、关键词、否定词等写操作均未开放 |
+| 写能力 | `CONTROLLED`：仅单条 Sponsored Products Campaign 状态切换可在统一登录会话、人工确认和幂等控制下执行；预算、竞价、关键词、否定词等写操作仍未开放 |
 
 上述数量是最近一次真实读取快照。页面应在每次请求后显示检查时间与错误状态；读取失败时保持未知，不能用 0 或旧快照伪装成功。
 
@@ -48,4 +48,4 @@ Agent-4 广告智能体；跨域最终经营决策仍由 Agent-1 输出。
 
 未来如开放竞价、预算、暂停关键词、否定词、Campaign 状态变更等动作，必须通过 Task Center、审批与受控 Executor；当前尚未开放这些操作。
 
-CORS 仅是浏览器跨域规则，不是用户鉴权。Cloudflare Access 或等价会话鉴权需等用户确认允许身份后再配置。
+CORS 仅是浏览器跨域规则，不是用户鉴权。Web Console 的统一登录会话负责控制台访问和现有受控操作的身份验证；它不替代 Task、审批、权限边界或受控 Executor。

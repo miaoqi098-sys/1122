@@ -1,0 +1,65 @@
+name: Verify Web Console Access V1
+
+on:
+  pull_request:
+    paths:
+      - 'web-console/**'
+      - 'shared/web-console-access-session.js'
+      - 'shared/tests/web-console-access-session.test.mjs'
+      - '对外连接板块/03_1122连接Sif/worker/**'
+      - '对外连接板块/02_1122连接亚马逊API/ads-worker/**'
+      - '数据板块/09_数据库迁移与版本/migrations/0099_web_console_access_login_rate_limit.sql'
+      - '.github/workflows/deploy-sif-bridge.yml'
+      - '.github/workflows/verify-web-console-access-v1.yml'
+  push:
+    branches: ['main']
+    paths:
+      - 'web-console/**'
+      - 'shared/web-console-access-session.js'
+      - 'shared/tests/web-console-access-session.test.mjs'
+      - '对外连接板块/03_1122连接Sif/worker/**'
+      - '对外连接板块/02_1122连接亚马逊API/ads-worker/**'
+      - '数据板块/09_数据库迁移与版本/migrations/0099_web_console_access_login_rate_limit.sql'
+      - '.github/workflows/deploy-sif-bridge.yml'
+      - '.github/workflows/verify-web-console-access-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify access-session behavior
+        run: |
+          node --test shared/tests/web-console-access-session.test.mjs
+          node --test '对外连接板块/03_1122连接Sif/worker/tests/research-auth.test.mjs'
+          node --test '对外连接板块/02_1122连接亚马逊API/ads-worker/tests/session-write-gate.test.mjs'
+          node --test web-console/tests/auth-shell-contract.test.mjs
+          node --test web-console/tests/auth-client.test.mjs
+      - name: Verify browser and Worker syntax
+        run: |
+          node --check web-console/auth-client.js
+          node --check web-console/app.js
+          node --check web-console/ads-page.js
+          node --check web-console/competitor-keywords-page.js
+          node --check shared/web-console-access-session.js
+          node --check '对外连接板块/03_1122连接Sif/worker/worker.js'
+          node --check '对外连接板块/03_1122连接Sif/worker/research.js'
+          node --check '对外连接板块/02_1122连接亚马逊API/ads-worker/worker.js'
+      - name: Verify no browser password field remains outside the unified login form
+        run: |
+          ! grep -q 'research-access-key' web-console/competitor-keywords-page.js
+          ! grep -q 'ads-write-key' web-console/ads-page.js
+          ! grep -q 'X-1122-Ads-Write-Key' web-console/ads-page.js
+          grep -q 'WEB_CONSOLE_SESSION_SIGNING_KEY' '对外连接板块/03_1122连接Sif/README.md'
+      - name: Verify the login rate-limit migration contract
+        run: |
+          test -f '数据板块/09_数据库迁移与版本/migrations/0099_web_console_access_login_rate_limit.sql'
+          sqlite3 /tmp/web-console-access.db < '数据板块/09_数据库迁移与版本/migrations/0099_web_console_access_login_rate_limit.sql'
+          sqlite3 /tmp/web-console-access.db '.tables' | grep -q 'access_login_rate_limit_windows'

@@ -15,12 +15,10 @@
     && typeof value.import.group_id === 'string' && typeof value.import.status === 'string';
   const MAX_UI_BATCH_ASINS = 100;
   const MAX_UI_IMPORTED_KEYWORDS = 2_000;
-  let accessKey = '';
   let taxonomy = null;
   let capability = null;
   let groups = [];
   let groupsLoadError = '';
-  let unlockMessage = '';
   let activeJobId = null;
   let activeGroupId = null;
   let activeKeywordItems = [];
@@ -62,8 +60,8 @@
 
   async function api(path, options = {}) {
     const method = options.method || 'GET';
-    const headers = { Accept: 'application/json', ...(options.headers || {}) };
-    if (options.auth !== false && accessKey) headers.Authorization = `Bearer ${accessKey}`;
+    const accessHeaders = options.auth === false ? {} : (window.__1122_AUTH__?.authorizationHeaders?.() || {});
+    const headers = { Accept: 'application/json', ...(options.headers || {}), ...accessHeaders };
     if (options.body !== undefined) headers['Content-Type'] = 'application/json';
     const attempts = method === 'GET' ? 2 : 1;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -87,6 +85,7 @@
           error.retryable = payload.error?.retryable === true;
           error.status = response.status;
           error.validation = payload.validation;
+          if (response.status === 401 && /^SESSION_/.test(error.code)) window.__1122_AUTH__?.logout?.();
           throw error;
         }
         if (options.validate && !options.validate(payload)) throw new Error('接口返回结构不完整');
@@ -121,9 +120,9 @@
     return `${values.year}-${values.month}-01`;
   }
 
-  // This draft intentionally lives only in the current page process. It makes
-  // an unlock/re-render safe without putting ASINs or the operation key in
-  // localStorage, sessionStorage, or a URL.
+  // This draft intentionally lives only in the current page process. It keeps
+  // unsubmitted ASINs and group inputs out of localStorage, sessionStorage,
+  // and URLs. Access is provided by the global 1122 session instead.
   const researchDraft = {
     asins: '',
     jobName: '',
@@ -138,7 +137,7 @@
 
   // Imported terms are intentionally scoped to a product group and held only
   // in this page process until the operator explicitly saves them. This keeps
-  // the operation key and unsubmitted keyword list out of storage and URLs.
+  // unsubmitted keyword lists out of storage and URLs.
   const importDraft = {
     keywords: '',
     importName: '',
@@ -224,7 +223,7 @@
   }
 
   function executionReady() {
-    return Boolean(accessKey && capability?.access_key_configured);
+    return Boolean(window.__1122_AUTH__?.isAuthenticated?.() && capability?.session_auth_configured && capability?.web_console_login_configured);
   }
 
   function groupLabel(group, fallback = '历史未分组') {
@@ -279,25 +278,21 @@
       </div>`;
   }
 
-  function unlockPanel(message = '') {
-    const configured = Boolean(capability?.access_key_configured);
+  function accessPanel() {
+    const configured = Boolean(capability?.web_console_login_configured);
     const ready = executionReady();
     return `<section class="card card-elevated section research-unlock">
         <div>
-          <div class="item-title">${ready ? '关键词研究操作已解锁' : (configured ? '输入关键词研究操作密钥以启用执行' : '关键词研究执行尚未配置')}</div>
-          <div class="item-meta">${esc(message || (ready
-            ? 'ASIN 输入和分组草稿只保留在当前页面内存。'
+          <div class="item-title">${ready ? '1122 登录会话已覆盖关键词研究' : (configured ? '1122 登录会话需要重新验证' : '关键词研究访问会话尚未配置')}</div>
+          <div class="item-meta">${ready
+            ? '此工作台使用当前 1122 登录会话，不再要求输入关键词研究操作密钥。ASIN 与分组草稿仍只保留在当前页面内存。'
             : configured
-              ? 'ASIN 与分组输入区始终可用；输入正确的操作密钥后才能提交 SIF 查询。'
-              : 'ASIN 与分组输入区已经可填写，但 Worker 尚未配置 SIF_RESEARCH_ACCESS_KEY，因此不能提交付费查询。'))}</div>
+              ? '请重新登录 1122 后再执行 SIF 查询。'
+              : '管理员需为 SIF Bridge 配置 WEB_CONSOLE_SESSION_SIGNING_KEY；网页不会接收或保存 SIF 访问密钥。'}</div>
         </div>
-        <div class="research-unlock-controls">
-          <label><span class="field-label">操作密钥（只保存在当前页面内存）</span><input id="research-access-key" class="field" type="password" autocomplete="off" spellcheck="false" ${configured && !ready ? '' : 'disabled'} /></label>
-          <button id="research-unlock" class="btn btn-primary" type="button" ${configured && !ready ? '' : 'disabled'}>${ready ? '已解锁' : '解锁执行'}</button>
-        </div>
+        <span class="tag tag-${ready ? 'ok' : 'warn'}">${ready ? 'SESSION ACTIVE' : 'SESSION REQUIRED'}</span>
       </section>
-      <div id="research-unlock-error" class="section"></div>
-      ${ready ? '' : '<div class="notice warn section"><strong>执行边界：</strong>新建任务会消耗 SIF 查询额度。CORS 不能验证操作者身份，因此页面不会在没有独立操作密钥时提交查询；这不会隐藏 ASIN 输入窗口。</div>'}`;
+      ${ready ? '' : '<div class="notice warn section"><strong>执行边界：</strong>新建任务会消耗 SIF 查询额度。只有服务端验证的 1122 登录会话可提交查询；这不会隐藏 ASIN 输入窗口。</div>'}`;
   }
 
   function taxonomyPanel() {
@@ -327,7 +322,7 @@
         <label><span class="field-label">时间粒度</span><select id="research-granularity" class="field"><option value="month" ${researchDraft.granularity === 'month' ? 'selected' : ''}>月</option><option value="week" ${researchDraft.granularity === 'week' ? 'selected' : ''}>周</option><option value="day" ${researchDraft.granularity === 'day' ? 'selected' : ''}>日</option></select></label>
         <label><span class="field-label">SIF 周期锚点</span><input id="research-period" class="field" type="date" value="${esc(researchDraft.periodStart)}" required /></label>
         <div class="research-form-wide notice">数据范围是<strong>所选周期内 SIF 能观测到的竞品流量词</strong>，不是 Amazon 所有搜索查询。系统逐页读取，达到安全上限时会明确标记“已截断”。</div>
-        <div class="research-form-wide toolbar"><button id="research-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '开始分析' : '等待执行授权'}</button><span class="field-help">${ready ? `每小时最多 ${capability?.limits?.max_asins_per_hour ?? 100} 个 ASIN；超过 ${perJobAsinLimit()} 个会自动拆分，同一分组最终统一去重。` : 'ASIN 与分组草稿会保留到本次页面解锁；配置并输入操作密钥后即可提交。'}</span></div>
+        <div class="research-form-wide toolbar"><button id="research-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '开始分析' : '等待 1122 登录会话'}</button><span class="field-help">${ready ? `每小时最多 ${capability?.limits?.max_asins_per_hour ?? 100} 个 ASIN；超过 ${perJobAsinLimit()} 个会自动拆分，同一分组最终统一去重。` : 'ASIN 与分组草稿会保留在当前页面；完成统一登录与访问会话配置后即可提交。'}</span></div>
       </form>
       <div id="research-form-message" class="section"></div>
     </section>`;
@@ -352,7 +347,7 @@
           <label><span class="field-label">我方品牌（可选）</span><input id="keyword-import-own-brands" class="field" maxlength="300" value="${esc(importDraft.ownBrands)}" placeholder="多个品牌用逗号分隔" /><span class="field-help">用于“自有品牌词”分类，仅在 Worker 的受保护请求中使用。</span></label>
           <label><span class="field-label">市场</span><select id="keyword-import-marketplace" class="field"><option value="US" ${importDraft.marketplace === 'US' ? 'selected' : ''}>美国（US）</option></select></label>
           <div class="research-form-wide notice"><strong>自动处理：</strong>严格去重后，每个词都会按当前 10 类 taxonomy 给出一个主分类、标签、置信度和待复核信号。未命中明确语义规则的词会进入“相关泛词”，不会被悄悄丢弃。</div>
-          <div class="research-form-wide toolbar"><button id="keyword-import-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '导入并分析' : '等待执行授权'}</button><span class="field-help">单次最多 ${importedKeywordLimit()} 个去重关键词；操作密钥不会写入文件、URL 或浏览器存储。</span></div>
+          <div class="research-form-wide toolbar"><button id="keyword-import-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '导入并分析' : '等待 1122 登录会话'}</button><span class="field-help">单次最多 ${importedKeywordLimit()} 个去重关键词；访问密码不会写入文件、URL 或浏览器存储。</span></div>
         </form>
         <div id="keyword-import-message" class="section"></div>
       </section>
@@ -377,15 +372,15 @@
     const emptyTitle = ready ? '选择分组或任务查看词库' : '输入区已就绪，等待执行授权';
     const emptyText = ready
       ? '任务完成后可以按 10 类分类、核心层级、来源 ASIN 和关键词筛选；分组用于隔离不同产品线。'
-      : '填写或选择产品分组并输入 ASIN 后，配置并输入操作密钥即可提交；页面不会隐藏输入窗口。';
+      : '填写或选择产品分组并输入 ASIN 后，完成 1122 登录与访问会话配置即可提交；页面不会隐藏输入窗口。';
     const resultShell = shouldLoadResult
       ? '<div class="card"><div class="skeleton skeleton-line"></div></div>'
       : `<div class="empty-state"><div class="empty-icon">⌕</div><h2>${emptyTitle}</h2><p>${emptyText}</p></div>`;
-    return `${hero(`${executionReady() ? '<button id="research-open-import" class="btn btn-primary" type="button">导入关键词</button><button id="research-lock" class="btn" type="button">锁定执行</button>' : '<button id="research-open-import" class="btn" type="button" disabled>导入关键词</button>'}<a class="btn" href="#/operations/competitors">竞品中心</a>`)}
+    return `${hero(`${executionReady() ? '<button id="research-open-import" class="btn btn-primary" type="button">导入关键词</button>' : '<button id="research-open-import" class="btn" type="button" disabled>导入关键词</button>'}<a class="btn" href="#/operations/competitors">竞品中心</a>`)}
       ${overviewCards()}
-      ${unlockPanel(unlockMessage)}
+      ${accessPanel()}
       <div class="research-layout section"><div>${formPanel()}</div><div>${historyPanel(jobs)}</div></div>
-      ${groupsLoadError ? `<div class="notice warn section"><strong>分组列表暂时不可读取：</strong>${esc(groupsLoadError)}。你仍可填写新分组名称；解锁后重试即可加载已保存分组。</div>` : ''}
+      ${groupsLoadError ? `<div class="notice warn section"><strong>分组列表暂时不可读取：</strong>${esc(groupsLoadError)}。你仍可填写新分组名称；重新登录后重试即可加载已保存分组。</div>` : ''}
       <div id="research-result" class="section">${resultShell}</div>
       ${taxonomyPanel()}
       ${importDialog()}`;
@@ -579,7 +574,7 @@
   }
 
   async function downloadCsv(path, fallbackFilename) {
-    if (!executionReady()) throw new Error('请先输入正确的关键词研究操作密钥。');
+    if (!executionReady()) throw new Error('请先完成 1122 登录并确认关键词研究访问会话已配置。');
     let response;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const controller = new AbortController();
@@ -587,7 +582,7 @@
       try {
         response = await fetch(`${API_BASE}${path}`, {
           method: 'GET',
-          headers: { Accept: 'text/csv', Authorization: `Bearer ${accessKey}` },
+          headers: { Accept: 'text/csv', ...(window.__1122_AUTH__?.authorizationHeaders?.() || {}) },
           signal: controller.signal,
         });
         if ([502, 503, 504].includes(response.status) && attempt === 0) continue;
@@ -603,11 +598,17 @@
     if (!response) throw new Error('下载请求未完成。');
     if (!response.ok) {
       let message = `HTTP ${response.status}`;
+      let code = `HTTP_${response.status}`;
       try {
         const payload = await response.json();
         message = payload?.error?.message || payload?.message || message;
+        code = payload?.error?.code || code;
       } catch {}
-      throw new Error(message);
+      if (response.status === 401 && /^SESSION_/.test(code)) window.__1122_AUTH__?.logout?.();
+      const error = new Error(message);
+      error.code = code;
+      error.status = response.status;
+      throw error;
     }
     const blob = await response.blob();
     const disposition = response.headers.get('Content-Disposition') || '';
@@ -986,7 +987,7 @@
       event.preventDefault();
       rememberImportDraft();
       if (!executionReady()) {
-        showMessage('keyword-import-message', '请先输入正确的关键词研究操作密钥。');
+        showMessage('keyword-import-message', '请先完成 1122 登录并确认关键词研究访问会话已配置。');
         return;
       }
       const parsed = parseImportedKeywords(importDraft.keywords);
@@ -1044,15 +1045,6 @@
       }
     });
 
-    document.getElementById('research-lock')?.addEventListener('click', () => {
-      rememberResearchDraft();
-      accessKey = '';
-      pollGeneration += 1;
-      activeJobId = null;
-      activeGroupId = null;
-      unlockMessage = '';
-      location.hash = workbenchHref();
-    });
     document.getElementById('research-refresh-jobs')?.addEventListener('click', () => {
       rememberResearchDraft();
       window.dispatchEvent(new HashChangeEvent('hashchange'));
@@ -1088,9 +1080,9 @@
       event.preventDefault();
       rememberResearchDraft();
       if (!executionReady()) {
-        showMessage('research-form-message', capability?.access_key_configured
-          ? '请先输入正确的关键词研究操作密钥，再开始分析。'
-          : 'SIF_RESEARCH_ACCESS_KEY 尚未配置；ASIN 与分组草稿不会丢失，但当前不能提交查询。');
+        showMessage('research-form-message', capability?.web_console_login_configured
+          ? '1122 登录会话不可用或已失效，请重新登录后再开始分析。'
+          : '关键词研究访问会话尚未配置；ASIN 与分组草稿不会丢失，但当前不能提交查询。');
         return;
       }
       const button = document.getElementById('research-submit');
@@ -1166,31 +1158,6 @@
     });
   }
 
-  function bindUnlockEvents(isCurrent) {
-    document.getElementById('research-unlock')?.addEventListener('click', async event => {
-      const button = event.currentTarget;
-      const value = document.getElementById('research-access-key')?.value.trim() || '';
-      if (!value) { showMessage('research-unlock-error', '请输入操作密钥。'); return; }
-      rememberResearchDraft();
-      button.disabled = true;
-      button.setAttribute('aria-busy', 'true');
-      accessKey = value;
-      try {
-        await loadJobs(activeGroupId || '');
-        unlockMessage = '';
-        if (isCurrent()) window.dispatchEvent(new HashChangeEvent('hashchange'));
-      } catch (error) {
-        accessKey = '';
-        showMessage('research-unlock-error', error.message);
-        button.disabled = false;
-        button.removeAttribute('aria-busy');
-      }
-    });
-    document.getElementById('research-access-key')?.addEventListener('keydown', event => {
-      if (event.key === 'Enter') document.getElementById('research-unlock')?.click();
-    });
-  }
-
   async function renderCompetitorKeywords({ query, view, setChrome, isCurrent }) {
     setChrome('竞品关键词工作台', '经营 / 运营 / 竞品 / 关键词工作台');
     view.innerHTML = `${hero()}<div class="section"><div class="card"><div class="skeleton skeleton-line"></div></div></div>`;
@@ -1220,8 +1187,8 @@
         jobs = payload.jobs || [];
       } catch (error) {
         if (error.status === 401) {
-          accessKey = '';
-          unlockMessage = '操作密钥无效或已轮换，请重新输入。';
+          window.__1122_AUTH__?.logout?.();
+          groupsLoadError = '1122 登录会话已失效，请重新登录后重试。';
         } else {
           groupsLoadError = groupsLoadError ? `${groupsLoadError}；任务列表：${error.message}` : `任务列表：${error.message}`;
         }
@@ -1234,7 +1201,6 @@
 
     if (!isCurrent()) return;
     view.innerHTML = workspaceShell(jobs);
-    bindUnlockEvents(isCurrent);
     bindWorkspaceEvents(isCurrent);
     if (!executionReady()) return;
     if (activeJobId) await renderSelectedJob(isCurrent);

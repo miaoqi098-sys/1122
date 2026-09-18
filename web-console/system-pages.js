@@ -73,7 +73,7 @@
           <div class="card"><div class="split-title"><div class="item-title">R2 Archive</div>${tag(cf.r2?.enabled ? 'AVAILABLE' : 'NOT ENABLED')}</div><div class="item-meta">检测到的凭据名称不等于服务已启用；当前 bucket 数 ${cf.r2?.bucket_count ?? '—'}。</div></div>
         </div>
       </section>
-      <div class="notice warn section"><strong>访问控制待办：</strong>现有 CORS allow-list 不是登录认证。正式承载内部经营数据前，需要为 Pages 与读取 Worker 增加 Cloudflare Access 或等价的会话鉴权；本次未在不知道允许用户身份的情况下擅自锁定站点。</div>
+      <div class="notice warn section"><strong>访问控制边界：</strong>1122 控制台入口、SIF 关键词研究和 Ads 状态写入使用统一登录会话；CORS 仍不是认证。其他既有只读 Bridge 如需作为私有 API 发布，仍须接入同一会话或 Cloudflare Access。</div>
     `;
     const ids = Object.keys(window.__1122_CONNECTORS__?.registry || {});
     const health = await Promise.all(ids.map(id => window.__1122_CONNECTORS__.read(id)));
@@ -143,13 +143,13 @@
     if (!isCurrent()) return;
     const target = document.getElementById('competitor-status');
     if (!target) return;
-    const researchReady = health.details?.research_configured === true;
-    const accessReady = health.details?.research_access_configured === true;
+    const sessionReady = health.details?.research_login_configured === true;
+    const researchReady = health.details?.research_configured === true && sessionReady;
     target.innerHTML = `
       <div class="grid grid-3">
         <div class="card metric-card"><div class="metric-label">SIF 连接</div><div class="metric-value compact-value">${esc(health.status)}</div><div class="metric-meta">${fmtTime(health.checked_at)}</div></div>
         <div class="card metric-card"><div class="metric-label">可发现工具</div><div class="metric-value">${health.details?.tool_count ?? '—'}</div><div class="metric-meta">${esc(health.details?.server || '—')}</div></div>
-        <div class="card metric-card"><div class="metric-label">关键词任务能力</div><div class="metric-value compact-value">${researchReady ? 'READY' : accessReady ? 'DEGRADED' : 'AUTH REQUIRED'}</div><div class="metric-meta">Queue ${health.details?.queue_bound ? '已绑定' : '未绑定'} · 单次最多 ${health.details?.research_max_asins ?? 10} ASIN</div></div>
+        <div class="card metric-card"><div class="metric-label">关键词任务能力</div><div class="metric-value compact-value">${researchReady ? 'READY' : sessionReady ? 'DEGRADED' : 'AUTH REQUIRED'}</div><div class="metric-meta">Queue ${health.details?.queue_bound ? '已绑定' : '未绑定'} · 单次最多 ${health.details?.research_max_asins ?? 10} ASIN</div></div>
       </div>
       <div class="flow section">
         <div class="flow-step"><div class="flow-index">01</div><div class="flow-title">批量 ASIN</div><div class="flow-desc">校验、输入内去重</div></div>
@@ -163,7 +163,7 @@
         <article class="card"><div class="goal-icon">◫</div><div class="goal-title">竞品池</div><div class="goal-desc">待建立 CompetitorIdentity 与“为什么跟踪”关系；不把关键词任务自动冒充竞品实体。</div></article>
         <article class="card"><div class="goal-icon">◇</div><div class="goal-title">广告与 Listing 联动</div><div class="goal-desc">词库只提供研究证据；后续形成草稿并通过 Task / Approval，不直接修改 Amazon。</div></article>
       </div>
-      <div class="notice warn section">${accessReady ? '关键词研究操作密钥已配置；进入工作台后仍需在当前会话输入。' : '关键词查询会消耗 SIF 额度。请先为 Worker 配置独立的 SIF_RESEARCH_ACCESS_KEY；不会把 SIF 密钥交给网页。'}</div>`;
+      <div class="notice warn section">${sessionReady ? '关键词研究由当前 1122 登录会话保护；进入工作台后无需再输入关键词操作密钥。' : '关键词查询会消耗 SIF 额度。请先为 SIF Bridge 配置 WEB_CONSOLE_SESSION_SIGNING_KEY；网页不会接收或保存 SIF 密钥。'}</div>`;
   }
 
   async function renderOffsite({ view, setChrome, isCurrent }) {
@@ -222,7 +222,7 @@
         <div class="flow-step"><div class="flow-index">04</div><div class="flow-title">Approval / Permission</div><div class="flow-desc">人工与权限双门</div></div>
         <div class="flow-step"><div class="flow-index">05</div><div class="flow-title">Executor / Outcome</div><div class="flow-desc">受控执行与回写</div></div>
       </div>
-      <div class="notice bad section"><strong>身份认证缺口：</strong>CORS 只能控制浏览器跨域，不能替代登录。Cloudflare Access 的允许身份尚未由用户确认，因此本次保留现状并将其列为上线前安全门槛。</div>
+      <div class="notice bad section"><strong>权限不绕过：</strong>1122 登录会话替代页面内重复输入的操作密钥，但不会绕过既有 Task、Approval、Permission、人工确认与 Executor 边界。</div>
     `;
   }
 
@@ -331,6 +331,8 @@
         <div class="card"><div class="item-title">APRExplorationView</div><div class="item-meta">市场观察与边界信号。</div></div>
         <div class="card"><div class="item-title">PositiveOperatingMethodView</div><div class="item-meta">正向方法与适用条件。</div></div>
         <div class="card"><div class="item-title">AmazonPolicyBoundaryView</div><div class="item-meta">政策证据与边界结论。</div></div>
+        <div class="card"><div class="item-title">DailyOperatingBriefView</div><div class="item-meta">每日战略上下文、Signal、根因、动作、验证与阶段复核；读模型缺失时保留 NEEDS_DATA。</div></div>
+        <div class="card"><div class="item-title">ProductPromotionPlanView</div><div class="item-meta">产品阶段、瓶颈、策略、证据、观察窗口与审批等级；缺失数据不作推断。</div></div>
       </div></section>
     `;
   }

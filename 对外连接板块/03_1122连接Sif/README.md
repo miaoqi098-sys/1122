@@ -12,7 +12,9 @@
 - MCP 密钥管理：`https://www.sif.com/mcp?tab=secret`
 - 认证：`secret-key` Header（请求头）；Sif 官方同时兼容 URL `?secret-key=` 方式，但 1122 不把密钥放进 URL。
 - Secret（加密密钥）名称：`SIF_MCP_SECRET`
-- 关键词工作台操作密钥：`SIF_RESEARCH_ACCESS_KEY`（独立于 SIF 密钥，由操作者自行设置）
+- 1122 控制台登录口令：优先 `WEB_CONSOLE_ACCESS_KEY`（只配置为 SIF Bridge Worker Secret）；迁移期间，现有 `SIF_RESEARCH_ACCESS_KEY` 作为兼容登录密码来源
+- 1122 会话签名密钥：优先 `WEB_CONSOLE_SESSION_SIGNING_KEY`（高熵值；SIF 与 Ads Bridge 使用同一值验证短时会话）；未配置时 SIF 仅在服务端以 `SIF_MCP_SECRET` 和域隔离 HMAC 作为迁移签名来源
+- `SIF_RESEARCH_ACCESS_KEY` 不再进入网页；保留其既有非 UI 调用兼容性，并可作为过渡期的统一登录密码来源
 - 默认站点：`US`
 
 ## 1122 架构
@@ -61,7 +63,12 @@ Sif MCP Tools
 - `GET /research-status`
 - `GET /api/v1/keyword-taxonomy`
 
-受 `SIF_RESEARCH_ACCESS_KEY` Bearer 保护的业务接口：
+统一登录会话接口（仅正式 `https://1122.sorilo-uk.com` Origin 可调用；预览和旧站点不能签发会话）：
+
+- `POST /access/session`：以 `WEB_CONSOLE_ACCESS_KEY` 验证登录口令并签发短时会话；
+- `GET /access/session`：验证当前会话，不回传口令或 Token。
+
+受 1122 签名会话 Bearer 保护的业务接口：
 
 - `POST /api/v1/competitor-keyword-runs`
 - `GET /api/v1/competitor-keyword-runs`
@@ -77,9 +84,12 @@ Sif MCP Tools
 
 ## 安全边界
 - `SIF_MCP_SECRET` 不提交 GitHub、不写入 1122 前端、不写 localStorage；
-- `SIF_RESEARCH_ACCESS_KEY` 不提交 GitHub、不写 localStorage；页面刷新后必须重新输入；
+- `WEB_CONSOLE_ACCESS_KEY`、`WEB_CONSOLE_SESSION_SIGNING_KEY`、`SIF_RESEARCH_ACCESS_KEY` 与 `SIF_MCP_SECRET` 均不提交 GitHub、不写入网页或浏览器存储；专用 Web Console Secret 配置后会自动优先于迁移回退；
+- Web Console 只把短时签名会话保留在当前浏览器 tab 的 `sessionStorage`，不保存登录口令；默认 4 小时、最长 8 小时，关闭 tab、会话到期或轮换签名密钥后需重新登录；
+- `POST /access/session` 先用 `CORE_DB` 按可信 `CF-Connecting-IP` 的 HMAC 标识做固定窗口限流（每分钟最多 5 次）；没有 D1、可信客户端 IP 或限流表时失败关闭，不记录原始 IP 或口令；
+- 启用 `WEB_CONSOLE_ACCESS_KEY` 前，域名管理员仍必须在 Cloudflare WAF 为 `sif-api.sorilo-uk.com` 的 `POST /access/session` 配置按源 IP 计数的 Rate Limiting 规则并验证其拦截效果，以覆盖分布式猜测；这属于 Zone 外部安全配置，不能由网页或 Worker 代码假定为已存在；
 - 不在 URL 中传 MCP 密钥，避免日志/历史记录泄露；
 - 公开 1122 页面第一阶段只读取粗粒度连接状态，不开放任意 MCP Tool 代理；
 - 真实数据查询只通过预定义业务接口暴露，禁止任意 JSON-RPC 转发；
 - 调用额度、失败重试和审计进入任务/事件层统一管理；
-- CORS allow-list 不是身份认证；任何消耗 SIF 额度或读取经营词库的接口必须额外验证操作密钥，未来可替换为 Cloudflare Access 会话。
+- CORS allow-list 不是身份认证；任何消耗 SIF 额度或读取经营词库的接口必须验证 1122 会话。Cloudflare Access 可在未来作为更强的身份层叠加，但不会替代现有任务、额度和审计边界。

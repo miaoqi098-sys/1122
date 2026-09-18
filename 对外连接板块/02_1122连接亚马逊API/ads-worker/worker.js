@@ -1,3 +1,5 @@
+import { verifyWebConsoleSession, webConsoleSessionConfigured } from "../../../shared/web-console-access-session.js";
+
 const WEB_ORIGINS = new Set([
   "https://1122.sorilo-uk.com",
   "https://1122-web-agent.pages.dev",
@@ -15,9 +17,11 @@ const TRUSTED_ORIGIN_PATHS = new Set(["/oauth/manual/start", "/oauth/manual/comp
 
 function now() { return new Date().toISOString(); }
 function configured(env) { return Boolean(String(env.AMAZON_ADS_CLIENT_ID || "").trim() && String(env.AMAZON_ADS_CLIENT_SECRET || "").trim()); }
-function writeGateConfigured(env) { return Boolean(String(env.AMAZON_ADS_WRITE_ACCESS_KEY || "").trim()); }
+function legacyWriteGateConfigured(env) { return Boolean(String(env.AMAZON_ADS_WRITE_ACCESS_KEY || "").trim()); }
+function sessionWriteGateConfigured(env) { return webConsoleSessionConfigured(env); }
+function writeGateConfigured(env) { return legacyWriteGateConfigured(env) || sessionWriteGateConfigured(env); }
 function cors(origin) {
-  const headers = { "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Idempotency-Key, X-1122-Ads-Write-Key", "Access-Control-Max-Age": "86400", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Vary": "Origin" };
+  const headers = { "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type, Authorization, Idempotency-Key, X-1122-Ads-Write-Key", "Access-Control-Max-Age": "86400", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Vary": "Origin" };
   if (origin && WEB_ORIGINS.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
   return headers;
 }
@@ -150,9 +154,13 @@ async function readSmallJson(request) {
 }
 async function status(env, region) {
   const checked_at = now();
+  const sessionGateConfigured = sessionWriteGateConfigured(env);
+  const legacyGateConfigured = legacyWriteGateConfigured(env);
   const write = {
-    mode: writeGateConfigured(env) ? "operator-gated" : "not-configured",
+    mode: sessionGateConfigured ? "console-session-gated" : legacyGateConfigured ? "operator-gated" : "not-configured",
     operator_gate_configured: writeGateConfigured(env),
+    session_gate_configured: sessionGateConfigured,
+    legacy_access_key_configured: legacyGateConfigured,
     confirmation_required: true,
     actions: ["sp-campaign-state"],
   };
@@ -280,14 +288,22 @@ async function adGroups(env, region, profileId, campaignId, refreshToken) {
 }
 
 async function requireWriteAccess(request, env) {
+  const session = await verifyWebConsoleSession(request, env, { requiredScope: "ads:campaign-state" });
+  if (session.ok) return;
+  const signedSessionPresented = /^Bearer\s+v1\./i.test(String(request.headers.get("Authorization") || "").trim());
+  if (signedSessionPresented && session.code !== "SESSION_AUTH_NOT_CONFIGURED") {
+    const failure = new Error(session.code);
+    failure.httpStatus = 401;
+    throw failure;
+  }
   const expected = String(env.AMAZON_ADS_WRITE_ACCESS_KEY || "").trim();
   const presented = String(request.headers.get("X-1122-Ads-Write-Key") || "").trim();
-  if (!expected) {
+  if (!expected && session.code === "SESSION_AUTH_NOT_CONFIGURED") {
     const failure = new Error("WRITE_ACCESS_NOT_CONFIGURED");
     failure.httpStatus = 503;
     throw failure;
   }
-  if (!presented || !fixedTimeEqual(presented, expected)) {
+  if (!expected || !presented || !fixedTimeEqual(presented, expected)) {
     const failure = new Error("WRITE_ACCESS_DENIED");
     failure.httpStatus = 401;
     throw failure;
@@ -373,8 +389,12 @@ function writeError(origin, cause) {
   const code = String(cause?.message || "WRITE_FAILED");
   const status = Number(cause?.httpStatus || 502);
   const messages = {
-    WRITE_ACCESS_NOT_CONFIGURED: "受控写入尚未配置管理员操作密钥。",
-    WRITE_ACCESS_DENIED: "写入操作密钥无效。",
+    WRITE_ACCESS_NOT_CONFIGURED: "受控写入尚未配置统一登录会话或遗留服务端访问门禁。",
+    WRITE_ACCESS_DENIED: "受控写入访问验证未通过。",
+    SESSION_REQUIRED: "1122 登录会话无效、已过期或没有所需权限。",
+    SESSION_INVALID: "1122 登录会话无效、已过期或没有所需权限。",
+    SESSION_EXPIRED: "1122 登录会话无效、已过期或没有所需权限。",
+    SESSION_SCOPE_DENIED: "1122 登录会话无效、已过期或没有所需权限。",
     WRITE_CONFIRMATION_REQUIRED: "写入必须包含明确的人工确认。",
     IDEMPOTENCY_KEY_REQUIRED: "写入必须带有效的幂等键。",
     IDEMPOTENCY_KEY_CONFLICT: "此幂等键已被另一项不同操作使用。",

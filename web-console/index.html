@@ -6,9 +6,9 @@
   <title>1122 亚马逊智能经营系统</title>
   <meta name="description" content="1122 Amazon Intelligent Operations Console" />
   <meta name="color-scheme" content="light" />
-  <link rel="stylesheet" href="./styles.css?v=20260910-keyword-library-v4" />
+  <link rel="stylesheet" href="./styles.css?v=20260918-operations-planning-v1" />
 </head>
-<body>
+<body class="access-pending">
   <a class="skip-link" href="#main-content">跳到主要内容</a>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar" aria-label="主导航">
@@ -55,6 +55,10 @@
             <span class="health-dot" aria-hidden="true"></span>
             <span>连接检查中</span>
           </a>
+          <div id="session-control" class="session-control" hidden>
+            <span id="session-state" class="session-pill" title="1122 登录会话">会话检查中</span>
+            <button id="session-logout" class="btn btn-quiet session-logout" type="button">退出</button>
+          </div>
         </div>
       </header>
 
@@ -62,6 +66,21 @@
       <section id="view" class="view" aria-busy="true"></section>
     </main>
   </div>
+
+  <section id="access-gate" class="access-gate" aria-labelledby="access-title" aria-live="polite">
+    <div class="access-panel">
+      <div class="access-brand" aria-hidden="true"><span>11</span></div>
+      <div class="hero-eyebrow">1122 OPERATIONS CONSOLE</div>
+      <h1 id="access-title">登录后进入经营工作台</h1>
+      <p>使用 1122 统一访问密码进入控制台。登录会话会覆盖仪表盘、竞品关键词研究与已配置的 Ads 受控操作，无需在页面内重复输入密钥。</p>
+      <form id="access-login-form" class="access-login-form">
+        <label for="access-password"><span class="field-label">1122 访问密码</span><input id="access-password" class="field" type="password" autocomplete="current-password" spellcheck="false" required /></label>
+        <button id="access-login-submit" class="btn btn-primary access-login-submit" type="submit" disabled>进入 1122</button>
+      </form>
+      <div id="access-login-status" class="access-login-status" role="status"></div>
+      <div class="access-boundary"><strong>安全边界：</strong>登录会话只替代页面内重复输入的操作密钥；它不会绕过既有 Task、Approval、Permission、人工确认与幂等控制。</div>
+    </div>
+  </section>
 
   <template id="empty-template">
     <div class="empty-state">
@@ -73,17 +92,19 @@
 
   <script src="./data/snapshots.js?v=20260910-keywords-v3"></script>
   <script src="./data/system-catalog.js?v=20260910-keywords-v3"></script>
-  <script src="./registry.js?v=20260910-ads-write-v4"></script>
-  <script src="./data/data-source.js?v=20260910-keywords-v3"></script>
-  <script src="./connectors-live.js?v=20260910-keywords-v3"></script>
-  <script src="./home-live.js?v=20260910-keywords-v3"></script>
-  <script src="./live-pages.js?v=20260910-keywords-v3"></script>
+  <script src="./registry.js?v=20260918-operations-planning-v1"></script>
+  <script src="./auth-client.js?v=20260918-console-access-v1"></script>
+  <script src="./data/data-source.js?v=20260918-console-access-v1"></script>
+  <script src="./connectors-live.js?v=20260918-console-access-v1"></script>
+  <script src="./home-live.js?v=20260918-operations-planning-v1"></script>
+  <script src="./live-pages.js?v=20260918-operations-planning-v1"></script>
+  <script src="./operations-planning-pages.js?v=20260918-operations-planning-v1"></script>
   <script src="./knowledge-page.js?v=20260910-keywords-v3"></script>
   <script src="./boundary-pages.js?v=20260910-keywords-v3"></script>
-  <script src="./system-pages.js?v=20260910-keywords-v3"></script>
-  <script src="./connector-pages.js?v=20260910-keywords-v3"></script>
-  <script src="./ads-page.js?v=20260910-ads-write-v4"></script>
-  <script src="./competitor-keywords-page.js?v=20260910-keyword-library-v4"></script>
-  <script src="./app.js?v=20260910-keywords-v3"></script>
+  <script src="./system-pages.js?v=20260918-operations-planning-v1"></script>
+  <script src="./connector-pages.js?v=20260918-console-access-v1"></script>
+  <script src="./ads-page.js?v=20260918-console-access-v1"></script>
+  <script src="./competitor-keywords-page.js?v=20260918-console-access-v1"></script>
+  <script src="./app.js?v=20260918-console-access-v1"></script>
 </body>
 </html>

@@ -50,6 +50,8 @@
           ingestion_mode: payload.dataLayer?.ingestionMode || null,
           research_configured: payload.research?.configured === true,
           research_access_configured: payload.research?.access_key_configured === true,
+          research_session_configured: payload.research?.session_auth_configured === true,
+          research_login_configured: payload.research?.web_console_login_configured === true,
           research_max_asins: Number.isInteger(payload.research?.limits?.max_asins_per_job) ? payload.research.limits.max_asins_per_job : null,
           research_source_tool: payload.research?.source_tool || null
         },

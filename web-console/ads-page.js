@@ -138,12 +138,12 @@
   }
 
   function writePanel(write) {
-    const enabled = Boolean(write?.operator_gate_configured);
+    const enabled = Boolean(write?.session_gate_configured);
     return `<section class="card section card-elevated">
-      <div class="section-head"><div><h2>受控 Campaign 状态写入</h2><div class="section-sub">仅 Sponsored Products · ENABLED / PAUSED · 单条、人工确认、幂等且不自动重试</div></div>${tag(enabled ? 'OPERATOR GATE READY' : 'WRITE GATE NOT CONFIGURED')}</div>
+      <div class="section-head"><div><h2>受控 Campaign 状态写入</h2><div class="section-sub">仅 Sponsored Products · ENABLED / PAUSED · 单条、人工确认、幂等且不自动重试</div></div>${tag(enabled ? 'SESSION GATE READY' : 'WRITE GATE NOT CONFIGURED')}</div>
       ${enabled
-        ? `<div class="ads-toolbar"><label><span class="field-label">本次操作密钥</span><input id="ads-write-key" class="field" type="password" autocomplete="off" spellcheck="false" placeholder="仅保存在此页面内存中" /></label><div class="item-meta">选择 Campaign 后会出现状态切换按钮。每次请求都需要新的幂等键和浏览器确认；不会保存操作密钥。</div></div>`
-        : `<div class="notice warn">读取已真实连接；写入门禁尚未配置。管理员需仅在 Cloudflare 的 <span class="code">1122-amazon-ads-bridge</span> Worker Secrets 中添加 <span class="code">AMAZON_ADS_WRITE_ACCESS_KEY</span>，然后重新打开本页。不要把该值发到聊天、代码仓库或 URL。</div>`}
+        ? `<div class="notice ok">已使用 1122 统一登录会话验证操作人；无需再次输入广告操作密钥。选择 Campaign 后仍必须逐次人工确认，Worker 仍要求幂等键，且不会自动重试。</div>`
+        : `<div class="notice warn">读取已真实连接；统一登录会话写入门禁尚未配置。管理员需在 Amazon Ads Bridge 配置与 1122 登录服务相同的 <span class="code">WEB_CONSOLE_SESSION_SIGNING_KEY</span>；不会把任何密钥交给网页。</div>`}
       <div id="ads-write-status" role="status" aria-live="polite"></div>
     </section>`;
   }
@@ -194,7 +194,7 @@
       if (!visible.some(campaign => campaign.campaignId === selectedCampaignId)) selectedCampaignId = visible[0]?.campaignId || null;
       const selected = campaigns.find(campaign => campaign.campaignId === selectedCampaignId);
       const groups = selected ? adGroups.filter(group => group.campaignId === selected.campaignId) : [];
-      const canChangeSelectedState = Boolean(selected && write?.operator_gate_configured && ['ENABLED', 'PAUSED'].includes(selected.state));
+      const canChangeSelectedState = Boolean(selected && write?.session_gate_configured && window.__1122_AUTH__?.isAuthenticated?.() && ['ENABLED', 'PAUSED'].includes(selected.state));
       const nextState = selected?.state === 'PAUSED' ? 'ENABLED' : 'PAUSED';
       target.innerHTML = `
         <div class="ads-structure">
@@ -222,10 +222,9 @@
 
     async function applyCampaignState(campaign, nextState) {
       const profile = currentProfile();
-      const accessKey = document.getElementById('ads-write-key')?.value || '';
       const statusBox = document.getElementById('ads-write-status');
-      if (!profile || !campaign || !accessKey.trim()) {
-        if (statusBox) statusBox.innerHTML = '<div class="notice warn">请先输入本次操作密钥，再选择可修改状态的 Campaign。</div>';
+      if (!profile || !campaign || !window.__1122_AUTH__?.isAuthenticated?.()) {
+        if (statusBox) statusBox.innerHTML = '<div class="notice warn">1122 登录会话不可用。请重新登录后再发起受控写入。</div>';
         return;
       }
       const approved = window.confirm(`确认将 Campaign “${campaign.name}” (${campaign.campaignId}) 设置为 ${nextState}？此操作会写入 Amazon Ads，且不会自动重试。`);
@@ -240,7 +239,6 @@
           headers: {
             'Content-Type': 'application/json',
             'Idempotency-Key': requestId,
-            'X-1122-Ads-Write-Key': accessKey.trim(),
           },
           body: JSON.stringify({
             profile_id: profile.profileId,
@@ -346,7 +344,7 @@
       ? '<a class="btn btn-primary" href="#/operations/ads">打开广告工作台</a><a class="btn" href="#/connectors">返回连接中心</a>'
       : '<a class="btn btn-primary" href="#/connectors/amazon-ads">连接设置</a><a class="btn" href="#/operations/products">产品中心</a>';
     view.innerHTML = `
-      <div class="source-bar"><span class="source-label">Amazon Ads Bridge</span>${tag(health.status)}<span>${esc(details.region || 'NA')}</span><span>Checked ${esc(fmtTime(health.checked_at))}</span><span>${write.operator_gate_configured ? '受控写入已配置' : '读取已连接'}</span></div>
+      <div class="source-bar"><span class="source-label">Amazon Ads Bridge</span>${tag(health.status)}<span>${esc(details.region || 'NA')}</span><span>Checked ${esc(fmtTime(health.checked_at))}</span><span>${write.session_gate_configured ? '会话写入就绪' : '读取已连接'}</span></div>
       <div class="hero">
         <div><div class="hero-eyebrow">${settingsMode ? 'CONNECTOR SETTINGS' : 'ADS OPERATIONS'}</div><h2>${settingsMode ? 'Amazon Ads 连接设置' : 'Amazon Ads 广告工作台'}</h2><p>${settingsMode ? '使用直接 Amazon LWA 授权并验证 Profiles；Client Secret 与 Refresh Token 始终留在 Worker / 加密存储。' : '选择一个广告 Profile，读取真实 Campaigns 与 Ad Groups。首个受控写入能力是单条 Sponsored Products Campaign 状态切换。'}</p></div>
         <div class="hero-actions">${actions}</div>

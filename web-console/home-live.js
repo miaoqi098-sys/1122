@@ -26,6 +26,14 @@
     </div>`;
   }
 
+  function workspaceCard({ route, icon, eyebrow, title, description, state }) {
+    return `<a class="workspace-card" href="#${esc(route)}">
+      <span class="workspace-icon" aria-hidden="true">${esc(icon)}</span>
+      <span class="workspace-main"><span class="workspace-eyebrow">${esc(eyebrow)}</span><strong>${esc(title)}</strong><span>${esc(description)}</span></span>
+      <span class="workspace-state">${tag(state)}</span>
+    </a>`;
+  }
+
   async function renderHome({ data, view, setChrome, isCurrent }) {
     setChrome('经营指挥中心', '首页 / 经营指挥中心');
     const products = Array.isArray(data.products) ? data.products : [];
@@ -54,8 +62,8 @@
       <div class="hero">
         <div>
           <div class="hero-eyebrow">OPERATIONS COMMAND CENTER</div>
-          <h2>从真实经营事实进入今天的工作</h2>
-          <p>首页只聚合当前可验证的产品、Agent、任务与知识读模型。连接在线、D1 读取成功、数据新鲜和业务语义验证会分开显示。</p>
+          <h2>先看经营事实，再进入对应工作台</h2>
+          <p>首页只保留今天需要判断的核心事实和可操作入口。连接在线、D1 读取成功、数据新鲜和业务语义验证会分开显示，不把状态堆成一页。</p>
         </div>
         <div class="hero-actions">
           <a class="btn btn-primary" href="#/operations/products">${productsKnown ? `查看 ${products.length} 个产品` : '打开产品中心'}</a>
@@ -86,6 +94,20 @@
           <div class="metric-meta">任务总数 ${sourceStatus.tasks === 'LIVE_D1_READ' ? tasks.length : '未知'} · UI 无执行权限</div>
         </div>
       </div>
+
+      <section class="section" aria-labelledby="workspace-title">
+        <div class="section-head"><div><h2 id="workspace-title">常用工作台</h2><div class="section-sub">直接进入已建设的业务功能；设计态模块不会伪装成可执行页面。</div></div><a class="route-link" href="#/system/overview">查看完整系统地图 →</a></div>
+        <div class="workspace-grid">
+          ${workspaceCard({ route: '/operations/products', icon: '◈', eyebrow: 'OPERATIONS', title: '产品中心', description: productsKnown ? `${products.length} 个产品的最新经营状态` : '等待产品读模型确认', state: productsKnown ? 'LIVE READ' : 'SOURCE PENDING' })}
+          ${workspaceCard({ route: '/operations/products/promotion-plan', icon: '◫', eyebrow: 'PLANNING', title: '产品推广计划', description: '查看每个产品的阶段、目标、计划完整性与证据缺口', state: 'READ ONLY' })}
+          ${workspaceCard({ route: '/operations/daily-sop', icon: '✓', eyebrow: 'OPERATIONS', title: '每日工作 SOP', description: '按风险、诊断、动作、日结四轮节奏审阅当日事实', state: 'READ ONLY' })}
+          ${workspaceCard({ route: '/operations/ads', icon: '▦', eyebrow: 'OPERATIONS', title: '广告工作台', description: 'Profiles、Campaigns 与 Ad Groups 的实时读取入口', state: 'CONNECTOR' })}
+          ${workspaceCard({ route: '/operations/competitors/keywords', icon: '⌕', eyebrow: 'INTELLIGENCE', title: '竞品关键词', description: 'SIF 批量研究、去重词库与 10 类分类', state: 'SESSION PROTECTED' })}
+          ${workspaceCard({ route: '/tasks', icon: '☑', eyebrow: 'AUTOMATION', title: '任务中心', description: sourceStatus.tasks === 'LIVE_D1_READ' ? `${tasks.length} 条受控任务事实` : '等待任务读模型确认', state: sourceStatus.tasks === 'LIVE_D1_READ' ? 'LIVE READ' : 'SOURCE PENDING' })}
+          ${workspaceCard({ route: '/knowledge', icon: '◇', eyebrow: 'KNOWLEDGE', title: '知识中心', description: `${data.knowledge?.total ?? '—'} 条可检索知识与证据`, state: data.knowledge?.source_status || 'READ MODEL' })}
+          ${workspaceCard({ route: '/connectors', icon: '⇄', eyebrow: 'SYSTEM', title: '连接中心', description: 'Amazon、SIF、Cloudflare 与邮件连接状态', state: 'HEALTH CHECK' })}
+        </div>
+      </section>
 
       <div class="grid grid-3 section" id="human-tasks">
         <article class="card">

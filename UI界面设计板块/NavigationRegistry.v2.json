@@ -6,7 +6,10 @@
   "primary_navigation":[
     {"order":1,"id":"selection","name_cn":"选品","route":"/selection","source_path":"选品板块/","enabled":true},
     {"order":2,"id":"operations","name_cn":"运营","route":"/operations","source_path":"运营板块/","enabled":true,"children":[
-      {"id":"products","name_cn":"产品","route":"/operations/products","source_path":"运营板块/产品板块/"},
+      {"id":"products","name_cn":"产品","route":"/operations/products","source_path":"运营板块/产品板块/","children":[
+        {"id":"product-promotion-plan","name_cn":"产品推广计划","route":"/operations/products/promotion-plan","source_path":"运营板块/产品板块/产品推广计划/","view_contract":"UI界面设计板块/产品推广计划/ProductPromotionPlanView.schema.json"}
+      ]},
+      {"id":"daily-sop","name_cn":"每日工作 SOP","route":"/operations/daily-sop","source_path":"运营板块/每日工作SOP/","view_contract":"UI界面设计板块/每日工作SOP/DailyOperatingBriefView.schema.json"},
       {"id":"inventory-logistics","name_cn":"库存物流","route":"/operations/inventory-logistics","source_path":"运营板块/库存物流板块/"},
       {"id":"offsite","name_cn":"站外推广","route":"/operations/offsite","source_path":"运营板块/站外推广板块/"},
       {"id":"competitors","name_cn":"竞品","route":"/operations/competitors","source_path":"运营板块/竞品板块/","children":[

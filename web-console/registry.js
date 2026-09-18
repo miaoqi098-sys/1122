@@ -6,6 +6,8 @@
     { id:'selection', label:'选品', route:'/selection', icon:'◉', kind:'module', nav_group:'business', readiness:'DESIGN_ONLY', summary:'市场机会、容量、竞争、利润与新品机会评估。' },
     { id:'operations', label:'运营', route:'/operations', icon:'▦', kind:'group', nav_group:'business', readiness:'PARTIAL_LIVE', summary:'产品、广告、库存、竞品与站外经营。' },
     { id:'products', label:'产品', route:'/operations/products', parent:'operations', kind:'module', readiness:'LIVE_READ', summary:'产品状态、流量转化、价格、利润与体验。' },
+    { id:'product-promotion-plan', label:'产品推广计划', route:'/operations/products/promotion-plan', parent:'products', kind:'module', readiness:'PARTIAL_LIVE', summary:'按产品查看 Stage、Constraint、Strategy 与计划读模型接入状态；缺失证据不作推断。' },
+    { id:'daily-sop', label:'每日工作 SOP', route:'/operations/daily-sop', parent:'operations', kind:'module', readiness:'PARTIAL_LIVE', summary:'按四轮工作节奏审阅策略上下文、事实、任务与 Daily Brief 数据缺口。' },
     { id:'ads', label:'广告运营', route:'/operations/ads', parent:'operations', kind:'module', readiness:'PARTIAL_LIVE', summary:'Amazon Ads 的实时 Profiles、Campaigns、Ad Groups，以及人工确认的 Campaign 状态切换。', connectors:['amazon-ads'] },
     { id:'inventory-logistics', label:'库存物流', route:'/operations/inventory-logistics', parent:'operations', kind:'module', readiness:'PARTIAL_LIVE', summary:'库存覆盖、在途与 FBA 只读状态。', connectors:['amazon-sp-api'] },
     { id:'competitors', label:'竞品', route:'/operations/competitors', parent:'operations', kind:'module', readiness:'PARTIAL_LIVE', summary:'竞品池、SIF 流量词、去重词库、分类与市场信号。', connectors:['sif'] },

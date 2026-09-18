@@ -84,7 +84,7 @@
       ${sourceBar(data, 'products')}
       <div class="hero">
         <div><div class="hero-eyebrow">PRODUCT STATE</div><h2>${esc(product.title || product.asin)}</h2><p>${esc(product.asin || '')} · ${esc(product.sku || '')} · ${esc(product.brand || '')} · ${esc(product.fulfillment_channel || '')}</p></div>
-        <div class="hero-actions"><a class="btn" href="#/operations/products">返回列表</a><a class="btn btn-primary" href="#/products/${encodeURIComponent(product.product_id)}/policy-impact">政策与方法</a></div>
+        <div class="hero-actions"><a class="btn" href="#/operations/products">返回列表</a><a class="btn" href="#/operations/products/promotion-plan?product_id=${encodeURIComponent(product.product_id)}">推广计划</a><a class="btn btn-primary" href="#/products/${encodeURIComponent(product.product_id)}/policy-impact">政策与方法</a></div>
       </div>
       <div class="grid grid-4 section">
         <div class="card metric-card"><div class="metric-label">销售额</div><div class="metric-value">${fmtMoney(product.sales, product.currency)}</div><div class="metric-meta">${fmtNumber(product.units)} units / ${fmtNumber(product.orders_count)} orders</div></div>

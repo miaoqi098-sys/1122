@@ -9,6 +9,7 @@ import {
   normalizeKeyword,
   tokenSignature,
 } from "./taxonomy.js";
+import { verifyWebConsoleSession, webConsoleLoginConfigured, webConsoleSessionConfigured } from "../../../shared/web-console-access-session.js";
 
 const SOURCE_TOOL = "ops_get_asin_traffic_trend_detail";
 const PROFILE_TOOL = "market_get_asin_profile";
@@ -87,8 +88,12 @@ function publicResearchError(error) {
     STORAGE_NOT_READY: "竞品关键词存储尚未就绪。",
     QUEUE_NOT_READY: "竞品关键词任务队列尚未就绪。",
     SIF_NOT_CONFIGURED: "SIF 连接密钥尚未配置。",
-    RESEARCH_ACCESS_NOT_CONFIGURED: "竞品关键词操作密钥尚未配置。",
-    UNAUTHORIZED: "操作密钥无效或尚未输入。",
+    RESEARCH_ACCESS_NOT_CONFIGURED: "竞品关键词访问会话尚未配置。",
+    SESSION_REQUIRED: "1122 登录会话无效、已过期或没有所需权限。",
+    SESSION_INVALID: "1122 登录会话无效、已过期或没有所需权限。",
+    SESSION_EXPIRED: "1122 登录会话无效、已过期或没有所需权限。",
+    SESSION_SCOPE_DENIED: "1122 登录会话无效、已过期或没有所需权限。",
+    UNAUTHORIZED: "1122 登录会话无效、已过期或没有所需权限。",
     RESEARCH_RATE_LIMITED: "最近创建的任务较多，请稍后再试。",
     GROUP_NAME_REQUIRED: "请选择已有产品分组，或填写一个新的分组名称。",
     GROUP_NOT_FOUND: "所选产品分组不存在，或不属于当前市场。",
@@ -151,14 +156,23 @@ async function bearerMatches(request, expected) {
   return mismatch === 0;
 }
 
+function signedSessionPresented(request) {
+  return /^Bearer\s+v1\./i.test(String(request.headers.get("Authorization") || "").trim());
+}
+
 async function requireResearchAccess(request, env) {
+  const session = await verifyWebConsoleSession(request, env, { requiredScope: "research:execute" });
+  if (session.ok) return;
+  if (signedSessionPresented(request) && session.code !== "SESSION_AUTH_NOT_CONFIGURED") {
+    throw new ResearchError(session.code, "1122 session rejected", { stage: "AUTH", httpStatus: 401 });
+  }
   const expected = String(env.SIF_RESEARCH_ACCESS_KEY || "").trim();
-  if (!expected) {
+  if (!expected && session.code === "SESSION_AUTH_NOT_CONFIGURED") {
     throw new ResearchError("RESEARCH_ACCESS_NOT_CONFIGURED", "Research access key is not configured", {
       stage: "AUTH", httpStatus: 503,
     });
   }
-  if (!(await bearerMatches(request, expected))) {
+  if (!expected || !(await bearerMatches(request, expected))) {
     throw new ResearchError("UNAUTHORIZED", "Unauthorized", { stage: "AUTH", httpStatus: 401 });
   }
 }
@@ -682,15 +696,26 @@ function serializeAsin(row) {
 }
 
 export function researchCapability(env) {
+  const legacyAccessKeyConfigured = Boolean(env.SIF_RESEARCH_ACCESS_KEY);
+  const sessionAuthConfigured = webConsoleSessionConfigured(env);
+  const consoleLoginConfigured = webConsoleLoginConfigured(env);
+  // A verifier alone cannot make a browser session: the SIF Worker must also
+  // have the server-only password verifier that issues it. Preserve the
+  // legacy service-to-service key for compatibility, but report UI readiness
+  // only when an actual console login can be completed.
+  const researchAuthConfigured = legacyAccessKeyConfigured || consoleLoginConfigured;
   return {
     api_version: "CompetitorKeywordResearch.v1",
-    configured: Boolean(env.CORE_DB && env.KEYWORD_RESEARCH_QUEUE && env.SIF_MCP_SECRET && env.SIF_RESEARCH_ACCESS_KEY),
+    configured: Boolean(env.CORE_DB && env.KEYWORD_RESEARCH_QUEUE && env.SIF_MCP_SECRET && researchAuthConfigured),
     d1_bound: Boolean(env.CORE_DB),
     queue_bound: Boolean(env.KEYWORD_RESEARCH_QUEUE),
     sif_configured: Boolean(env.SIF_MCP_SECRET),
-    access_key_configured: Boolean(env.SIF_RESEARCH_ACCESS_KEY),
+    access_key_configured: legacyAccessKeyConfigured,
+    legacy_access_key_configured: legacyAccessKeyConfigured,
+    session_auth_configured: sessionAuthConfigured,
+    web_console_login_configured: consoleLoginConfigured,
     auth_required: true,
-    manual_import_enabled: Boolean(env.CORE_DB && env.SIF_RESEARCH_ACCESS_KEY),
+    manual_import_enabled: Boolean(env.CORE_DB && researchAuthConfigured),
     source_tool: SOURCE_TOOL,
     source_scope: "SIF-visible traffic keywords in the selected period; not all Amazon search queries",
     marketplaces: Object.keys(SUPPORTED_MARKETPLACES),

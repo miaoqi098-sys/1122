@@ -13,6 +13,15 @@
   const topHealth = document.getElementById('top-health');
   const systemDot = document.getElementById('system-dot');
   const safetyState = document.getElementById('system-safety-state');
+  const appShell = document.querySelector('.app-shell');
+  const accessForm = document.getElementById('access-login-form');
+  const accessPassword = document.getElementById('access-password');
+  const accessSubmit = document.getElementById('access-login-submit');
+  const accessStatus = document.getElementById('access-login-status');
+  const sessionControl = document.getElementById('session-control');
+  const sessionState = document.getElementById('session-state');
+  const sessionLogout = document.getElementById('session-logout');
+  const auth = window.__1122_AUTH__;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
   const statusKind = value => /LIVE|CONNECTED|SUCCESS|READY|FRESH|VERIFIED|ALLOWED|LOW|POSITIVE|CONFIRMED/i.test(String(value)) ? 'ok' : /ERROR|FAIL|BLOCK|STALE|NONCOMPLIANT|HIGH/i.test(String(value)) ? 'bad' : 'warn';
   const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(value ?? 'UNKNOWN')}</span>`;
@@ -22,6 +31,93 @@
   let renderGeneration = 0;
   let searchGeneration = 0;
   let focusAfterRender = false;
+  let loginFormReady = false;
+
+  void (async () => {
+    if (!auth) return;
+    try {
+      await auth.ready;
+    } finally {
+      loginFormReady = true;
+      if (accessSubmit) accessSubmit.disabled = false;
+    }
+  })();
+
+  function updateSessionChrome(next = auth?.getState?.()) {
+    const authenticated = next?.authenticated === true;
+    sessionControl.hidden = !authenticated;
+    if (!authenticated) return;
+    const expires = next.expiresAt ? new Date(next.expiresAt) : null;
+    const expiresText = expires && !Number.isNaN(expires.getTime())
+      ? `有效至 ${expires.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
+      : '会话有效';
+    sessionState.textContent = '已登录';
+    sessionState.title = `1122 访问会话 · ${expiresText}`;
+  }
+
+  function showAccessGate(message = '') {
+    document.body.classList.add('access-pending');
+    appShell?.setAttribute('aria-hidden', 'true');
+    if (appShell && 'inert' in appShell) appShell.inert = true;
+    if (message) accessStatus.textContent = message;
+    requestAnimationFrame(() => accessPassword?.focus());
+  }
+
+  function hideAccessGate() {
+    document.body.classList.remove('access-pending');
+    appShell?.removeAttribute('aria-hidden');
+    if (appShell && 'inert' in appShell) appShell.inert = false;
+    accessStatus.textContent = '';
+  }
+
+  async function waitForAccess() {
+    if (!auth) {
+      showAccessGate('登录组件未加载，请刷新页面后重试。');
+      throw new Error('AUTH_CLIENT_NOT_AVAILABLE');
+    }
+    await auth.ready;
+    if (!auth.isAuthenticated()) {
+      showAccessGate();
+      await auth.whenAuthenticated();
+    }
+    updateSessionChrome(auth.getState());
+    hideAccessGate();
+  }
+
+  accessForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!auth || !loginFormReady) return;
+    const password = accessPassword?.value || '';
+    accessStatus.textContent = '';
+    accessSubmit.disabled = true;
+    accessSubmit.setAttribute('aria-busy', 'true');
+    try {
+      await auth.login(password);
+      if (accessPassword) accessPassword.value = '';
+    } catch (error) {
+      accessStatus.textContent = error?.httpStatus === 503
+        ? '登录服务尚未完成配置，请联系管理员配置访问会话。'
+        : error?.code === 'AUTH_REQUEST_TIMEOUT'
+          ? '登录服务响应超时，请检查网络后重试。'
+          : error?.message || '登录未完成，请检查访问密码后重试。';
+      accessPassword?.focus();
+    } finally {
+      accessSubmit.disabled = false;
+      accessSubmit.removeAttribute('aria-busy');
+    }
+  });
+
+  sessionLogout?.addEventListener('click', () => {
+    auth?.logout?.();
+    window.location.reload();
+  });
+
+  window.addEventListener('1122:auth-state', (event) => {
+    const next = event.detail || auth?.getState?.();
+    updateSessionChrome(next);
+    if (next?.authenticated) hideAccessGate();
+    else showAccessGate();
+  });
 
   function loadingPage() {
     return `<div class="loading-shell"><div class="skeleton" style="height:170px"></div><div class="grid grid-4"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div></div>`;
@@ -29,6 +125,11 @@
 
   view.innerHTML = loadingPage();
   view.setAttribute('aria-busy', 'true');
+  try {
+    await waitForAccess();
+  } catch {
+    return;
+  }
   data = await (window.__1122_DATA_READY__ || Promise.resolve(window.__1122_DATA__ || {}));
 
   function routeInfo() {
@@ -83,10 +184,14 @@
       ['system', '系统']
     ];
     const roots = moduleRegistry.filter(item => !item.parent && item.kind !== 'support');
+    const activePath = routeInfo().path;
+    const activeModule = moduleRegistry.filter(item => activePath === item.route || activePath.startsWith(`${item.route}/`))
+      .sort((left, right) => right.route.length - left.route.length)[0];
+    const activeGroup = activeModule?.nav_group || 'overview';
     nav.innerHTML = groups.map(([groupId, label]) => {
       const items = roots.filter(item => item.nav_group === groupId);
       if (!items.length) return '';
-      return `<details class="nav-section" open><summary>${esc(label)}</summary><div class="nav-group">${items.map(item => {
+      return `<details class="nav-section" ${groupId === activeGroup ? 'open' : ''}><summary>${esc(label)}</summary><div class="nav-group">${items.map(item => {
         return `<div><a class="nav-item" href="#${esc(item.route)}" data-route="${esc(item.route)}"><span class="nav-icon" aria-hidden="true">${esc(item.icon || '•')}</span><span class="nav-label">${esc(item.label)}</span><span class="nav-state ${stateClass(item.readiness)}" title="${esc(item.readiness || 'UNKNOWN')}"></span></a>${renderNavChildren(item.id)}</div>`;
       }).join('')}</div></details>`;
     }).join('');
@@ -104,6 +209,10 @@
       if (link === current) link.setAttribute('aria-current', 'page');
       else if (active) link.setAttribute('aria-current', 'location');
       else link.removeAttribute('aria-current');
+    });
+    const activeSection = current?.closest('.nav-section') || null;
+    nav.querySelectorAll('.nav-section').forEach(section => {
+      section.open = section === activeSection;
     });
   }
 

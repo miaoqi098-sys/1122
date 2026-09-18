@@ -50,7 +50,7 @@
         <div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>
       </div>
       <section class="section"><div class="section-head"><div><h2>已登记连接器</h2><div class="section-sub">${ids.length} 个；未知或未配置时 fail-closed</div></div></div><div id="connector-grid" class="grid grid-3"><div class="card"><div class="skeleton skeleton-line"></div></div><div class="card"><div class="skeleton skeleton-line"></div></div><div class="card"><div class="skeleton skeleton-line"></div></div></div></section>
-      <div class="notice warn section"><strong>安全边界：</strong>CORS allow-list 不是用户登录。当前读取接口仍需 Cloudflare Access 或等价会话鉴权，才能作为正式内部经营控制台的访问门槛。</div>
+      <div class="notice warn section"><strong>安全边界：</strong>1122 控制台使用统一登录会话；CORS allow-list 仍不是用户认证。尚未接入该会话的既有只读 Bridge 不应被视为私有 API，后续可接入同一会话或 Cloudflare Access。</div>
     `;
 
     let generation = 0;

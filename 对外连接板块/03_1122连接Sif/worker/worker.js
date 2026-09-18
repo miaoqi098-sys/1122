@@ -7,8 +7,22 @@ import {
   startSifSession,
 } from "./sif-client.js";
 import { handleResearchRequest, processResearchQueue, researchCapability } from "./research.js";
+import {
+  issueWebConsoleSession,
+  matchesWebConsoleAccessKey,
+  verifyWebConsoleSession,
+  webConsoleLoginConfigured,
+} from "../../../shared/web-console-access-session.js";
 
 const ALLOWED_ORIGINS = new Set(["https://1122.sorilo-uk.com", "https://1122-web-agent.pages.dev", "https://miaoqi098-sys.github.io"]);
+// Login issuance is narrower than the historic read/status CORS allowlist.
+// A preview or legacy site must never be able to collect the global password
+// or mint a bearer that carries a controlled Ads operation scope.
+const ACCESS_LOGIN_ORIGINS = new Set(["https://1122.sorilo-uk.com"]);
+const MAX_ACCESS_LOGIN_BYTES = 4096;
+const ACCESS_LOGIN_WINDOW_MS = 60_000;
+const ACCESS_LOGIN_MAX_ATTEMPTS = 5;
+const ACCESS_LOGIN_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 function cors(origin = "") {
   const headers = {
@@ -51,6 +65,156 @@ function isInternalAuthorized(request, env) {
   if (!expected) return false;
   const value = String(request.headers.get("Authorization") || "");
   return fixedTimeEqual(value, `Bearer ${expected}`);
+}
+
+function trustedClientIp(request) {
+  const value = String(request.headers.get("CF-Connecting-IP") || "").trim();
+  // This header is populated by Cloudflare at the edge. Do not fall back to
+  // client-controlled forwarding headers, and never persist the raw address.
+  return /^[0-9a-fA-F:.]{3,128}$/.test(value) ? value : "";
+}
+
+function base64urlEncode(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+}
+
+async function accessLoginRateLimitKey(env, origin, clientIp) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(String(env.WEB_CONSOLE_SESSION_SIGNING_KEY || "").trim()),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`1122/access-login-rate-limit/v1\u0000${origin}\u0000${clientIp}`),
+  );
+  return base64urlEncode(new Uint8Array(signature));
+}
+
+async function reserveAccessLoginAttempt(request, env, origin) {
+  if (!env.CORE_DB) return { ready: false };
+  const clientIp = trustedClientIp(request);
+  if (!clientIp) return { ready: false };
+  const nowMs = Date.now();
+  const bucketStart = Math.floor(nowMs / ACCESS_LOGIN_WINDOW_MS) * ACCESS_LOGIN_WINDOW_MS;
+  const retryAfter = Math.max(1, Math.ceil((bucketStart + ACCESS_LOGIN_WINDOW_MS - nowMs) / 1000));
+  try {
+    const clientKey = await accessLoginRateLimitKey(env, origin, clientIp);
+    const results = await env.CORE_DB.batch([
+      env.CORE_DB.prepare(
+        "DELETE FROM access_login_rate_limit_windows WHERE last_attempt_at < ?"
+      ).bind(nowMs - ACCESS_LOGIN_RETENTION_MS),
+      env.CORE_DB.prepare(
+        `INSERT INTO access_login_rate_limit_windows (client_key, bucket_start, attempt_count, last_attempt_at)
+         VALUES (?, ?, 1, ?)
+         ON CONFLICT(client_key, bucket_start) DO UPDATE SET
+           attempt_count=access_login_rate_limit_windows.attempt_count + 1,
+           last_attempt_at=excluded.last_attempt_at
+         WHERE access_login_rate_limit_windows.attempt_count < ?`
+      ).bind(clientKey, bucketStart, nowMs, ACCESS_LOGIN_MAX_ATTEMPTS),
+      env.CORE_DB.prepare(
+        "SELECT attempt_count FROM access_login_rate_limit_windows WHERE client_key=? AND bucket_start=?"
+      ).bind(clientKey, bucketStart),
+    ]);
+    const row = results?.[2]?.results?.[0];
+    const count = Number(row?.attempt_count);
+    const reserved = Number(results?.[1]?.meta?.changes || 0) === 1;
+    if (!Number.isInteger(count) || count < 1 || results?.[1]?.success === false) return { ready: false };
+    return { ready: true, allowed: reserved, retryAfter };
+  } catch {
+    // Fail closed: a missing table or unavailable D1 must never make the
+    // password endpoint fall back to unlimited online guesses.
+    return { ready: false };
+  }
+}
+
+async function readAccessLoginBody(request) {
+  if (!request.body) throw new Error("REQUEST_BODY_REQUIRED");
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_ACCESS_LOGIN_BYTES) {
+      await reader.cancel();
+      throw new Error("REQUEST_TOO_LARGE");
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    const body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("INVALID_JSON");
+    return body;
+  } catch {
+    throw new Error("INVALID_JSON");
+  }
+}
+
+function accessError(code, message, status, origin, extraHeaders = {}) {
+  return new Response(JSON.stringify({ success: false, error: { code, message } }, null, 2), {
+    status,
+    headers: { ...cors(origin), ...extraHeaders },
+  });
+}
+
+async function createAccessSession(request, env, origin) {
+  if (!origin || !ACCESS_LOGIN_ORIGINS.has(origin)) {
+    return accessError("ORIGIN_NOT_ALLOWED", "The production 1122 web origin is required.", 403, origin);
+  }
+  if (!webConsoleLoginConfigured(env)) {
+    return accessError("ACCESS_LOGIN_NOT_CONFIGURED", "1122 access login is not configured.", 503, origin);
+  }
+  const rateLimit = await reserveAccessLoginAttempt(request, env, origin);
+  if (!rateLimit.ready) {
+    return accessError("ACCESS_RATE_LIMIT_UNAVAILABLE", "1122 access login is temporarily unavailable.", 503, origin);
+  }
+  if (!rateLimit.allowed) {
+    return accessError("ACCESS_RATE_LIMITED", "Too many access attempts. Please retry later.", 429, origin, {
+      "Retry-After": String(rateLimit.retryAfter),
+    });
+  }
+  let body;
+  try {
+    body = await readAccessLoginBody(request);
+  } catch (error) {
+    const tooLarge = error?.message === "REQUEST_TOO_LARGE";
+    return accessError(tooLarge ? "REQUEST_TOO_LARGE" : "INVALID_LOGIN_REQUEST", "The access login request is invalid.", tooLarge ? 413 : 400, origin);
+  }
+  const password = typeof body.password === "string" ? body.password : "";
+  if (!password || !(await matchesWebConsoleAccessKey(password, env))) {
+    return accessError("ACCESS_DENIED", "The access password is invalid.", 401, origin);
+  }
+  const session = await issueWebConsoleSession(env);
+  return json({ success: true, session }, 200, origin);
+}
+
+async function readAccessSession(request, env, origin) {
+  if (!origin || !ACCESS_LOGIN_ORIGINS.has(origin)) {
+    return accessError("ORIGIN_NOT_ALLOWED", "The production 1122 web origin is required.", 403, origin);
+  }
+  const verified = await verifyWebConsoleSession(request, env, { requiredScope: "console:read" });
+  if (!verified.ok) return accessError(verified.code, "The 1122 access session is invalid or expired.", 401, origin);
+  return json({
+    success: true,
+    session: {
+      scope: verified.session.scope,
+      expires_at: new Date(verified.session.expires_at * 1000).toISOString(),
+    },
+  }, 200, origin);
 }
 
 function safeToolMetadata(tool) {
@@ -312,6 +476,10 @@ export default {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
 
+    if (url.pathname === "/access/session" && (!origin || !ACCESS_LOGIN_ORIGINS.has(origin))) {
+      return accessError("ORIGIN_NOT_ALLOWED", "The production 1122 web origin is required.", 403, "");
+    }
+
     if (request.method === "OPTIONS") {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return json({ success: false, message: "Origin not allowed" }, 403, origin);
@@ -321,6 +489,14 @@ export default {
 
     if (origin && !ALLOWED_ORIGINS.has(origin)) {
       return json({ success: false, message: "Origin not allowed" }, 403, origin);
+    }
+
+    if (request.method === "POST" && url.pathname === "/access/session") {
+      return createAccessSession(request, env, origin);
+    }
+
+    if (request.method === "GET" && url.pathname === "/access/session") {
+      return readAccessSession(request, env, origin);
     }
 
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
@@ -333,6 +509,8 @@ export default {
           mode: "MCP+D1+QUEUE",
           secretConfigured: Boolean(env.SIF_MCP_SECRET),
           dataLayerBound: Boolean(env.CORE_DB),
+          accessLoginConfigured: webConsoleLoginConfigured(env),
+          accessLoginRateLimitBound: Boolean(env.CORE_DB),
           research: researchCapability(env),
         },
         200,

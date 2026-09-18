@@ -8,7 +8,7 @@
 - 连接：`CONNECTED`；
 - Profiles：真实读取 4 个；
 - 当前真实 US Profile：1 个 Campaign、2 个 Ad Groups；
-- 能力边界：Profiles、Campaigns、Ad Groups 只读；所有 Ads 写操作关闭。
+- 能力边界：Profiles、Campaigns、Ad Groups 只读；唯一已开放的写入是受控的单条 Sponsored Products Campaign 状态切换，其他 Ads 写操作关闭。
 
 这些数量是最近一次真实 API 读取快照，不是固定配置。请求失败时必须报告未知或错误，不能以 0 或旧快照替代实时结果。
 
@@ -17,6 +17,7 @@
 - `AMAZON_ADS_CLIENT_ID`
 - `AMAZON_ADS_CLIENT_SECRET`
 - `AMAZON_ADS_TOKEN_ENCRYPTION_KEY`（随机、高熵值；用于加密写入 D1 的首次授权 refresh token）
+- `WEB_CONSOLE_SESSION_SIGNING_KEY`（与 SIF Bridge 相同的高熵签名密钥；用于验证 1122 统一登录会话）
 
 可选：`AMAZON_ADS_REFRESH_TOKEN`，仅作为未写入 D1 时的引导或故障回退。OAuth 成功后的 token 仅以 AES-GCM 密文写入 `1122-core` D1，后续优先读取 D1，使重新授权能够真正切换生效；任何 token 都不会回传、记录或提交。
 
@@ -40,7 +41,7 @@ NA 的 LWA 授权与 token 端点分别为 `https://www.amazon.com/ap/oa` 和 `h
 
 ## 安全与访问边界
 
-- Worker 与 Web Console 当前只提供读取和 OAuth 能力，不提供预算、竞价、Campaign / Ad Group 状态或其他广告写接口。
+- Worker 与 Web Console 当前提供读取、OAuth，以及唯一受控的 Sponsored Products Campaign 单条状态切换；预算、竞价、关键词、否定词和其他广告写接口仍关闭。
 - Profiles、Campaigns、Ad Groups 与手工授权接口要求登记的 1122 `Origin`；无来源请求会失败关闭。请求方仍能伪造 `Origin`，因此这只是收窄暴露面，不能替代真正身份鉴权。
-- CORS allow-list 不是用户鉴权。Cloudflare Access 或等价会话鉴权须等用户确认允许身份后配置。
-- 完成会话鉴权也不自动授予 Ads 写权限；未来写操作仍须经过 Task、审批、权限边界、受控 Executor 与结果验证。
+- CORS allow-list 不是用户鉴权。Campaign 状态切换接受由 1122 登录服务签发、并带 `ads:campaign-state` scope 的短时会话；遗留 `AMAZON_ADS_WRITE_ACCESS_KEY` 只保留给非 UI 的迁移兼容调用。
+- 登录会话替代旧浏览器操作键，但不自动执行或绕过真实操作控制：状态切换仍要求逐次人工确认、幂等键、单条限制和无自动重试；其他未来写操作仍须经过 Task、审批、权限边界、受控 Executor 与结果验证。

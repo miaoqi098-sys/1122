@@ -8,6 +8,7 @@ V2 已收口为一个入口、一个 Navigation Registry 和一个 Hash Router�
 
 - 经营指挥中心首页
 - 统一导航、路由和全局搜索
+- 1122 统一登录入口与当前 tab 短时访问会话
 - 产品、广告、库存物流、竞品与站外运营入口
 - APR 市场玩法探索
 - AOM 正向运营方法
@@ -34,15 +35,15 @@ V2 已收口为一个入口、一个 Navigation Registry 和一个 Hash Router�
 | D1 / KV | `AVAILABLE` | D1 事实读模型与 KV 当前状态层可用；读取成功仍不自动等于数据新鲜或业务语义已验证 |
 | R2 | `NOT_ENABLED` | 冷档案层未启用，不得把凭据名称或规划状态写成可用 |
 | Pages 发布 | `MANUAL` | 当前从本地手工部署，不依赖 GitHub 自动发布 |
-| 会话鉴权 | `PENDING_USER_IDENTITY` | CORS 不是鉴权；待用户确认允许访问的身份后，再配置 Cloudflare Access 或等价会话鉴权 |
-| 竞品关键词操作 | `PROTECTED_KEY` | 独立 `SIF_RESEARCH_ACCESS_KEY` 保护任务和词库；密钥仅保存在当前页面内存 |
+| 会话鉴权 | `SIGNED_ACCESS_SESSION` | 登录口令由 SIF Bridge 服务端校验；网页只保留当前 tab 的短时签名会话 |
+| 竞品关键词操作 | `SESSION_PROTECTED` | 1122 登录会话保护任务和词库；不再在关键词页重复输入操作密钥 |
 | 外部生产写操作 | `CONTROLLED` | Amazon Ads 仅开放人工确认、幂等且无自动重试的 Sponsored Products Campaign 状态切换；其余 Amazon、商品、价格、库存及广告写操作仍关闭 |
 
 Profiles、Campaigns 与 Ad Groups 数量是最近一次真实读取快照，不是固定配置；页面刷新失败时应显示未知或错误，不得沿用旧数字伪装实时成功。
 
 ## 本地运行
 
-本项目无第三方依赖，可以直接用任意静态服务器运行。
+本项目无第三方依赖，可以直接用任意静态服务器进行页面壳层、路由与快照的视觉检查。
 
 例如：
 
@@ -56,6 +57,8 @@ python3 -m http.server 8080
 ```text
 http://localhost:8080
 ```
+
+本地静态地址不是登记的登录来源，不能对正式 SIF 登录端点签发会话；需要验证登录、SIF 研究或 Ads 受控操作时，使用正式 `https://1122.sorilo-uk.com` 域名，或在隔离的开发环境另行显式配置登录来源。
 
 ## Cloudflare Pages 手工发布
 
@@ -74,7 +77,9 @@ https://1122.sorilo-uk.com/#/connectors
 
 在 Cloudflare Dashboard 的 **Workers & Pages → 1122-web-agent → Custom domains** 中添加 `1122.sorilo-uk.com`。该域名位于同一 Cloudflare Zone 时，Cloudflare 会管理所需 DNS/HTTPS 配置。不要把 1122 绑定到 `sorilo-uk.com` 根域名，以免覆盖现有主站。
 
-本网页默认只读取 Status Bridge 与 Data Layer。Amazon Ads 的唯一受控写入入口是人工确认的单条 Sponsored Products Campaign 状态切换：只有管理员在 Worker Secret 中配置 `AMAZON_ADS_WRITE_ACCESS_KEY` 后才会显示，操作密钥只随本次请求发送，不写入 Pages、浏览器存储、日志或 GitHub。Cloudflare Token、Amazon Token 与 Amazon Client Secret 均不属于 Pages 产物。R2 当前未启用。
+本网页默认只读取 Status Bridge 与 Data Layer。发布前必须为 SIF Bridge 配置 `WEB_CONSOLE_ACCESS_KEY` 与高熵 `WEB_CONSOLE_SESSION_SIGNING_KEY`；若希望使用唯一开放的 Ads 受控写入，还必须在 Amazon Ads Bridge 配置相同的 `WEB_CONSOLE_SESSION_SIGNING_KEY`。登录口令不会写入 Pages、浏览器存储、日志或 GitHub；网页只保存当前 tab 的短时会话。Cloudflare Token、Amazon Token 与 Amazon Client Secret 均不属于 Pages 产物。R2 当前未启用。
+
+`POST /access/session` 先由 SIF Bridge 的 D1 固定窗口限流（每个可信 Cloudflare 客户端 IP 每分钟最多 5 次，客户端 IP 只以 HMAC 标识存储；限流数据库不可用时失败关闭），再校验口令。启用 `WEB_CONSOLE_ACCESS_KEY` 前，仍必须由域名管理员在 Cloudflare WAF 为 `sif-api.sorilo-uk.com` 的 `POST /access/session` 配置按源 IP 计数的 Rate Limiting 规则，并在 Security Events 中验证它能阻断分布式暴力猜测。该规则属于 Cloudflare Zone 的外部安全配置，仓库和 Pages 产物不会代为创建或绕过它。
 
 ## 路由
 
@@ -114,15 +119,17 @@ V2 优先读取 Data Layer 的只读 UI bootstrap，并由各只读 Bridge 独�
 - KV 当前状态；
 - Amazon SP-API、Amazon Ads、SIF、Cloudflare 与 Email 的连接状态；
 - Amazon Ads NA Profiles，以及所选 Profile 的 Campaign / Ad Group 结构。
-- SIF 竞品关键词任务、每 10 个 ASIN 自动分批、分组内严格去重词表、10 类分类和每个关键词的来源 ASIN（需操作密钥）。
+- SIF 竞品关键词任务、每 10 个 ASIN 自动分批、分组内严格去重词表、10 类分类和每个关键词的来源 ASIN（使用统一登录会话）。
 
 页面必须分别显示传输可达、连接状态、来源状态、新鲜度、语义验证和授权状态。进入 `SNAPSHOT_FALLBACK` 时，不得把仓库快照标记为实时数据。
 
-Amazon Ads 当前验证快照为：NA 连接成功、Profiles = 4、真实 US Profile = 1 Campaign / 2 Ad Groups。当前只开放 Profiles、Campaigns、Ad Groups 读取；Keywords、Targets、Search Terms、Reports 与全部 Ads 写操作均未开放。
+Amazon Ads 当前验证快照为：NA 连接成功、Profiles = 4、真实 US Profile = 1 Campaign / 2 Ad Groups。当前开放 Profiles、Campaigns、Ad Groups 读取，以及人工确认、幂等且不自动重试的单条 Sponsored Products Campaign 状态切换；Keywords、Targets、Search Terms、Reports 与其他 Ads 写操作均未开放。
 
 ## 权限边界
 
-Web Console 本身不拥有生产写权限。CORS allow-list 只限制浏览器跨域请求，不验证操作者身份；Cloudflare Access 或等价会话鉴权须等用户确认允许身份后再配置。
+Web Console 不拥有生产写权限，也不携带 Amazon 凭据或任意写入密钥。控制台入口、SIF 关键词研究和已配置的 Ads Campaign 状态切换使用统一的短时签名会话；该会话替代旧页面内的重复操作键，但不会绕过既有执行控制。CORS allow-list 仍只限制浏览器跨域请求，不能替代身份认证。
+
+当前会话默认 4 小时有效、最长 8 小时，只用于控制台访问与已明确接入的受控接口；轮换 `WEB_CONSOLE_SESSION_SIGNING_KEY` 会使已签发会话失效。其余既有只读 Bridge 若要作为私有 API 对外发布，仍须接入同一会话或 Cloudflare Access；登录不会把任何公开健康端点自动变为私有，也不会提升业务权限。
 
 即使将来开放，任何真实 Amazon / Ads 写动作仍必须走：
 

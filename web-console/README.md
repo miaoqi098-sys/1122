@@ -77,7 +77,7 @@ https://1122.sorilo-uk.com/#/connectors
 
 在 Cloudflare Dashboard 的 **Workers & Pages → 1122-web-agent → Custom domains** 中添加 `1122.sorilo-uk.com`。该域名位于同一 Cloudflare Zone 时，Cloudflare 会管理所需 DNS/HTTPS 配置。不要把 1122 绑定到 `sorilo-uk.com` 根域名，以免覆盖现有主站。
 
-本网页默认只读取 Status Bridge 与 Data Layer。发布前必须为 SIF Bridge 配置 `WEB_CONSOLE_ACCESS_KEY` 与高熵 `WEB_CONSOLE_SESSION_SIGNING_KEY`；若希望使用唯一开放的 Ads 受控写入，还必须在 Amazon Ads Bridge 配置相同的 `WEB_CONSOLE_SESSION_SIGNING_KEY`。登录口令不会写入 Pages、浏览器存储、日志或 GitHub；网页只保存当前 tab 的短时会话。Cloudflare Token、Amazon Token 与 Amazon Client Secret 均不属于 Pages 产物。R2 当前未启用。
+本网页默认只读取 Status Bridge 与 Data Layer。SIF Bridge 优先使用专用 `WEB_CONSOLE_ACCESS_KEY` 与高熵 `WEB_CONSOLE_SESSION_SIGNING_KEY`；在迁移期间，已存在的 `SIF_RESEARCH_ACCESS_KEY` 会作为统一登录密码，`SIF_MCP_SECRET` 只在服务端以域隔离 HMAC 作为会话签名来源，避免把旧研究密钥再次交给网页。若希望使用唯一开放的 Ads 受控写入，还必须在 Amazon Ads Bridge 配置相同的 `WEB_CONSOLE_SESSION_SIGNING_KEY`。登录口令不会写入 Pages、浏览器存储、日志或 GitHub；网页只保存当前 tab 的短时会话。Cloudflare Token、Amazon Token 与 Amazon Client Secret 均不属于 Pages 产物。R2 当前未启用。
 
 `POST /access/session` 先由 SIF Bridge 的 D1 固定窗口限流（每个可信 Cloudflare 客户端 IP 每分钟最多 5 次，客户端 IP 只以 HMAC 标识存储；限流数据库不可用时失败关闭），再校验口令。启用 `WEB_CONSOLE_ACCESS_KEY` 前，仍必须由域名管理员在 Cloudflare WAF 为 `sif-api.sorilo-uk.com` 的 `POST /access/session` 配置按源 IP 计数的 Rate Limiting 规则，并在 Security Events 中验证它能阻断分布式暴力猜测。该规则属于 Cloudflare Zone 的外部安全配置，仓库和 Pages 产物不会代为创建或绕过它。
 

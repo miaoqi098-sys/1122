@@ -12,6 +12,7 @@ import {
   matchesWebConsoleAccessKey,
   verifyWebConsoleSession,
   webConsoleLoginConfigured,
+  webConsoleSessionSigningKey,
 } from "../../../shared/web-console-access-session.js";
 
 const ALLOWED_ORIGINS = new Set(["https://1122.sorilo-uk.com", "https://1122-web-agent.pages.dev", "https://miaoqi098-sys.github.io"]);
@@ -84,7 +85,7 @@ function base64urlEncode(bytes) {
 async function accessLoginRateLimitKey(env, origin, clientIp) {
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(String(env.WEB_CONSOLE_SESSION_SIGNING_KEY || "").trim()),
+    new TextEncoder().encode(webConsoleSessionSigningKey(env)),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],

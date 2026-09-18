@@ -52,6 +52,19 @@ function configuredSecret(env, name) {
   return String(env?.[name] || '').trim();
 }
 
+// Dedicated Web Console secrets are preferred. The temporary fallbacks let the
+// existing server-only SIF credentials become the global login boundary during
+// migration, rather than returning the old research key to the browser again.
+function accessPasswordSecret(env) {
+  return configuredSecret(env, 'WEB_CONSOLE_ACCESS_KEY')
+    || configuredSecret(env, 'SIF_RESEARCH_ACCESS_KEY');
+}
+
+function sessionSigningSecret(env) {
+  return configuredSecret(env, 'WEB_CONSOLE_SESSION_SIGNING_KEY')
+    || configuredSecret(env, 'SIF_MCP_SECRET');
+}
+
 function scopesFrom(value) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((scope) => WEB_CONSOLE_SESSION_SCOPES.includes(scope)))];
@@ -74,7 +87,10 @@ async function hmac(secret, content) {
     false,
     ['sign'],
   );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(content));
+  // Domain separation means an HMAC emitted for a console session cannot be
+  // mistaken for a value from another SIF protocol that uses the same fallback
+  // secret during the migration window.
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(`1122/web-console-session/v1\u0000${content}`));
   return base64urlEncode(new Uint8Array(signature));
 }
 
@@ -90,20 +106,26 @@ export function fixedTimeEqual(leftValue, rightValue) {
 }
 
 export function webConsoleSessionConfigured(env) {
-  return Boolean(configuredSecret(env, 'WEB_CONSOLE_SESSION_SIGNING_KEY'));
+  return Boolean(sessionSigningSecret(env));
 }
 
 export function webConsoleLoginConfigured(env) {
-  return Boolean(configuredSecret(env, 'WEB_CONSOLE_ACCESS_KEY') && webConsoleSessionConfigured(env));
+  return Boolean(accessPasswordSecret(env) && webConsoleSessionConfigured(env));
 }
 
 export async function matchesWebConsoleAccessKey(presented, env) {
-  const expected = configuredSecret(env, 'WEB_CONSOLE_ACCESS_KEY');
+  const expected = accessPasswordSecret(env);
   return Boolean(expected && presented && fixedTimeEqual(String(presented), expected));
 }
 
+// Worker-only helper. Never include its return value in an API response, log,
+// or browser bundle.
+export function webConsoleSessionSigningKey(env) {
+  return sessionSigningSecret(env);
+}
+
 export async function issueWebConsoleSession(env, options = {}) {
-  const secret = configuredSecret(env, 'WEB_CONSOLE_SESSION_SIGNING_KEY');
+  const secret = webConsoleSessionSigningKey(env);
   if (!secret) throw new Error('WEB_CONSOLE_SESSION_NOT_CONFIGURED');
   const issuedAt = epochSeconds(options.nowMs);
   const ttlSeconds = boundedTtl(options.ttlSeconds);
@@ -129,7 +151,7 @@ export async function issueWebConsoleSession(env, options = {}) {
 }
 
 export async function verifyWebConsoleSession(requestOrAuthorization, env, options = {}) {
-  const secret = configuredSecret(env, 'WEB_CONSOLE_SESSION_SIGNING_KEY');
+  const secret = webConsoleSessionSigningKey(env);
   if (!secret) return { ok: false, code: 'SESSION_AUTH_NOT_CONFIGURED' };
 
   const token = bearerToken(requestOrAuthorization);

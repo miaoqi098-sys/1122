@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   issueWebConsoleSession,
+  matchesWebConsoleAccessKey,
   verifyWebConsoleSession,
   webConsoleLoginConfigured,
 } from '../web-console-access-session.js';
@@ -44,4 +45,24 @@ test('rejects tampered, expired, and scope-insufficient sessions', async () => {
     nowMs: 2_001_000,
     requiredScope: 'ads:campaign-state',
   })).code, 'SESSION_SCOPE_DENIED');
+});
+
+test('uses the existing server-only SIF credentials as a migration fallback', async () => {
+  const fallbackEnv = {
+    SIF_RESEARCH_ACCESS_KEY: 'existing-research-password',
+    SIF_MCP_SECRET: 'existing-server-only-sif-secret',
+  };
+  const session = await issueWebConsoleSession(fallbackEnv, {
+    nowMs: 3_000_000,
+    ttlSeconds: 120,
+    scope: ['console:read'],
+  });
+
+  assert.equal(webConsoleLoginConfigured(fallbackEnv), true);
+  assert.equal(await matchesWebConsoleAccessKey('existing-research-password', fallbackEnv), true);
+  assert.equal(await matchesWebConsoleAccessKey('wrong-password', fallbackEnv), false);
+  assert.equal((await verifyWebConsoleSession(`Bearer ${session.token}`, fallbackEnv, {
+    nowMs: 3_001_000,
+    requiredScope: 'console:read',
+  })).ok, true);
 });

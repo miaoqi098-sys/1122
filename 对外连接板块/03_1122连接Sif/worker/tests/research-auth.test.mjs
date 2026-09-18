@@ -114,6 +114,21 @@ test("one 1122 login creates a signed session that validates without exposing th
   assert.equal(validationPayload.session.scope.includes("research:execute"), true);
 });
 
+test("the existing research operation key becomes the production login password during migration", async () => {
+  const env = {
+    SIF_RESEARCH_ACCESS_KEY: "existing-research-password",
+    SIF_MCP_SECRET: "existing-server-only-sif-secret",
+    CORE_DB: createAccessRateLimitDb(),
+  };
+  const login = await worker.fetch(accessLoginRequest("existing-research-password"), env);
+  const payload = await body(login);
+
+  assert.equal(login.status, 200);
+  assert.equal(payload.success, true);
+  assert.equal(typeof payload.session.token, "string");
+  assert.equal(JSON.stringify(payload).includes("existing-research-password"), false);
+});
+
 test("access login rejects an invalid password and all legacy or unregistered browser origins", async () => {
   const env = {
     WEB_CONSOLE_ACCESS_KEY: "test-access-password",

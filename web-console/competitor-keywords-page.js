@@ -3,12 +3,13 @@
   const API_BASE = 'https://sif-api.sorilo-uk.com';
   const TERMINAL = new Set(['SUCCEEDED', 'PARTIAL', 'FAILED']);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+  const statusText = value => window.__1122_UI_TEXT__?.status?.(value) ?? String(value ?? '状态未知');
   const knownNumber = value => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const fmtNumber = (value, digits = 0) => knownNumber(value) ? Number(value).toLocaleString('zh-CN', { maximumFractionDigits: digits }) : '—';
   const fmtTime = value => value ? new Date(value).toLocaleString('zh-CN') : '—';
   const fmtPercent = value => knownNumber(value) ? `${(Number(value) * 100).toFixed(1)}%` : '—';
   const statusKind = value => /SUCCEEDED|CONNECTED|READY|RELEVANT/i.test(String(value)) ? 'ok' : /FAILED|ERROR|INVALID/i.test(String(value)) ? 'bad' : 'warn';
-  const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(value ?? 'UNKNOWN')}</span>`;
+  const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(statusText(value))}</span>`;
   const isRecord = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   const hasJobShape = value => isRecord(value?.job) && typeof value.job.job_id === 'string' && typeof value.job.status === 'string';
   const hasImportShape = value => isRecord(value?.import) && typeof value.import.import_id === 'string'
@@ -55,7 +56,7 @@
   }
 
   function hero(actions = '') {
-    return `<div class="hero"><div><div class="hero-eyebrow">COMPETITOR KEYWORD WORKSPACE</div><h2>竞品关键词工作台</h2><p>一次可输入最多 ${batchAsinLimit()} 个竞品 ASIN；系统按每 ${perJobAsinLimit()} 个自动拆分为受控 SIF 任务，在同一产品分组内严格去重、分类并长期保留来源 ASIN。</p></div>${actions ? `<div class="hero-actions">${actions}</div>` : ''}</div>`;
+    return `<div class="hero"><div><div class="hero-eyebrow">竞品关键词研究</div><h2>竞品关键词工作台</h2><p>一次可输入最多 ${batchAsinLimit()} 个竞品商品编号；系统按每 ${perJobAsinLimit()} 个自动拆分为受控关键词研究任务，在同一产品分组内严格去重、分类并长期保留来源商品编号。</p></div>${actions ? `<div class="hero-actions">${actions}</div>` : ''}</div>`;
   }
 
   async function api(path, options = {}) {
@@ -211,7 +212,7 @@
 
   function sourceKindLabel(code) {
     if (code === 'MANUAL_IMPORT') return '手工导入';
-    if (code === 'SIF_ASIN_RESEARCH') return 'SIF 竞品研究';
+    if (code === 'SIF_ASIN_RESEARCH') return '关键词竞品研究';
     return code || '未知来源';
   }
 
@@ -272,9 +273,9 @@
 
   function overviewCards() {
     return `<div class="grid grid-3 section">
-        <div class="card metric-card"><div class="metric-label">SIF 数据源</div><div class="metric-value compact-value">周期流量词</div><div class="metric-meta">分页读取，不用 ABA Top3 冒充全部词</div></div>
+        <div class="card metric-card"><div class="metric-label">关键词数据源</div><div class="metric-value compact-value">周期流量词</div><div class="metric-meta">分页读取，不用行业排名前列数据冒充全部词</div></div>
         <div class="card metric-card"><div class="metric-label">自动分批</div><div class="metric-value">${perJobAsinLimit()}</div><div class="metric-meta">每任务上限；同组可一次提交 ${batchAsinLimit()} 个</div></div>
-        <div class="card metric-card"><div class="metric-label">分类规则</div><div class="metric-value compact-value">${esc(capability?.taxonomy_version || taxonomy?.taxonomy_version || 'v1')}</div><div class="metric-meta">10 个主分类 + 长尾 / 核心层级标签</div></div>
+        <div class="card metric-card"><div class="metric-label">分类规则</div><div class="metric-value compact-value">${esc(capability?.taxonomy_version || taxonomy?.taxonomy_version || '版本待提供')}</div><div class="metric-meta">10 个主分类 + 长尾 / 核心层级标签</div></div>
       </div>`;
   }
 
@@ -285,14 +286,14 @@
         <div>
           <div class="item-title">${ready ? '1122 登录会话已覆盖关键词研究' : (configured ? '1122 登录会话需要重新验证' : '关键词研究访问会话尚未配置')}</div>
           <div class="item-meta">${ready
-            ? '此工作台使用当前 1122 登录会话，不再要求输入关键词研究操作密钥。ASIN 与分组草稿仍只保留在当前页面内存。'
+            ? '此工作台使用当前 1122 登录会话，不再要求输入关键词研究操作密钥。商品编号与分组草稿仍只保留在当前页面内存。'
             : configured
-              ? '请重新登录 1122 后再执行 SIF 查询。'
-              : '管理员需为 SIF Bridge 配置 WEB_CONSOLE_SESSION_SIGNING_KEY；网页不会接收或保存 SIF 访问密钥。'}</div>
+              ? '请重新登录 1122 后再执行关键词查询。'
+              : '管理员需为关键词服务配置会话签名密钥；网页不会接收或保存关键词访问密钥。'}</div>
         </div>
-        <span class="tag tag-${ready ? 'ok' : 'warn'}">${ready ? 'SESSION ACTIVE' : 'SESSION REQUIRED'}</span>
+        <span class="tag tag-${ready ? 'ok' : 'warn'}">${ready ? '会话已启用' : '需要会话'}</span>
       </section>
-      ${ready ? '' : '<div class="notice warn section"><strong>执行边界：</strong>新建任务会消耗 SIF 查询额度。只有服务端验证的 1122 登录会话可提交查询；这不会隐藏 ASIN 输入窗口。</div>'}`;
+      ${ready ? '' : '<div class="notice warn section"><strong>执行边界：</strong>新建任务会消耗关键词查询额度。只有服务端验证的 1122 登录会话可提交查询；这不会隐藏商品编号输入窗口。</div>'}`;
   }
 
   function taxonomyPanel() {
@@ -307,22 +308,22 @@
     const existingGroup = selectedGroup();
     const groupOptions = groups.map(group => `<option value="${esc(group.group_id)}" ${group.group_id === researchDraft.groupId ? 'selected' : ''}>${esc(group.group_name)}${group.status === 'ARCHIVED' ? '（已归档）' : ''}</option>`).join('');
     return `<section class="card card-elevated" id="research-new-panel">
-      <div class="section-head"><div><h2>新建竞品词研究</h2><div class="section-sub">先用自定义产品分组隔离词库，再输入 1–${batchAsinLimit()} 个竞品 ASIN；系统每 ${perJobAsinLimit()} 个自动建立一个任务，10 类关键词分类仍是独立维度。</div></div>${tag(ready ? 'PROTECTED ACTION' : 'EXECUTION LOCKED')}</div>
+      <div class="section-head"><div><h2>新建竞品词研究</h2><div class="section-sub">先用自定义产品分组隔离词库，再输入 1–${batchAsinLimit()} 个竞品商品编号；系统每 ${perJobAsinLimit()} 个自动建立一个任务，10 类关键词分类仍是独立维度。</div></div>${tag(ready ? 'PROTECTED_ACTION' : 'EXECUTION_LOCKED')}</div>
       <form id="keyword-research-form" class="research-form">
         <label><span class="field-label">产品关键词分组</span><select id="research-group-id" class="field"><option value="" ${existingGroup ? '' : 'selected'}>＋ 新建自定义分组</option>${groupOptions}</select><span class="field-help">分组用于隔离产品线词库，例如“毛绒玩具”与“厨房用品”。</span></label>
         <div class="toolbar" style="align-items:end"><button id="research-open-group-library" class="btn btn-quiet" type="button" ${existingGroup ? '' : 'disabled'}>查看当前分组词库</button><span class="field-help">同一分组可累计多个研究任务；不同分组默认隔离。</span></div>
         <div id="research-new-group-fields" class="research-form-wide grid grid-2" ${existingGroup ? 'hidden' : ''}>
           <label><span class="field-label">新分组名称</span><input id="research-group-name" class="field" maxlength="80" value="${esc(researchDraft.groupName)}" placeholder="例如：毛绒玩具" /><span class="field-help">名称可自定义；同一市场下同名分组会复用，避免词库混杂。</span></label>
-          <label><span class="field-label">分组说明（可选）</span><input id="research-group-description" class="field" maxlength="300" value="${esc(researchDraft.groupDescription)}" placeholder="例如：US 站毛绒动物玩具核心竞品" /></label>
+          <label><span class="field-label">分组说明（可选）</span><input id="research-group-description" class="field" maxlength="300" value="${esc(researchDraft.groupDescription)}" placeholder="例如：美国站毛绒动物玩具核心竞品" /></label>
         </div>
-        <label class="research-form-wide"><span class="field-label">竞品 ASIN（每行一个，也支持逗号或空格）</span><textarea id="research-asins" class="field research-textarea" rows="6" placeholder="B0XXXXXXXX&#10;B0YYYYYYYY" required>${esc(researchDraft.asins)}</textarea><span id="asin-validation" class="field-help">0 个有效 ASIN · 将按每 ${perJobAsinLimit()} 个自动分批</span></label>
+        <label class="research-form-wide"><span class="field-label">竞品商品编号（每行一个，也支持逗号或空格）</span><textarea id="research-asins" class="field research-textarea" rows="6" placeholder="请输入商品编号，每行一个" required>${esc(researchDraft.asins)}</textarea><span id="asin-validation" class="field-help">0 个有效商品编号 · 将按每 ${perJobAsinLimit()} 个自动分批</span></label>
         <label><span class="field-label">任务名称（可选）</span><input id="research-job-name" class="field" maxlength="80" value="${esc(researchDraft.jobName)}" placeholder="例如：毛绒玩具核心竞品 · 9 月" /></label>
-        <label><span class="field-label">我方品牌（可选）</span><input id="research-own-brands" class="field" maxlength="300" value="${esc(researchDraft.ownBrands)}" placeholder="多个品牌用逗号分隔" /><span class="field-help">用于识别“自有品牌词”，不会发送给 Amazon</span></label>
-        <label><span class="field-label">市场</span><select id="research-marketplace" class="field"><option value="US" ${researchDraft.marketplace === 'US' ? 'selected' : ''}>美国（US）</option></select></label>
+        <label><span class="field-label">我方品牌（可选）</span><input id="research-own-brands" class="field" maxlength="300" value="${esc(researchDraft.ownBrands)}" placeholder="多个品牌用逗号分隔" /><span class="field-help">用于识别“自有品牌词”，不会发送给亚马逊</span></label>
+        <label><span class="field-label">市场</span><select id="research-marketplace" class="field"><option value="US" ${researchDraft.marketplace === 'US' ? 'selected' : ''}>美国站</option></select></label>
         <label><span class="field-label">时间粒度</span><select id="research-granularity" class="field"><option value="month" ${researchDraft.granularity === 'month' ? 'selected' : ''}>月</option><option value="week" ${researchDraft.granularity === 'week' ? 'selected' : ''}>周</option><option value="day" ${researchDraft.granularity === 'day' ? 'selected' : ''}>日</option></select></label>
-        <label><span class="field-label">SIF 周期锚点</span><input id="research-period" class="field" type="date" value="${esc(researchDraft.periodStart)}" required /></label>
-        <div class="research-form-wide notice">数据范围是<strong>所选周期内 SIF 能观测到的竞品流量词</strong>，不是 Amazon 所有搜索查询。系统逐页读取，达到安全上限时会明确标记“已截断”。</div>
-        <div class="research-form-wide toolbar"><button id="research-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '开始分析' : '等待 1122 登录会话'}</button><span class="field-help">${ready ? `每小时最多 ${capability?.limits?.max_asins_per_hour ?? 100} 个 ASIN；超过 ${perJobAsinLimit()} 个会自动拆分，同一分组最终统一去重。` : 'ASIN 与分组草稿会保留在当前页面；完成统一登录与访问会话配置后即可提交。'}</span></div>
+        <label><span class="field-label">关键词研究周期锚点</span><input id="research-period" class="field" type="date" value="${esc(researchDraft.periodStart)}" required /></label>
+        <div class="research-form-wide notice">数据范围是<strong>所选周期内关键词服务能观测到的竞品流量词</strong>，不是亚马逊所有搜索查询。系统逐页读取，达到安全上限时会明确标记“已截断”。</div>
+        <div class="research-form-wide toolbar"><button id="research-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '开始分析' : '等待 1122 登录会话'}</button><span class="field-help">${ready ? `每小时最多 ${capability?.limits?.max_asins_per_hour ?? 100} 个商品编号；超过 ${perJobAsinLimit()} 个会自动拆分，同一分组最终统一去重。` : '商品编号与分组草稿会保留在当前页面；完成统一登录与访问会话配置后即可提交。'}</span></div>
       </form>
       <div id="research-form-message" class="section"></div>
     </section>`;
@@ -334,20 +335,20 @@
     const options = groups.map(group => `<option value="${esc(group.group_id)}" ${group.group_id === importDraft.groupId ? 'selected' : ''}>${esc(group.group_name)}${group.status === 'ARCHIVED' ? '（已归档）' : ''}</option>`).join('');
     return `<dialog id="keyword-import-dialog" class="keyword-import-dialog" aria-labelledby="keyword-import-title">
       <section class="card card-elevated keyword-import-card">
-        <div class="section-head"><div><div class="hero-eyebrow">MANUAL KEYWORD IMPORT</div><h2 id="keyword-import-title">导入关键词并自动分类</h2><div class="section-sub">粘贴关键词或选择本地 CSV / TXT；导入不调用 SIF，也不会伪造 ASIN、搜索量或流量指标。</div></div><button id="keyword-import-close" class="btn btn-quiet" type="button" aria-label="关闭关键词导入窗口">关闭</button></div>
+        <div class="section-head"><div><div class="hero-eyebrow">手工关键词导入</div><h2 id="keyword-import-title">导入关键词并自动分类</h2><div class="section-sub">粘贴关键词或选择本地表格或文本文件；导入不调用关键词服务，也不会伪造商品编号、搜索量或流量指标。</div></div><button id="keyword-import-close" class="btn btn-quiet" type="button" aria-label="关闭关键词导入窗口">关闭</button></div>
         <form id="keyword-import-form" class="research-form">
           <label><span class="field-label">产品关键词分组</span><select id="keyword-import-group-id" class="field"><option value="" ${selected ? '' : 'selected'}>＋ 新建自定义分组</option>${options}</select><span class="field-help">导入词只保存到这一产品分组，不会与其他品类词库混合。</span></label>
           <label><span class="field-label">导入名称（可选）</span><input id="keyword-import-name" class="field" maxlength="80" value="${esc(importDraft.importName)}" placeholder="例如：毛绒玩具人工补词 · 9 月" /></label>
           <div id="keyword-import-new-group-fields" class="research-form-wide grid grid-2" ${selected ? 'hidden' : ''}>
             <label><span class="field-label">新分组名称</span><input id="keyword-import-group-name" class="field" maxlength="80" value="${esc(importDraft.groupName)}" placeholder="例如：毛绒玩具" /><span class="field-help">同一市场下同名分组会复用。</span></label>
-            <label><span class="field-label">分组说明（可选）</span><input id="keyword-import-group-description" class="field" maxlength="300" value="${esc(importDraft.groupDescription)}" placeholder="例如：US 站毛绒动物玩具词库" /></label>
+            <label><span class="field-label">分组说明（可选）</span><input id="keyword-import-group-description" class="field" maxlength="300" value="${esc(importDraft.groupDescription)}" placeholder="例如：美国站毛绒动物玩具词库" /></label>
           </div>
-          <label class="research-form-wide"><span class="field-label">关键词（每行一个，也支持逗号、分号或 Tab）</span><textarea id="keyword-import-input" class="field research-textarea" rows="10" placeholder="plush toys&#10;stuffed animal for kids&#10;birthday gift for girls">${esc(importDraft.keywords)}</textarea><span id="keyword-import-validation" class="field-help">0 个可导入关键词</span></label>
-          <label><span class="field-label">从本地文件读取（可选）</span><input id="keyword-import-file" class="field" type="file" accept=".csv,.txt,text/csv,text/plain" /><span class="field-help">CSV 优先识别“关键词 / keyword / search term”列；不会上传原始文件。</span></label>
-          <label><span class="field-label">我方品牌（可选）</span><input id="keyword-import-own-brands" class="field" maxlength="300" value="${esc(importDraft.ownBrands)}" placeholder="多个品牌用逗号分隔" /><span class="field-help">用于“自有品牌词”分类，仅在 Worker 的受保护请求中使用。</span></label>
-          <label><span class="field-label">市场</span><select id="keyword-import-marketplace" class="field"><option value="US" ${importDraft.marketplace === 'US' ? 'selected' : ''}>美国（US）</option></select></label>
-          <div class="research-form-wide notice"><strong>自动处理：</strong>严格去重后，每个词都会按当前 10 类 taxonomy 给出一个主分类、标签、置信度和待复核信号。未命中明确语义规则的词会进入“相关泛词”，不会被悄悄丢弃。</div>
-          <div class="research-form-wide toolbar"><button id="keyword-import-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '导入并分析' : '等待 1122 登录会话'}</button><span class="field-help">单次最多 ${importedKeywordLimit()} 个去重关键词；访问密码不会写入文件、URL 或浏览器存储。</span></div>
+          <label class="research-form-wide"><span class="field-label">关键词（每行一个，也支持逗号、分号或制表符）</span><textarea id="keyword-import-input" class="field research-textarea" rows="10" placeholder="请输入关键词，每行一个">${esc(importDraft.keywords)}</textarea><span id="keyword-import-validation" class="field-help">0 个可导入关键词</span></label>
+          <label><span class="field-label">从本地文件读取（可选）</span><input id="keyword-import-file" class="field" type="file" accept=".csv,.txt,text/csv,text/plain" /><span class="field-help">优先识别“关键词”列；不会上传原始文件。</span></label>
+          <label><span class="field-label">我方品牌（可选）</span><input id="keyword-import-own-brands" class="field" maxlength="300" value="${esc(importDraft.ownBrands)}" placeholder="多个品牌用逗号分隔" /><span class="field-help">用于“自有品牌词”分类，仅在服务端的受保护请求中使用。</span></label>
+          <label><span class="field-label">市场</span><select id="keyword-import-marketplace" class="field"><option value="US" ${importDraft.marketplace === 'US' ? 'selected' : ''}>美国站</option></select></label>
+          <div class="research-form-wide notice"><strong>自动处理：</strong>严格去重后，每个词都会按当前 10 类分类体系给出一个主分类、标签、置信度和待复核信号。未命中明确语义规则的词会进入“相关泛词”，不会被悄悄丢弃。</div>
+          <div class="research-form-wide toolbar"><button id="keyword-import-submit" class="btn btn-primary" type="submit" ${ready ? '' : 'disabled aria-disabled="true"'}>${ready ? '导入并分析' : '等待 1122 登录会话'}</button><span class="field-help">单次最多 ${importedKeywordLimit()} 个去重关键词；访问密码不会写入文件、地址或浏览器存储。</span></div>
         </form>
         <div id="keyword-import-message" class="section"></div>
       </section>
@@ -356,13 +357,13 @@
 
   function historyPanel(jobs) {
     const groupFilterOptions = groups.map(group => `<option value="${esc(group.group_id)}" ${group.group_id === activeGroupId ? 'selected' : ''}>${esc(group.group_name)}</option>`).join('');
-    return `<section class="card research-history"><div class="section-head"><div><h2>最近任务</h2><div class="section-sub">结果保存在 1122-core D1；任务和词库按产品分组隔离。</div></div><button id="research-refresh-jobs" class="btn btn-quiet" type="button">刷新</button></div>
+    return `<section class="card research-history"><div class="section-head"><div><h2>最近任务</h2><div class="section-sub">结果保存在系统数据存储；任务和词库按产品分组隔离。</div></div><button id="research-refresh-jobs" class="btn btn-quiet" type="button">刷新</button></div>
       <label><span class="field-label">查看分组</span><select id="research-history-group-filter" class="field"><option value="">全部分组（含历史未分组）</option>${groupFilterOptions}</select></label>
       ${activeGroupId ? `<div class="toolbar section"><a class="btn btn-quiet" href="${esc(workbenchHref({ groupId: activeGroupId }))}">打开“${esc(groupLabel(groups.find(group => group.group_id === activeGroupId), '当前分组'))}”词库</a></div>` : ''}
       <div class="list">${jobs.length ? jobs.map(job => `<a class="list-item goal-card research-job-link" href="${esc(workbenchHref({ jobId: job.job_id, groupId: job.group_id || activeGroupId }))}">
         <div class="split-title"><div class="item-title">${esc(job.job_name || job.input_asins.join(' · '))}</div>${tag(job.status)}</div>
-        <div class="item-meta">分组：${esc(groupLabel(job.group))} · ${fmtTime(job.created_at)} · ${job.input_asin_count} ASIN · ${fmtNumber(job.unique_keyword_count)} 唯一词</div>
-      </a>`).join('') : '<div class="empty-state compact-empty"><h3>还没有研究任务</h3><p>在左侧选择或新建产品分组后，输入竞品 ASIN 创建第一份可追溯词库。</p></div>'}</div>
+        <div class="item-meta">分组：${esc(groupLabel(job.group))} · ${fmtTime(job.created_at)} · ${job.input_asin_count} 个商品编号 · ${fmtNumber(job.unique_keyword_count)} 个唯一词</div>
+      </a>`).join('') : '<div class="empty-state compact-empty"><h3>还没有研究任务</h3><p>在左侧选择或新建产品分组后，输入竞品商品编号创建第一份可追溯词库。</p></div>'}</div>
     </section>`;
   }
 
@@ -371,8 +372,8 @@
     const shouldLoadResult = ready && (activeJobId || activeGroupId);
     const emptyTitle = ready ? '选择分组或任务查看词库' : '输入区已就绪，等待执行授权';
     const emptyText = ready
-      ? '任务完成后可以按 10 类分类、核心层级、来源 ASIN 和关键词筛选；分组用于隔离不同产品线。'
-      : '填写或选择产品分组并输入 ASIN 后，完成 1122 登录与访问会话配置即可提交；页面不会隐藏输入窗口。';
+      ? '任务完成后可以按 10 类分类、核心层级、来源商品编号和关键词筛选；分组用于隔离不同产品线。'
+      : '填写或选择产品分组并输入商品编号后，完成 1122 登录与访问会话配置即可提交；页面不会隐藏输入窗口。';
     const resultShell = shouldLoadResult
       ? '<div class="card"><div class="skeleton skeleton-line"></div></div>'
       : `<div class="empty-state"><div class="empty-icon">⌕</div><h2>${emptyTitle}</h2><p>${emptyText}</p></div>`;
@@ -397,7 +398,7 @@
   }
 
   function asinTable(asins) {
-    return `<div class="table-wrap"><table><caption>${asins.length} 个输入 ASIN 的独立处理状态。</caption><thead><tr><th>ASIN / 产品</th><th>状态</th><th>返回范围</th><th>分页</th><th>观察时间</th></tr></thead><tbody>${asins.map(row => `<tr>
+    return `<div class="table-wrap"><table><caption>${asins.length} 个输入商品编号的独立处理状态。</caption><thead><tr><th>商品编号 / 产品</th><th>状态</th><th>返回范围</th><th>分页</th><th>观察时间</th></tr></thead><tbody>${asins.map(row => `<tr>
       <td><strong class="code">${esc(row.asin)}</strong>${row.title ? `<div class="item-meta">${esc(row.title)}</div>` : ''}${row.brand ? `<div class="item-meta">品牌：${esc(row.brand)}</div>` : ''}</td>
       <td>${tag(row.status)}${row.error ? `<div class="item-meta">${esc(row.error.message)}</div>` : ''}</td>
       <td>${fmtNumber(row.fetched_keyword_count)} / ${fmtNumber(row.expected_keyword_count)}${row.is_truncated ? '<div class="item-meta bad-text">已达到安全上限</div>' : ''}</td>
@@ -407,11 +408,11 @@
 
   function keywordFilters(detail) {
     return `<div class="keyword-filter-grid">
-      <label><span class="field-label">搜索关键词</span><input id="keyword-filter-q" class="field" placeholder="输入英文词组" /></label>
+      <label><span class="field-label">搜索关键词</span><input id="keyword-filter-q" class="field" placeholder="输入关键词" /></label>
       <label><span class="field-label">主分类</span><select id="keyword-filter-category" class="field"><option value="">全部 10 类</option>${(taxonomy?.categories || []).map(item => `<option value="${esc(item.code)}">${esc(item.label)}</option>`).join('')}</select></label>
       <label><span class="field-label">核心层级</span><select id="keyword-filter-tier" class="field"><option value="">全部层级</option><option value="CORE">核心</option><option value="SUPPORT">支撑</option><option value="LONG_TAIL">长尾</option><option value="NICHE">细分</option></select></label>
-      <label><span class="field-label">来源 ASIN</span><select id="keyword-filter-asin" class="field"><option value="">全部竞品</option>${(detail.asins || []).filter(row => row.status === 'SUCCEEDED').map(row => `<option value="${esc(row.asin)}">${esc(row.asin)}</option>`).join('')}</select></label>
-      <label><span class="field-label">排序</span><select id="keyword-filter-sort" class="field"><option value="search_volume">搜索量</option><option value="source_count">竞品覆盖数</option><option value="keyword">关键词 A-Z</option></select></label>
+      <label><span class="field-label">来源商品编号</span><select id="keyword-filter-asin" class="field"><option value="">全部竞品</option>${(detail.asins || []).filter(row => row.status === 'SUCCEEDED').map(row => `<option value="${esc(row.asin)}">${esc(row.asin)}</option>`).join('')}</select></label>
+      <label><span class="field-label">排序</span><select id="keyword-filter-sort" class="field"><option value="search_volume">搜索量</option><option value="source_count">竞品覆盖数</option><option value="keyword">关键词按字母顺序</option></select></label>
       <label class="checkbox-field"><input id="keyword-filter-review" type="checkbox" /> 只看待复核</label>
       <button id="keyword-filter-apply" class="btn btn-primary" type="button">应用筛选</button>
     </div>`;
@@ -422,19 +423,19 @@
       <td><strong>${esc(item.keyword)}</strong><div class="item-meta">${esc(item.strategic_tier)} · ${esc(item.query_shape)}${item.needs_review ? ' · 待复核' : ''}</div></td>
       <td><span class="tag tag-info">${esc(categoryLabel(item.primary_category))}</span><div class="item-meta" title="${esc(item.classification_reason)}">置信度 ${Math.round(item.classification_confidence * 100)}%</div></td>
       <td><strong>${fmtNumber(item.source_asin_count)}</strong><div class="source-asins">${(item.source_asins || []).map(asin => `<span class="code">${esc(asin)}</span>`).join('')}</div></td>
-      <td>${fmtNumber(item.search_volume)}<div class="item-meta">ABA 排名 ${fmtNumber(item.best_aba_rank)}</div></td>
+      <td>${fmtNumber(item.search_volume)}<div class="item-meta">行业排名 ${fmtNumber(item.best_aba_rank)}</div></td>
       <td>${fmtPercent(item.max_traffic_share)}<div class="item-meta">得分 ${fmtNumber(item.max_traffic_score, 2)}</div></td>
-      <td>${fmtNumber(item.best_organic_rank, 1)}<div class="item-meta">SP ${fmtNumber(item.best_sp_rank, 1)}</div></td>
+      <td>${fmtNumber(item.best_organic_rank, 1)}<div class="item-meta">商品推广位 ${fmtNumber(item.best_sp_rank, 1)}</div></td>
     </tr>`).join('');
     if (append) return rows;
-    return `<div class="table-wrap"><table><caption>当前筛选共 ${fmtNumber(total)} 个严格去重关键词；搜索量取各 ASIN 返回值的最大值，不跨 ASIN 相加。</caption><thead><tr><th>关键词 / 层级</th><th>主分类</th><th>来源竞品</th><th>搜索量 / ABA</th><th>最高流量占比</th><th>自然 / SP 位</th></tr></thead><tbody id="keyword-table-body">${rows || '<tr><td colspan="6">当前筛选没有关键词。</td></tr>'}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><caption>当前筛选共 ${fmtNumber(total)} 个严格去重关键词；搜索量取各商品编号返回值的最大值，不跨商品编号相加。</caption><thead><tr><th>关键词 / 层级</th><th>主分类</th><th>来源竞品</th><th>搜索量 / 行业排名</th><th>最高流量占比</th><th>自然 / 商品推广位</th></tr></thead><tbody id="keyword-table-body">${rows || '<tr><td colspan="6">当前筛选没有关键词。</td></tr>'}</tbody></table></div>`;
   }
 
   function groupKeywordFilters() {
     return `<div class="keyword-filter-grid">
-      <label><span class="field-label">搜索关键词</span><input id="group-keyword-filter-q" class="field" placeholder="输入英文词组" /></label>
+      <label><span class="field-label">搜索关键词</span><input id="group-keyword-filter-q" class="field" placeholder="输入关键词" /></label>
       <label><span class="field-label">10 类主分类</span><select id="group-keyword-filter-category" class="field"><option value="">全部 10 类</option>${(taxonomy?.categories || []).map(item => `<option value="${esc(item.code)}">${esc(item.label)}</option>`).join('')}</select></label>
-      <label><span class="field-label">排序</span><select id="group-keyword-filter-sort" class="field"><option value="search_volume">搜索量</option><option value="source_count">竞品覆盖数</option><option value="keyword">关键词 A-Z</option></select></label>
+      <label><span class="field-label">排序</span><select id="group-keyword-filter-sort" class="field"><option value="search_volume">搜索量</option><option value="source_count">竞品覆盖数</option><option value="keyword">关键词按字母顺序</option></select></label>
       <button id="group-keyword-filter-apply" class="btn btn-primary" type="button">应用筛选</button>
     </div>`;
   }
@@ -445,38 +446,38 @@
       const review = item.classification_conflict ? ' · 分类待复核' : (item.needs_review ? ' · 待复核' : '');
       const sourceKinds = (item.source_kinds || []).map(sourceKindLabel).join(' / ') || '来源待确认';
       const sourceDetail = item.source_asin_count
-        ? `${fmtNumber(item.source_asin_count)} 个来源 ASIN`
-        : item.manual_import_batch_count ? `手工导入 ${fmtNumber(item.manual_import_batch_count)} 批` : '无 ASIN 来源';
+        ? `${fmtNumber(item.source_asin_count)} 个来源商品编号`
+        : item.manual_import_batch_count ? `手工导入 ${fmtNumber(item.manual_import_batch_count)} 批` : '无商品编号来源';
       return `<tr>
         <td><strong>${esc(item.keyword)}</strong><div class="item-meta">${fmtTime(item.observed_at)}${review}</div></td>
         <td><span class="tag tag-info">${esc(labels || '未分类')}</span><div class="item-meta">${item.classification_conflict ? '跨任务分类不同，未静默合并' : '分组内主分类'}</div></td>
         <td><strong>${fmtNumber(item.source_job_count)}</strong><div class="item-meta">${esc(sourceKinds)} · ${esc(sourceDetail)}</div></td>
-        <td>${fmtNumber(item.search_volume)}<div class="item-meta">ABA 排名 ${fmtNumber(item.best_aba_rank)}</div></td>
+        <td>${fmtNumber(item.search_volume)}<div class="item-meta">行业排名 ${fmtNumber(item.best_aba_rank)}</div></td>
         <td>${fmtPercent(item.max_traffic_share)}<div class="item-meta">得分 ${fmtNumber(item.max_traffic_score, 2)}</div></td>
-        <td><div class="source-asins">${(item.source_asins || []).map(asin => `<span class="code">${esc(asin)}</span>`).join('') || '<span class="item-meta">手工导入词无 ASIN 来源</span>'}</div></td>
+        <td><div class="source-asins">${(item.source_asins || []).map(asin => `<span class="code">${esc(asin)}</span>`).join('') || '<span class="item-meta">手工导入词无商品编号来源</span>'}</div></td>
       </tr>`;
     }).join('');
     if (append) return rows;
-    return `<div class="table-wrap"><table><caption>当前“产品关键词分组”共 ${fmtNumber(total)} 个严格去重关键词。仅聚合此分组内已完成的 SIF 任务和手工导入批次；全局词典不会把其他产品线的词带入。</caption><thead><tr><th>关键词 / 最近观察</th><th>10 类分类</th><th>来源批次 / ASIN</th><th>搜索量 / ABA</th><th>最高流量占比</th><th>来源 ASIN</th></tr></thead><tbody id="group-keyword-table-body">${rows || '<tr><td colspan="6">该分组尚没有已完成的关键词。</td></tr>'}</tbody></table></div>`;
+    return `<div class="table-wrap"><table><caption>当前“产品关键词分组”共 ${fmtNumber(total)} 个严格去重关键词。仅聚合此分组内已完成的关键词研究任务和手工导入批次；全局词典不会把其他产品线的词带入。</caption><thead><tr><th>关键词 / 最近观察</th><th>10 类分类</th><th>来源批次 / 商品编号</th><th>搜索量 / 行业排名</th><th>最高流量占比</th><th>来源商品编号</th></tr></thead><tbody id="group-keyword-table-body">${rows || '<tr><td colspan="6">该分组尚没有已完成的关键词。</td></tr>'}</tbody></table></div>`;
   }
 
   function groupLibraryPanel(payload) {
     const group = payload.group || groups.find(item => item.group_id === activeGroupId) || {};
     const summary = payload.summary || {};
     const imports = payload.imports || [];
-    return `<section class="result-hero card card-elevated"><div class="split-title"><div><div class="hero-eyebrow">PRODUCT GROUP LIBRARY</div><h2>${esc(groupLabel(group, '产品关键词分组'))}</h2><div class="item-meta">${esc(group.marketplace || 'US')} · ${esc(group.description || '自定义产品线；不同分组默认不互相混合。')}</div></div>${tag(group.status || 'ACTIVE')}</div>
-      <div class="notice section"><strong>分组边界：</strong>这里仅汇总当前分组中的 SIF 研究和手工导入。手工词不伪造 ASIN 或 SIF 指标；若同一个词在不同批次得到不同分类，会明确标记为待复核。</div>
-      <div class="toolbar"><button id="group-keyword-download" class="btn btn-primary" type="button">下载当前筛选 CSV</button><a class="btn btn-quiet" href="${esc(workbenchHref())}">返回全部任务</a></div>
+    return `<section class="result-hero card card-elevated"><div class="split-title"><div><div class="hero-eyebrow">产品分组词库</div><h2>${esc(groupLabel(group, '产品关键词分组'))}</h2><div class="item-meta">${esc(group.marketplace || '站点待提供')} · ${esc(group.description || '自定义产品线；不同分组默认不互相混合。')}</div></div>${tag(group.status || 'ACTIVE')}</div>
+      <div class="notice section"><strong>分组边界：</strong>这里仅汇总当前分组中的关键词研究和手工导入。手工词不伪造商品编号或关键词服务指标；若同一个词在不同批次得到不同分类，会明确标记为待复核。</div>
+      <div class="toolbar"><button id="group-keyword-download" class="btn btn-primary" type="button">下载当前筛选表格</button><a class="btn btn-quiet" href="${esc(workbenchHref())}">返回全部任务</a></div>
     </section>
     <div class="grid grid-auto section">
-      <div class="card metric-card"><div class="metric-label">关键词总数</div><div class="metric-value">${fmtNumber(summary.total_keyword_count)}</div><div class="metric-meta">当前分组跨 SIF / 手工批次严格去重</div></div>
+      <div class="card metric-card"><div class="metric-label">关键词总数</div><div class="metric-value">${fmtNumber(summary.total_keyword_count)}</div><div class="metric-meta">当前分组跨关键词研究 / 手工批次严格去重</div></div>
       <div class="card metric-card"><div class="metric-label">已完成分类</div><div class="metric-value">${fmtNumber(summary.classified_keyword_count)}</div><div class="metric-meta">每个已保存词均有一个 10 类主分类</div></div>
       <div class="card metric-card"><div class="metric-label">待复核</div><div class="metric-value">${fmtNumber(summary.review_keyword_count)}</div><div class="metric-meta">低置信度、近似词或跨批次分类冲突</div></div>
-      <div class="card metric-card"><div class="metric-label">分类处理中</div><div class="metric-value">${fmtNumber(summary.unclassified_keyword_count)}</div><div class="metric-meta">后台 SIF 任务尚未落库的去重词</div></div>
-      <div class="card metric-card"><div class="metric-label">手工导入词</div><div class="metric-value">${fmtNumber(summary.manual_import_keyword_count)}</div><div class="metric-meta">同时来自 SIF 的词只在总数中算一次</div></div>
+      <div class="card metric-card"><div class="metric-label">分类处理中</div><div class="metric-value">${fmtNumber(summary.unclassified_keyword_count)}</div><div class="metric-meta">后台关键词研究任务尚未落库的去重词</div></div>
+      <div class="card metric-card"><div class="metric-label">手工导入词</div><div class="metric-value">${fmtNumber(summary.manual_import_keyword_count)}</div><div class="metric-meta">同时来自关键词研究的词只在总数中算一次</div></div>
     </div>
     ${imports.length ? `<section class="card section"><div class="section-head"><div><h2>最近手工导入批次</h2><div class="section-sub">批次已完成后才进入分组词库。</div></div></div><div class="list compact-list">${imports.map(item => `<div class="list-item"><div class="split-title"><div class="item-title">${esc(item.import_name || '未命名关键词导入')}</div>${tag(item.status)}</div><div class="item-meta">${fmtTime(item.created_at)} · 输入 ${fmtNumber(item.input_keyword_count)} · 去重后 ${fmtNumber(item.unique_keyword_count)} · 已分类 ${fmtNumber(item.classified_keyword_count)} · 待复核 ${fmtNumber(item.review_keyword_count)}</div>${item.error ? `<div class="item-meta bad-text">${esc(item.error.message)}</div>` : ''}</div>`).join('')}</div></section>` : ''}
-    <section class="section"><div class="section-head"><div><h2>分组去重词库</h2><div class="section-sub">按当前分组跨任务严格去重，并保留批次、来源 ASIN、手工来源和分类冲突信号。</div></div></div>${groupKeywordFilters()}<div id="group-keyword-table-shell">${groupKeywordTable(payload.items || [], payload.total || 0)}</div>${payload.next_cursor ? '<div class="toolbar group-load-more-row"><button id="group-keyword-load-more" class="btn" type="button">加载更多</button></div>' : ''}</section>`;
+    <section class="section"><div class="section-head"><div><h2>分组去重词库</h2><div class="section-sub">按当前分组跨任务严格去重，并保留批次、来源商品编号、手工来源和分类冲突信号。</div></div></div>${groupKeywordFilters()}<div id="group-keyword-table-shell">${groupKeywordTable(payload.items || [], payload.total || 0)}</div>${payload.next_cursor ? '<div class="toolbar group-load-more-row"><button id="group-keyword-load-more" class="btn" type="button">加载更多</button></div>' : ''}</section>`;
   }
 
   function resultPanel(detail, keywordPayload) {
@@ -487,24 +488,24 @@
     const running = !TERMINAL.has(job.status);
     const truncated = (detail.asins || []).some(row => row.is_truncated);
     const groupLink = job.group?.group_id ? `<a class="btn btn-quiet" href="${esc(workbenchHref({ groupId: job.group.group_id }))}">查看“${esc(groupLabel(job.group))}”分组词库</a>` : '';
-    return `<section class="result-hero card card-elevated"><div class="split-title"><div><div class="hero-eyebrow">RESEARCH RUN</div><h2>${esc(job.job_name || job.input_asins.join(' · '))}</h2><div class="item-meta">${esc(job.marketplace)} · ${esc(job.granularity)} ${esc(job.period_start)} · ${esc(job.source_tool)}</div></div>${tag(job.status)}</div>
+    return `<section class="result-hero card card-elevated"><div class="split-title"><div><div class="hero-eyebrow">研究任务</div><h2>${esc(job.job_name || job.input_asins.join(' · '))}</h2><div class="item-meta">${esc(job.marketplace)} · ${esc(job.granularity)} ${esc(job.period_start)} · ${esc(job.source_tool)}</div></div>${tag(job.status)}</div>
       <div class="item-meta section">产品关键词分组：${job.group ? `<strong>${esc(groupLabel(job.group))}</strong>${job.group.description ? ` · ${esc(job.group.description)}` : ''}` : '历史未分组（该任务不会被自动并入任何产品线词库）'}</div>
       ${running ? `<div class="research-progress"><span></span></div><div class="item-meta">${job.status === 'CLASSIFYING' ? `正在分类 ${fmtNumber(job.classified_keyword_count)} / ${fmtNumber(job.unique_keyword_count)} 个去重词` : job.status === 'CLASSIFICATION_PENDING' ? '已完成采集，正在启动分类' : '任务正在后台分页采集'}；本页将在有限时间内自动刷新。</div>` : ''}
-      <div class="toolbar section"><button id="research-refresh-result" class="btn" type="button">刷新结果</button><button id="keyword-download" class="btn btn-primary" type="button">下载当前筛选 CSV</button>${groupLink}<a class="btn btn-quiet" href="${esc(workbenchHref({ groupId: job.group?.group_id || '' }))}">${job.group?.group_id ? '返回分组' : '清除选择'}</a></div>
+      <div class="toolbar section"><button id="research-refresh-result" class="btn" type="button">刷新结果</button><button id="keyword-download" class="btn btn-primary" type="button">下载当前筛选表格</button>${groupLink}<a class="btn btn-quiet" href="${esc(workbenchHref({ groupId: job.group?.group_id || '' }))}">${job.group?.group_id ? '返回分组' : '清除选择'}</a></div>
     </section>
     <div class="grid grid-auto section">
-      <div class="card metric-card"><div class="metric-label">输入 ASIN</div><div class="metric-value">${fmtNumber(job.input_asin_count)}</div><div class="metric-meta">成功 ${fmtNumber(job.successful_asin_count)} · 失败 ${fmtNumber(job.failed_asin_count)}</div></div>
-      <div class="card metric-card"><div class="metric-label">SIF 原始词行</div><div class="metric-value">${fmtNumber(job.raw_keyword_count)}</div><div class="metric-meta">逐 ASIN、逐页真实计数</div></div>
+      <div class="card metric-card"><div class="metric-label">输入商品编号</div><div class="metric-value">${fmtNumber(job.input_asin_count)}</div><div class="metric-meta">成功 ${fmtNumber(job.successful_asin_count)} · 失败 ${fmtNumber(job.failed_asin_count)}</div></div>
+      <div class="card metric-card"><div class="metric-label">关键词原始词行</div><div class="metric-value">${fmtNumber(job.raw_keyword_count)}</div><div class="metric-meta">逐商品编号、逐页真实计数</div></div>
       <div class="card metric-card"><div class="metric-label">关键词总数（严格去重）</div><div class="metric-value">${fmtNumber(summary.total_keyword_count ?? job.unique_keyword_count)}</div><div class="metric-meta">合并 ${fmtNumber(duplicates)} 行 · ${fmtPercent(dedupeRate)}</div></div>
-      <div class="card metric-card"><div class="metric-label">已完成分类</div><div class="metric-value">${fmtNumber(summary.classified_keyword_count)}</div><div class="metric-meta">10 类主分类已真实写入 D1</div></div>
+      <div class="card metric-card"><div class="metric-label">已完成分类</div><div class="metric-value">${fmtNumber(summary.classified_keyword_count)}</div><div class="metric-meta">10 类主分类已真实写入数据存储</div></div>
       <div class="card metric-card"><div class="metric-label">待复核 / 待分类</div><div class="metric-value">${fmtNumber(summary.review_keyword_count)} / ${fmtNumber(summary.unclassified_keyword_count)}</div><div class="metric-meta">不会把未落库词误显示为已分类</div></div>
       <div class="card metric-card"><div class="metric-label">完成时间</div><div class="metric-value compact-value">${fmtTime(job.completed_at)}</div><div class="metric-meta">${esc(job.taxonomy_version)}</div></div>
     </div>
-    ${truncated ? '<div class="notice warn section"><strong>存在截断：</strong>至少一个 ASIN 的总词数超过单 ASIN 安全页数上限。已保存的数据真实有效，但不能标记为完整覆盖。</div>' : ''}
-    ${job.status === 'PARTIAL' ? '<div class="notice warn section"><strong>部分完成：</strong>成功 ASIN 的词已保存；失败 ASIN 不会阻止查看现有结果。</div>' : ''}
+    ${truncated ? '<div class="notice warn section"><strong>存在截断：</strong>至少一个商品编号的总词数超过单商品编号安全页数上限。已保存的数据真实有效，但不能标记为完整覆盖。</div>' : ''}
+    ${job.status === 'PARTIAL' ? '<div class="notice warn section"><strong>部分完成：</strong>成功商品编号的词已保存；失败商品编号不会阻止查看现有结果。</div>' : ''}
     ${job.status === 'FAILED' && job.error ? `<div class="notice bad section"><strong>${esc(job.error.stage)}：</strong>${esc(job.error.message)}</div>` : ''}
-    <div class="grid grid-2 section"><section class="card"><div class="section-head"><div><h2>10 类分布</h2><div class="section-sub">点击类别可直接筛选词表</div></div></div>${categoryDistribution(detail)}</section><section><div class="section-head"><div><h2>ASIN 处理明细</h2><div class="section-sub">失败和截断不会被隐藏</div></div></div>${asinTable(detail.asins || [])}</section></div>
-    <section class="section"><div class="section-head"><div><h2>去重分类词库</h2><div class="section-sub">显示来源 ASIN，并可按 ASIN 筛选；近似词只提示，不自动合并</div></div></div>${keywordFilters(detail)}<div id="keyword-table-shell">${keywordTable(keywordPayload?.items || [], keywordPayload?.total || 0)}</div>${keywordPayload?.next_cursor ? '<div class="toolbar load-more-row"><button id="keyword-load-more" class="btn" type="button">加载更多</button></div>' : ''}</section>`;
+    <div class="grid grid-2 section"><section class="card"><div class="section-head"><div><h2>10 类分布</h2><div class="section-sub">点击类别可直接筛选词表</div></div></div>${categoryDistribution(detail)}</section><section><div class="section-head"><div><h2>商品编号处理明细</h2><div class="section-sub">失败和截断不会被隐藏</div></div></div>${asinTable(detail.asins || [])}</section></div>
+    <section class="section"><div class="section-head"><div><h2>去重分类词库</h2><div class="section-sub">显示来源商品编号，并可按商品编号筛选；近似词只提示，不自动合并</div></div></div>${keywordFilters(detail)}<div id="keyword-table-shell">${keywordTable(keywordPayload?.items || [], keywordPayload?.total || 0)}</div>${keywordPayload?.next_cursor ? '<div class="toolbar load-more-row"><button id="keyword-load-more" class="btn" type="button">加载更多</button></div>' : ''}</section>`;
   }
 
   function showMessage(targetId, message, kind = 'bad') {
@@ -1082,7 +1083,7 @@
       if (!executionReady()) {
         showMessage('research-form-message', capability?.web_console_login_configured
           ? '1122 登录会话不可用或已失效，请重新登录后再开始分析。'
-          : '关键词研究访问会话尚未配置；ASIN 与分组草稿不会丢失，但当前不能提交查询。');
+          : '关键词研究访问会话尚未配置；商品编号与分组草稿不会丢失，但当前不能提交查询。');
         return;
       }
       const button = document.getElementById('research-submit');
@@ -1092,7 +1093,7 @@
       const perJob = perJobAsinLimit();
       const batchLimit = batchAsinLimit();
       if (parsed.invalid.length || parsed.valid.length < 1 || parsed.valid.length > batchLimit) {
-        showMessage('research-form-message', `请保留 1–${batchLimit} 个合法的 10 位 ASIN，并修正无效项。`);
+        showMessage('research-form-message', `请保留 1–${batchLimit} 个合法的 10 位商品编号，并修正无效项。`);
         return;
       }
       if (!groupId && !groupName) {
@@ -1124,7 +1125,7 @@
             body.group_name = groupName;
             if (researchDraft.groupDescription.trim()) body.group_description = researchDraft.groupDescription.trim();
           }
-          showMessage('research-form-message', `正在创建第 ${index + 1}/${chunks.length} 个任务（${chunks[index].length} 个 ASIN）…`, '');
+          showMessage('research-form-message', `正在创建第 ${index + 1}/${chunks.length} 个任务（${chunks[index].length} 个商品编号）…`, '');
           const payload = await api('/api/v1/competitor-keyword-runs', {
             method: 'POST', timeoutMs: 20_000,
             validate: value => hasJobShape(value),
@@ -1149,7 +1150,7 @@
           researchDraft.groupDescription = '';
           activeGroupId = effectiveGroupId;
         }
-        const progress = createdJobs.length ? `已成功创建 ${createdJobs.length}/${chunks.length} 个任务；剩余 ASIN 尚未创建。` : '';
+        const progress = createdJobs.length ? `已成功创建 ${createdJobs.length}/${chunks.length} 个任务；剩余商品编号尚未创建。` : '';
         showMessage('research-form-message', `${progress}${progress ? ' ' : ''}${describeRequestFailure(error)}${extra}`);
       } finally {
         button.disabled = false;
@@ -1164,7 +1165,7 @@
     try {
       if (!taxonomy || !capability) await loadTaxonomyAndCapability();
     } catch (error) {
-      if (isCurrent()) view.innerHTML = `${hero()}<div class="notice bad section">SIF 关键词工作台状态读取失败：${esc(error.message)}</div>`;
+      if (isCurrent()) view.innerHTML = `${hero()}<div class="notice bad section">关键词工作台状态读取失败：${esc(error.message)}</div>`;
       return;
     }
     if (!isCurrent()) return;

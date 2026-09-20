@@ -45,10 +45,15 @@ jobs:
           test -f web-console/index.html
           test -f web-console/styles.css
           test -f web-console/app.js
+          test -f web-console/ui-text.js
           test -f web-console/data/snapshots.js
           test -f web-console/_headers
-          node --check web-console/app.js
-          node --check web-console/data/snapshots.js
+          for file in web-console/*.js web-console/data/*.js; do
+            node --check "$file"
+          done
+          node tools/verify-ui-registry.mjs
+          node tools/verify-web-console-static-copy.mjs
+          node --test web-console/tests/*.test.mjs
 
           rm -rf dist
           mkdir -p dist

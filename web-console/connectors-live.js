@@ -77,8 +77,8 @@
     const message = String(error?.message || error || 'REQUEST_FAILED');
     if (message === 'TIMEOUT') return { code: 'TIMEOUT', message: '请求超时；连接器未在限定时间内响应。' };
     if (message === 'INVALID_JSON' || message === 'INVALID_SHAPE') return { code: 'INVALID_RESPONSE', message: '连接器返回格式无效，已按失败处理。' };
-    if (/^HTTP_/.test(message) || Number.isInteger(error?.httpStatus)) return { code: error?.code || message, message: `连接器请求失败（HTTP ${error?.httpStatus || message.replace('HTTP_', '')}）。` };
-    return { code: 'NETWORK_OR_CORS', message: '网络或跨域访问失败；请检查 Bridge allow-list 与部署状态。' };
+    if (/^HTTP_/.test(message) || Number.isInteger(error?.httpStatus)) return { code: error?.code || message, message: `连接器请求失败（状态码 ${error?.httpStatus || message.replace('HTTP_', '')}）。` };
+    return { code: 'NETWORK_OR_CORS', message: '网络或跨域访问失败；请检查连接服务白名单与部署状态。' };
   }
 
   function unavailable(config, status, code, message, details = {}) {
@@ -96,7 +96,7 @@
 
   async function read(connectorId) {
     const config = registry[connectorId];
-    if (!config) return unavailable({ connector_id: connectorId }, 'ERROR', 'NOT_REGISTERED', 'Connector 未注册。');
+    if (!config) return unavailable({ connector_id: connectorId }, 'ERROR', 'NOT_REGISTERED', '连接器未登记。');
     if (!config.endpoint) return unavailable(config, 'DEGRADED', 'HEALTH_ENDPOINT_NOT_CONFIGURED', '连接器已登记，但尚未配置公开只读健康端点。', { mode: config.healthPath });
 
     const started = performance.now();
@@ -110,7 +110,7 @@
       return { ...health, latency_ms: Number.isFinite(health.latency_ms) ? health.latency_ms : Math.round(performance.now() - started) };
     } catch (error) {
       if (config.connector_id === 'email' && error?.httpStatus === 503 && error?.responsePayload?.configured === false) {
-        return unavailable(config, 'AUTH_REQUIRED', 'EMAIL_SECRETS_REQUIRED', '邮箱连接器已部署，但邮箱 Secret 尚未配置。', { configured: false });
+        return unavailable(config, 'AUTH_REQUIRED', 'EMAIL_SECRETS_REQUIRED', '邮箱连接器已部署，但邮箱敏感配置尚未完成。', { configured: false });
       }
       const classified = classify(error);
       return unavailable(config, 'ERROR', classified.code, classified.message, { bridge: 'offline' });

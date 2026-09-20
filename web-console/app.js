@@ -23,8 +23,9 @@
   const sessionLogout = document.getElementById('session-logout');
   const auth = window.__1122_AUTH__;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+  const statusText = value => window.__1122_UI_TEXT__?.status?.(value) ?? String(value ?? '状态未知');
   const statusKind = value => /LIVE|CONNECTED|SUCCESS|READY|FRESH|VERIFIED|ALLOWED|LOW|POSITIVE|CONFIRMED/i.test(String(value)) ? 'ok' : /ERROR|FAIL|BLOCK|STALE|NONCOMPLIANT|HIGH/i.test(String(value)) ? 'bad' : 'warn';
-  const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(value ?? 'UNKNOWN')}</span>`;
+  const tag = value => `<span class="tag tag-${statusKind(value)}">${esc(statusText(value))}</span>`;
   const moduleRegistry = window.__1122_REGISTRY__?.modules || [];
   const pageRenderers = window.__1122_PAGE_RENDERERS__ || {};
   let data;
@@ -52,7 +53,7 @@
       ? `有效至 ${expires.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`
       : '会话有效';
     sessionState.textContent = '已登录';
-    sessionState.title = `1122 访问会话 · ${expiresText}`;
+    sessionState.title = `1122 登录会话 · ${expiresText}`;
   }
 
   function showAccessGate(message = '') {
@@ -152,25 +153,19 @@
   function updateSourceState() {
     const source = data.__source || { mode: 'SNAPSHOT_FALLBACK', live_data_verified: false };
     const d1 = source.source_status?.d1 || data.source_status?.d1 || 'UNKNOWN';
-    sourceState.textContent = `数据源：${source.mode || 'UNKNOWN'} · ${d1}`;
-    sourceState.title = `Transport: ${source.endpoint || 'snapshot'} · Semantic: ${data.live_data_verified === true ? 'verified' : 'pending'}`;
+    sourceState.textContent = `数据源：${statusText(source.mode || 'UNKNOWN')} · ${statusText(d1)}`;
+    sourceState.title = `数据通道已加载 · 语义状态：${data.live_data_verified === true ? '已验证' : '待验证'}`;
     const safe = data.read_only === true && data.production_write_authorized !== true && data.execution_authorized !== true;
     const researchProtected = (window.__1122_REGISTRY__?.connectors || []).some(connector => connector.writeMode === 'protected-research');
     systemDot.className = `dot ${safe ? 'dot-ok' : 'dot-warn'}`;
     safetyState.textContent = safe ? (researchProtected ? '生产只读 / 研究操作受保护' : '只读 / 未授权写入') : '权限状态待确认';
   }
 
-  function stateClass(readiness) {
-    if (readiness === 'LIVE_READ' || readiness === 'LIVE_EMPTY') return 'live';
-    if (readiness === 'PARTIAL_LIVE') return 'partial';
-    return 'design';
-  }
-
   function renderNavChildren(parentId, depth = 1) {
     const children = moduleRegistry.filter(child => child.parent === parentId);
     if (!children.length) return '';
     return `<div class="nav-children nav-depth-group-${depth}">${children.map(child => `<div>
-      <a class="nav-child nav-depth-${depth}" href="#${esc(child.route)}" data-route="${esc(child.route)}"><span class="nav-label">${esc(child.label)}</span><span class="nav-state ${stateClass(child.readiness)}" title="${esc(child.readiness || 'UNKNOWN')}"></span></a>
+      <a class="nav-child nav-depth-${depth}" href="#${esc(child.route)}" data-route="${esc(child.route)}"><span class="nav-label">${esc(child.label)}</span></a>
       ${renderNavChildren(child.id, depth + 1)}
     </div>`).join('')}</div>`;
   }
@@ -192,7 +187,7 @@
       const items = roots.filter(item => item.nav_group === groupId);
       if (!items.length) return '';
       return `<details class="nav-section" ${groupId === activeGroup ? 'open' : ''}><summary>${esc(label)}</summary><div class="nav-group">${items.map(item => {
-        return `<div><a class="nav-item" href="#${esc(item.route)}" data-route="${esc(item.route)}"><span class="nav-icon" aria-hidden="true">${esc(item.icon || '•')}</span><span class="nav-label">${esc(item.label)}</span><span class="nav-state ${stateClass(item.readiness)}" title="${esc(item.readiness || 'UNKNOWN')}"></span></a>${renderNavChildren(item.id)}</div>`;
+        return `<div><a class="nav-item" href="#${esc(item.route)}" data-route="${esc(item.route)}"><span class="nav-icon" aria-hidden="true">${esc(item.icon || '•')}</span><span class="nav-label">${esc(item.label)}</span></a>${renderNavChildren(item.id)}</div>`;
       }).join('')}</div></details>`;
     }).join('');
   }
@@ -225,7 +220,7 @@
 
   function renderNotFound(path) {
     setChrome('页面未找到', '系统 / 未知路由');
-    view.innerHTML = `<div class="empty-state"><div class="empty-icon" aria-hidden="true">◌</div><h2>没有找到这个页面</h2><p>路由 <span class="code">${esc(path)}</span> 未在 Navigation Registry 中登记。</p><div class="toolbar" style="justify-content:center;margin-top:18px"><a class="btn btn-primary" href="#/command-center">返回指挥中心</a><a class="btn" href="#/system/overview">查看系统地图</a></div></div>`;
+    view.innerHTML = `<div class="empty-state"><div class="empty-icon" aria-hidden="true">◌</div><h2>没有找到这个页面</h2><p>该路由尚未在导航登记表中配置。</p><div class="toolbar" style="justify-content:center;margin-top:18px"><a class="btn btn-primary" href="#/command-center">返回指挥中心</a><a class="btn" href="#/system/overview">查看系统地图</a></div></div>`;
   }
 
   async function render() {
@@ -255,7 +250,7 @@
       if (!isCurrent()) return;
       setChrome('页面加载失败', '系统 / 错误');
       view.setAttribute('aria-busy', 'false');
-      view.innerHTML = `<div class="notice bad"><strong>页面未能完成加载：</strong>${esc(error?.message || 'UNKNOWN_ERROR')} <button id="route-retry" class="btn btn-quiet" type="button">重试</button></div>`;
+      view.innerHTML = `<div class="notice bad"><strong>页面未能完成加载：</strong>${esc(error?.message || '页面加载异常')} <button id="route-retry" class="btn btn-quiet" type="button">重试</button></div>`;
       document.getElementById('route-retry')?.addEventListener('click', render);
     }
   }
@@ -282,7 +277,7 @@
     const needsAttention = values.length - healthy;
     topHealth.className = `health-pill ${needsAttention === 0 ? 'health-ok' : healthy > 0 ? 'health-warn' : 'health-bad'}`;
     topHealth.querySelector('span:last-child').textContent = needsAttention ? `${healthy} 正常 · ${needsAttention} 待办` : `${healthy} 个连接正常`;
-    topHealth.title = values.map(item => `${window.__1122_CONNECTORS__.registry[item.connector_id]?.label || item.connector_id}: ${item.status}`).join('\n');
+    topHealth.title = values.map(item => `${window.__1122_CONNECTORS__.registry[item.connector_id]?.label || '未登记连接'}：${statusText(item.status)}`).join('\n');
   }
 
   async function refreshTopHealth() {
@@ -301,13 +296,13 @@
       if (`${item.title} ${item.asin} ${item.sku} ${item.brand}`.toLowerCase().includes(text)) rows.push({ type: '产品', title: item.title || item.asin, meta: `${item.asin || ''} · ${item.sku || ''}`, route: `/products/${encodeURIComponent(item.product_id)}` });
     });
     (data.apr || []).forEach(item => {
-      if (JSON.stringify(item).toLowerCase().includes(text)) rows.push({ type: 'APR', title: item.pattern_name_cn || item.apr_id, meta: item.business_goal || item.apr_id, route: '/amazon-boundary/apr' });
+      if (JSON.stringify(item).toLowerCase().includes(text)) rows.push({ type: '市场玩法', title: item.pattern_name_cn || item.apr_id, meta: item.business_goal || item.apr_id, route: '/amazon-boundary/apr' });
     });
     (data.aom || []).forEach(item => {
-      if (JSON.stringify(item).toLowerCase().includes(text)) rows.push({ type: 'AOM', title: item.method_name_cn || item.method_id, meta: item.objective || item.method_id, route: '/amazon-boundary/aom' });
+      if (JSON.stringify(item).toLowerCase().includes(text)) rows.push({ type: '运营方法', title: item.method_name_cn || item.method_id, meta: item.objective || item.method_id, route: '/amazon-boundary/aom' });
     });
     (data.apb || []).forEach(item => {
-      if (JSON.stringify(item).toLowerCase().includes(text)) rows.push({ type: 'APB', title: item.title_cn || item.case_id, meta: item.domain || item.case_id, route: '/amazon-boundary/apb' });
+      if (JSON.stringify(item).toLowerCase().includes(text)) rows.push({ type: '政策边界', title: item.title_cn || item.case_id, meta: item.domain || item.case_id, route: '/amazon-boundary/apb' });
     });
     return rows;
   }
@@ -317,7 +312,7 @@
     ++renderGeneration;
     setChrome('全局搜索', `搜索 / ${query}`);
     view.setAttribute('aria-busy', 'true');
-    view.innerHTML = `<div class="hero"><div><div class="hero-eyebrow">GLOBAL SEARCH</div><h2>正在搜索“${esc(query)}”</h2><p>同时检索模块、产品、APR、AOM、APB 与知识库。</p></div></div>${loadingPage()}`;
+    view.innerHTML = `<div class="hero"><div><div class="hero-eyebrow">全局搜索</div><h2>正在搜索“${esc(query)}”</h2><p>同时检索模块、产品、市场玩法、运营方法、政策边界与知识库。</p></div></div>${loadingPage()}`;
     const rows = localSearchRows(query);
     let knowledgeError = null;
     if (query.length >= 2) {
@@ -336,9 +331,9 @@
     if (ticket !== searchGeneration || search.value.trim() !== query) return;
     view.setAttribute('aria-busy', 'false');
     view.innerHTML = `
-      <div class="hero"><div><div class="hero-eyebrow">GLOBAL SEARCH</div><h2>“${esc(query)}”的搜索结果</h2><p>模块、产品、边界情报和知识库使用同一个入口；点击结果进入对应只读页面。</p></div><div class="hero-actions"><button id="search-clear" class="btn" type="button">清除搜索</button></div></div>
-      <section class="section"><div class="section-head"><div><h2>匹配结果</h2><div class="section-sub">${rows.length} 条${knowledgeError ? ' · 知识 API 本次不可用' : ''}</div></div></div>
-        <div class="card list">${rows.length ? rows.slice(0, 100).map(item => `<a class="list-item goal-card" href="#${esc(item.route)}"><div class="split-title"><div class="item-title">${esc(item.title)}</div>${tag(item.type)}</div><div class="item-meta">${esc(item.meta || '')}</div></a>`).join('') : '<div class="empty-state compact-empty"><h3>没有匹配结果</h3><p>尝试 ASIN、产品名、模块名或业务关键词。</p></div>'}</div>
+      <div class="hero"><div><div class="hero-eyebrow">全局搜索</div><h2>“${esc(query)}”的搜索结果</h2><p>模块、产品、边界情报和知识库使用同一个入口；点击结果进入对应只读页面。</p></div><div class="hero-actions"><button id="search-clear" class="btn" type="button">清除搜索</button></div></div>
+      <section class="section"><div class="section-head"><div><h2>匹配结果</h2><div class="section-sub">${rows.length} 条${knowledgeError ? ' · 知识服务本次不可用' : ''}</div></div></div>
+        <div class="card list">${rows.length ? rows.slice(0, 100).map(item => `<a class="list-item goal-card" href="#${esc(item.route)}"><div class="split-title"><div class="item-title">${esc(item.title)}</div>${tag(item.type)}</div><div class="item-meta">${esc(item.meta || '')}</div></a>`).join('') : '<div class="empty-state compact-empty"><h3>没有匹配结果</h3><p>尝试商品编号、产品名、模块名或业务关键词。</p></div>'}</div>
       </section>
       ${knowledgeError ? `<div class="notice warn section">知识库检索本次失败：${esc(knowledgeError.message)}；其他本地读模型结果仍可使用。</div>` : ''}
     `;

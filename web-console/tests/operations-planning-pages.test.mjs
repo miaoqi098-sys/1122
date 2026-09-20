@@ -8,10 +8,12 @@ import vm from 'node:vm';
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(testDirectory, '..', '..');
 const source = await readFile(new URL('../operations-planning-pages.js', import.meta.url), 'utf8');
+const uiTextSource = await readFile(new URL('../ui-text.js', import.meta.url), 'utf8');
 
 function loadRenderers() {
   const window = { __1122_PAGE_RENDERERS__: {} };
   const context = vm.createContext({ window, Intl });
+  vm.runInContext(uiTextSource, context, { filename: 'ui-text.js' });
   vm.runInContext(source, context, { filename: 'operations-planning-pages.js' });
   return window.__1122_PAGE_RENDERERS__;
 }
@@ -106,12 +108,12 @@ test('planning pages render canonical plan and Daily Brief data without treating
   assert.match(promotion.html, /&lt;Safe Product&gt;/);
   assert.doesNotMatch(promotion.html, /<Safe Product>/);
 
-  assert.deepEqual(sop.chrome[0], ['每日工作 SOP', '运营 / 每日工作 SOP']);
+  assert.deepEqual(sop.chrome[0], ['每日工作流程', '运营 / 每日工作流程']);
   assert.match(sop.html, /检查核心词样本/);
-  assert.match(sop.html, /1 条 Signal/);
-  assert.match(sop.html, /PENDING_APPROVAL/);
+  assert.match(sop.html, /1 条信号/);
+  assert.match(sop.html, /等待审批/);
   assert.match(sop.html, /今日四轮工作节奏/);
-  assert.match(sop.html, /已接入 Daily Brief 详情/);
+  assert.match(sop.html, /已接入每日简报详情/);
   assert.match(sop.html, /观察核心词/);
   assert.match(sop.html, /继续观察/);
 });
@@ -125,10 +127,10 @@ test('planning pages remain explicit about missing formal read models instead of
   const sop = await render(renderers['/operations/daily-sop'], data);
 
   assert.match(promotion.html, /计划数据待接入/);
-  assert.match(promotion.html, /PLAN NOT INGESTED/);
+  assert.doesNotMatch(promotion.html, /PLAN NOT INGESTED/);
   assert.doesNotMatch(promotion.html, /计划 PLAN-1/);
-  assert.match(sop.html, /Daily Brief 待接入/);
-  assert.match(sop.html, /不能从任务或单日指标推导 Signal/);
+  assert.match(sop.html, /每日简报待接入/);
+  assert.match(sop.html, /不能从任务或单日指标推导信号/);
   assert.doesNotMatch(sop.html, /检查核心词样本/);
 });
 
@@ -162,8 +164,8 @@ test('formal and runtime navigation register the SOP and promotion-plan pages wi
   assert.match(home, /\/operations\/daily-sop/);
   assert.match(home, /\/operations\/products\/promotion-plan/);
   assert.match(livePages, /\/operations\/products\/promotion-plan\?product_id=/);
-  assert.match(systemPages, /DailyOperatingBriefView/);
-  assert.match(systemPages, /ProductPromotionPlanView/);
+  assert.match(systemPages, /每日工作流程/);
+  assert.match(systemPages, /产品推广计划/);
 });
 
 test('planning page renderer is read-only and does not introduce a transport or write request', () => {

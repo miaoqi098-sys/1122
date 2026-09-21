@@ -15,6 +15,10 @@
     "products":{"type":"array"},
     "agents":{"type":"array"},
     "tasks":{"type":"array"},
+    "daily_operating_briefs":{
+      "type":"array",
+      "items":{"$ref":"../../运营板块/每日工作SOP/daily-ops.schema.json"}
+    },
     "sandbox_runs":{"type":"array"},
     "source_status":{"type":"object"},
     "live_data_verified":{"type":"boolean"},

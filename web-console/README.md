@@ -124,8 +124,9 @@ V2 优先读取 Data Layer 的只读 UI bootstrap，并由各只读 Bridge 独�
 - Amazon SP-API、Amazon Ads、SIF、Cloudflare 与 Email 的连接状态；
 - Amazon Ads NA Profiles，以及所选 Profile 的 Campaign / Ad Group 结构。
 - SIF 竞品关键词任务、每 10 个 ASIN 自动分批、分组内严格去重词表、10 类分类和每个关键词的来源 ASIN（使用统一登录会话）。
+- 每日工作流程的 D1 只读简报：按产品汇总当日状态、派生指标、事件、正式运营计划与既有验证结果。
 
-当前 UI bootstrap 尚未提供 `ProductPromotionPlan.v2` 或 `DailyOperatingBrief.v2` 的正式读模型。两个工作台会明确显示 `PLAN NOT INGESTED` / `NEEDS DATA`，并只呈现可验证的产品和任务事实；它们不会把单日指标、任务或 `product_daily_state.stage` 擅自解释为阶段置信度、主瓶颈、策略、Signal、根因或推荐动作。
+`DailyOperatingBrief.v2` 现在由 Data Layer 按请求生成只读视图：仅将既有事件映射为信号，并依照每日 SOP 的流量/转化/库存诊断树生成可解释的诊断任务建议；不会直接执行 Amazon 或 Ads 操作。缺少当日指标时输出 `DATA_INCOMPLETE`，缺少正式推广计划时输出 `NEEDS_PLAN`，不会擅自假定产品目标、阶段置信度或经营策略。`ProductPromotionPlan.v2` 的完整前台读模型仍待接入，页面继续明确标注其数据缺口。
 
 页面必须分别显示传输可达、连接状态、来源状态、新鲜度、语义验证和授权状态。进入 `SNAPSHOT_FALLBACK` 时，不得把仓库快照标记为实时数据。
 

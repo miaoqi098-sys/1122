@@ -1,0 +1,37 @@
+name: Verify Stage and Constraint Engine V1
+
+on:
+  pull_request:
+    paths:
+      - '运营板块/产品板块/产品推广计划/runtime/**'
+      - '数据板块/08_存储与访问层/cloudflare/a7-inventory-supply-runtime.js'
+      - '数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js'
+      - 'Agent板块/运营组/Agent-7_库存供应链智能体/事件输出/InventorySupplyEvent.schema.json'
+      - '.github/workflows/verify-stage-constraint-engine-v1.yml'
+  push:
+    branches: [main]
+    paths:
+      - '运营板块/产品板块/产品推广计划/runtime/**'
+      - '数据板块/08_存储与访问层/cloudflare/a7-inventory-supply-runtime.js'
+      - '数据板块/08_存储与访问层/cloudflare/r16-professional-agent-event-normalizer.js'
+      - 'Agent板块/运营组/Agent-7_库存供应链智能体/事件输出/InventorySupplyEvent.schema.json'
+      - '.github/workflows/verify-stage-constraint-engine-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: node --check '运营板块/产品板块/产品推广计划/runtime/stage-constraint-engine-v1.js'
+      - name: Stage and constraint engine tests
+        run: node '运营板块/产品板块/产品推广计划/runtime/stage-constraint-engine-v1.test.js'
+      - name: Agent-7 inventory event integration test
+        run: node '运营板块/产品板块/产品推广计划/runtime/stage-constraint-agent7.integration.test.mjs'

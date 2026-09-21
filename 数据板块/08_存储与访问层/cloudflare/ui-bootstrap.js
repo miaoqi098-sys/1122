@@ -1,3 +1,5 @@
+import { buildDailyOperatingBrief } from './daily-operating-brief.js';
+
 const APR_SOURCE = [
   {
     apr_id: 'APR-01-0001',
@@ -117,12 +119,86 @@ async function querySourceStatus(db) {
   return rows?.results || [];
 }
 
+async function queryDailySopReadModel(db, marketplace, products) {
+  if (!products.length) return [];
+  const [plansResult, metricsResult, eventsResult, validationsResult] = await Promise.all([
+    db.prepare(`
+      SELECT plan_id, product_id, marketplace, stage, primary_goal, strategy, constraints_json, status, updated_at
+      FROM product_operating_plans
+      WHERE marketplace = ? AND status IN ('ACTIVE', 'APPROVED', 'PAUSED')
+      ORDER BY updated_at DESC
+      LIMIT 200
+    `).bind(marketplace).all(),
+    db.prepare(`
+      SELECT product_id, business_date, metric_key, metric_value, prior_value, baseline_7d,
+             delta_pct, signal, computed_at
+      FROM product_daily_metrics
+      WHERE marketplace = ?
+      ORDER BY business_date DESC, computed_at DESC
+      LIMIT 2000
+    `).bind(marketplace).all(),
+    db.prepare(`
+      SELECT event_id, product_id, event_type, severity, evidence_json, occurred_at
+      FROM events
+      WHERE marketplace = ?
+      ORDER BY occurred_at DESC
+      LIMIT 500
+    `).bind(marketplace).all(),
+    db.prepare(`
+      SELECT v.validation_id, v.task_id, v.product_id, v.result_status, v.expected_json,
+             v.observed_json, v.validated_at, t.updated_at AS task_updated_at
+      FROM validation_results v
+      INNER JOIN tasks t ON t.task_id = v.task_id
+      WHERE t.marketplace = ?
+      ORDER BY v.validated_at DESC
+      LIMIT 300
+    `).bind(marketplace).all(),
+  ]);
+
+  const plansByProduct = new Map();
+  for (const plan of plansResult?.results || []) {
+    if (!plansByProduct.has(plan.product_id)) plansByProduct.set(plan.product_id, plan);
+  }
+  const currentDateByProduct = new Map(products.map((product) => [product.product_id, product.business_date]));
+  const metricsByProduct = new Map();
+  for (const metric of metricsResult?.results || []) {
+    if (currentDateByProduct.get(metric.product_id) !== metric.business_date) continue;
+    const rows = metricsByProduct.get(metric.product_id) || [];
+    rows.push(metric);
+    metricsByProduct.set(metric.product_id, rows);
+  }
+  const eventsByProduct = new Map();
+  for (const event of eventsResult?.results || []) {
+    const businessDate = String(event.occurred_at || '').slice(0, 10);
+    if (currentDateByProduct.get(event.product_id) !== businessDate) continue;
+    const rows = eventsByProduct.get(event.product_id) || [];
+    rows.push(event);
+    eventsByProduct.set(event.product_id, rows);
+  }
+  const validationsByProduct = new Map();
+  for (const validation of validationsResult?.results || []) {
+    const rows = validationsByProduct.get(validation.product_id) || [];
+    rows.push(validation);
+    validationsByProduct.set(validation.product_id, rows);
+  }
+
+  return products
+    .filter((product) => product.business_date)
+    .map((product) => buildDailyOperatingBrief({
+      product,
+      plan: plansByProduct.get(product.product_id) || null,
+      metrics: metricsByProduct.get(product.product_id) || [],
+      events: eventsByProduct.get(product.product_id) || [],
+      validations: validationsByProduct.get(product.product_id) || [],
+    }));
+}
+
 export async function buildUiBootstrap(env, { marketplace = 'US' } = {}) {
   const market = String(marketplace || 'US').toUpperCase();
   const base = {
     generated_at:new Date().toISOString(), marketplace:market,
     apr:APR_SOURCE, aom:AOM_SOURCE, apb:APB_SOURCE, domains:DOMAINS,
-    products:[], agents:[], tasks:[], sandbox_runs:[], source_status:{},
+    products:[], agents:[], tasks:[], sandbox_runs:[], daily_operating_briefs:[], source_status:{},
     live_data_verified:false, read_only:true, execution_authorized:false,
     production_write_authorized:false,
   };
@@ -131,7 +207,7 @@ export async function buildUiBootstrap(env, { marketplace = 'US' } = {}) {
     return {
       ...base,
       source_status:{
-        d1:'UNAVAILABLE', products:'UNAVAILABLE', agents:'UNAVAILABLE', tasks:'UNAVAILABLE',
+        d1:'UNAVAILABLE', products:'UNAVAILABLE', agents:'UNAVAILABLE', tasks:'UNAVAILABLE', daily_operating_briefs:'UNAVAILABLE',
         apr:'SOURCE_SNAPSHOT', aom:'SOURCE_SNAPSHOT', apb:'SOURCE_SNAPSHOT',
       },
     };
@@ -141,11 +217,12 @@ export async function buildUiBootstrap(env, { marketplace = 'US' } = {}) {
     const [products, agents, tasks, sources] = await Promise.all([
       queryProducts(env.CORE_DB, market), queryAgentState(env.CORE_DB), queryTasks(env.CORE_DB, market), querySourceStatus(env.CORE_DB),
     ]);
+    const dailyOperatingBriefs = await queryDailySopReadModel(env.CORE_DB, market, products);
     return {
       ...base,
-      products, agents, tasks,
+      products, agents, tasks, daily_operating_briefs:dailyOperatingBriefs,
       source_status:{
-        d1:'LIVE_D1_READ', products:'LIVE_D1_READ', agents:'LIVE_D1_READ', tasks:'LIVE_D1_READ',
+        d1:'LIVE_D1_READ', products:'LIVE_D1_READ', agents:'LIVE_D1_READ', tasks:'LIVE_D1_READ', daily_operating_briefs:'LIVE_D1_READ',
         apr:'SOURCE_SNAPSHOT', aom:'SOURCE_SNAPSHOT', apb:'SOURCE_SNAPSHOT',
         sources,
       },
@@ -156,7 +233,7 @@ export async function buildUiBootstrap(env, { marketplace = 'US' } = {}) {
     return {
       ...base,
       source_status:{
-        d1:'READ_ERROR', products:'UNAVAILABLE', agents:'UNAVAILABLE', tasks:'UNAVAILABLE',
+        d1:'READ_ERROR', products:'UNAVAILABLE', agents:'UNAVAILABLE', tasks:'UNAVAILABLE', daily_operating_briefs:'UNAVAILABLE',
         apr:'SOURCE_SNAPSHOT', aom:'SOURCE_SNAPSHOT', apb:'SOURCE_SNAPSHOT',
         error:String(error?.message || error),
       },

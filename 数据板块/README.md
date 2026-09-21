@@ -82,5 +82,23 @@ RAW        FACTS       CURRENT
  ↓          ↓          ↓
 Archive   Query       Fast UI
             ↓
-     Agent / A1 / Task / UI
+      Agent / A1 / Task / UI
 ```
+
+## 每日运营简报只读模型
+
+`DailyOperatingBrief.v2` 在 UI Bootstrap 中按请求从 D1 生成，不写回、不改变既有 Event、Task 或 ValidationResult。
+
+```text
+ProductDailyState + ProductDailyMetrics + Event
+                 + ProductOperatingPlan + ValidationResult
+                                ↓
+                     DailyOperatingBrief.v2
+                                ↓
+      信号 → 根因候选 → 诊断/观察建议 → 既有验证结果
+```
+
+- 只有已存在的 D1 Event 才能成为页面 Signal；
+- 流量、转化和库存使用每日工作 SOP 的根因树形成候选结论，并保留事件引用；
+- 缺少当日指标时状态为 `DATA_INCOMPLETE`；缺少正式运营计划时只允许健康检查与 `NEEDS_PLAN`，不得推定策略；
+- 所有建议均为只读任务建议，真实 Amazon / Ads 写入仍须经过任务、审批、权限与执行器链路。

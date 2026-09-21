@@ -58,6 +58,30 @@
       </div>`).join('')}</div>`;
   }
 
+  function briefMetricCards(metrics) {
+    const values = metrics && typeof metrics === 'object' ? metrics : {};
+    const definitions = [
+      ['sales', '销售额', value => fmtMoney(value.current)],
+      ['sessions', '访问量', value => fmtNumber(value.current)],
+      ['conversion_rate', '转化率', value => fmtPercent(value.current)],
+      ['ad_spend', '广告花费', value => fmtMoney(value.current)],
+      ['tacos', '广告费占总销售额', value => fmtPercent(value.current)],
+      ['coverage_days', '库存覆盖', value => knownNumber(value.current) ? `${fmtNumber(value.current, 1)} 天` : '—'],
+      ['contribution_profit', '贡献利润', value => fmtMoney(value.current)],
+    ];
+    return `<div class="grid grid-4 section">${definitions.map(([key, label, format]) => {
+      const value = values[key] || {};
+      const delta = knownNumber(value.delta_vs_d7) ? `较 7 日 ${fmtPercent(value.delta_vs_d7)}` : '7 日趋势待补充';
+      return `<article class="card metric-card"><div class="metric-label">${esc(label)}</div><div class="metric-value compact-value">${esc(format(value))}</div><div class="metric-meta">${esc(delta)} · ${esc(value.status || '—')}</div></article>`;
+    }).join('')}</div>`;
+  }
+
+  function briefDataSources(dataStatus) {
+    const sources = Array.isArray(dataStatus?.sources) ? dataStatus.sources : [];
+    if (!sources.length) return '<div class="item-meta">数据源状态待提供。</div>';
+    return `<div class="list">${sources.map(source => `<div class="list-item"><div class="split-title"><div class="strong">${esc(source.source || '未命名数据源')}</div>${tag(source.status || 'UNKNOWN')}</div><div class="item-meta">新鲜度：${esc(source.freshness || '—')} · 最近成功：${esc(source.last_success_at || '—')}</div>${source.notes ? `<div class="item-meta">${esc(source.notes)}</div>` : ''}</div>`).join('')}</div>`;
+  }
+
   function planDetail(product, plan) {
     const stage = plan.stage_assessment || {};
     const constraint = plan.constraint_assessment || {};
@@ -172,11 +196,13 @@
     const stageReview = brief.stage_review || {};
     return `<article class="card">
       <div class="section-head"><div><h3>${esc(brief.brief_id || '每日简报')}</h3><div class="section-sub">${esc(brief.date || '日期待提供')} · ${esc(brief.marketplace || '站点待提供')} · 数据 ${esc(statusText(dataStatus.status || 'UNKNOWN'))}</div></div>${tag(brief.overall_status || 'UNKNOWN')}</div>
+      ${briefMetricCards(brief.metrics)}
       <div class="grid grid-3">
         <div class="card subtle"><div class="item-title">策略上下文</div><div class="item-meta">${tag(context.current_stage || 'UNKNOWN')}</div><div class="item-meta">目标：${esc(context.primary_goal || '—')}</div><div class="item-meta">瓶颈：${esc(context.primary_constraint || '—')}</div><div class="item-meta">策略：${esc(context.current_strategy || '—')}</div></div>
         <div class="card subtle"><div class="item-title">今日摘要</div><div class="item-meta">焦点：${listText(brief.today_focus, '—')}</div><div class="item-meta">阻塞：${listText(brief.blocked_by, '—')}</div><div class="item-meta">避免：${listText(context.avoid_actions, '—')}</div></div>
         <div class="card subtle"><div class="item-title">阶段复核</div><div class="item-meta">升级候选：${esc(stageReview.transition_candidate || context.transition_candidate || '—')}</div><div class="item-meta">回退候选：${esc(stageReview.regression_candidate || context.regression_candidate || '—')}</div><div class="item-meta">刷新策略：${esc(stageReview.strategy_refresh_required ?? '—')}</div></div>
       </div>
+      <div class="section"><div class="item-title">数据源与新鲜度</div>${briefDataSources(dataStatus)}</div>
       <div class="grid grid-2 section">
         <div class="card subtle"><div class="item-title">信号</div><div class="list">${signals.length ? signals.map(signal => `<div class="list-item"><div class="split-title"><div class="strong">${esc(signal.signal_type || signal.signal_id || '未命名信号')}</div>${tag(signal.severity || 'UNKNOWN')}</div><div class="item-meta">${esc(signal.fact || '事实待提供')}</div><div class="item-meta">窗口：${esc(signal.evidence_window || '—')} · 证据：${listText(signal.evidence_refs, '—')}</div></div>`).join('') : '<div class="item-meta">当前简报没有信号。</div>'}</div></div>
         <div class="card subtle"><div class="item-title">根因</div><div class="list">${rootCauses.length ? rootCauses.map(assessment => `<div class="list-item"><div class="split-title"><div class="strong">${esc(assessment.primary_root_cause || assessment.signal_id || '待诊断')}</div>${tag(assessment.status || 'UNKNOWN')}</div><div class="item-meta">置信度：${fmtPercent(assessment.confidence)} · 缺失：${listText(assessment.missing_evidence, '—')}</div></div>`).join('') : '<div class="item-meta">当前简报没有根因评估。</div>'}</div></div>

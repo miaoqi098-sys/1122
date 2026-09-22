@@ -1,0 +1,37 @@
+name: real-v1-p1-ci
+
+on:
+  push:
+    branches:
+      - implementation/real-v1
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '真实实现工程/01_基础工程骨架/**'
+      - '.github/workflows/real-v1-p1-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p1-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "fastapi>=0.115,<1.0" "pydantic>=2.9,<3.0" "httpx>=0.27,<1.0" "pytest>=8.3,<9.0"
+
+      - name: Run P1 machine tests
+        run: bash "真实实现工程/01_基础工程骨架/05_测试与CI/run_p1_tests.sh"

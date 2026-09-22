@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amazon-auth-rate-limit-integration"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.9,<3.0",
+  "httpx>=0.28,<1.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3,<9.0"]
+
+[tool.pytest.ini_options]
+addopts = "-q --import-mode=importlib"
+pythonpath = [
+  "src",
+  "../01_只读Connector/src",
+  "../../../01_基础工程骨架/04_Secret引用/src",
+]
